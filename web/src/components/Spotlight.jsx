@@ -20,7 +20,7 @@ const T = tr({
     // the board
     board: 'The Spotlight board', boardSub: 'Leads the reporters are following. A scoop comes out only when one holds up.',
     lastRun: (t) => `Last look at the signals: ${t}`, never: 'The desk hasn\'t looked yet.',
-    empty: 'No leads at the moment. The detectors look at the last three weeks every hour.',
+    empty: 'No leads at the moment. Every hour the detectors look at the last three weeks; they need a few days of history to tell what is unusual.',
     off: 'Spotlight is off (config.json → "spotlight": { "enabled": false }).',
     nose: 'Strength', goal: 'goal', lastEx: (t) => `latest exhibit ${t}`,
     status: { open: 'Under investigation', review: 'On the editor\'s desk', reply: 'Waiting for your comment', writing: 'Being written', published: 'Published', cold: 'Gone cold', killed: 'Stopped' },
@@ -43,7 +43,7 @@ const T = tr({
     from: (a, b) => `Reperti dal ${a} al ${b}`, opened: (d) => `pista aperta ${d}`, detector: 'Trovata da', unverified: 'cifre non presenti nel fascicolo',
     board: 'La lavagna di Spotlight', boardSub: 'Le piste che i cronisti stanno seguendo. Un\'esclusiva esce solo quando una regge.',
     lastRun: (t) => `Ultimo sguardo ai segnali: ${t}`, never: 'La squadra non ha ancora guardato.',
-    empty: 'Nessuna pista al momento. I rilevatori guardano le ultime tre settimane ogni ora.',
+    empty: 'Nessuna pista al momento. Ogni ora i rilevatori guardano le ultime tre settimane; servono qualche giorno di storia per capire cosa è insolito.',
     off: 'Spotlight è spento (config.json → "spotlight": { "enabled": false }).',
     nose: 'Fiuto', goal: 'obiettivo', lastEx: (t) => `ultimo reperto ${t}`,
     status: { open: 'In indagine', review: 'Sul tavolo del caporedattore', reply: 'Aspetta un tuo commento', writing: 'In scrittura', published: 'Pubblicata', cold: 'Raffreddata', killed: 'Fermata' },

@@ -39,7 +39,7 @@ home page pagina login sign signin account accedi registrati welcome benvenuto o
 video videos youtube google search ricerca risultati results gmail inbox posta mail email newsletter news notizie
 http https html index untitled senza titolo nuova nuovo note nota draft bozza document documento file files download
 week settimana month mese year anno days giorni hours minutes minuti watch guarda live diretta update aggiornamento
-times volte orari guide guida
+times volte orari guide guida localhost giornale paper
 `.split(/\s+/).filter(Boolean));
 
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
@@ -184,7 +184,8 @@ export function detectCross(w) {
   for (const [n, t] of index) {
     const evs = t.events;
     const sources = new Set(evs.map((e) => e.source === 'mail' && e.kind === 'read' ? 'mail' : e.source));
-    if (sources.size < 2 || evs.length < 3 || !evs.some(ACTION)) continue;
+    // with little history there is no "usual" to compare with: ask for a third app
+    if (sources.size < (baseDays >= 2 ? 2 : 3) || evs.length < 3 || !evs.some(ACTION)) continue;
     const base = baseCount.get(n) || 0;
     // rare: it was (almost) absent before; with little history, we can't tell, and we accept it
     const perDayBefore = baseDays ? base / baseDays : 0;
@@ -263,8 +264,9 @@ export function detectObsession(w) {
     const perDayBefore = baseDays ? base / baseDays : 0;
     const perDayNow = x.evs.length / RECENT_DAYS;
     const ratio = perDayBefore ? perDayNow / perDayBefore : null;
-    if (baseDays >= 3 && ratio != null && ratio < 2.5) continue; // it was already like this
-    if (baseDays < 3 && ss.length < 5) continue; // without history, ask for more
+    // "more than usual" needs a usual: at least three days on record before
+    if (baseDays < 3) continue;
+    if (ratio != null && ratio < 2.5) continue; // it was already like this
     const pages = new Set(x.evs.map((e) => norm(e.title))).size;
     const perSession = Math.round((x.evs.length / ss.length) * 10) / 10;
     const lengths = ss.map((s) => s.at(-1).ts - s[0].ts);
@@ -287,11 +289,9 @@ export function detectObsession(w) {
         tr({ en: `Signals: ${x.evs.length}; ${perSession} per session; ${pages} different pages or titles`, it: `Segnali: ${x.evs.length}; ${String(perSession).replace('.', lang() === 'it' ? ',' : '.')} per sessione; ${pages} pagine o titoli diversi` }),
         tr({ en: `Sessions shorter than 5 minutes: ${shortSessions} of ${ss.length}`, it: `Sessioni più brevi di 5 minuti: ${shortSessions} su ${ss.length}` }),
         topHour ? tr({ en: `Most frequent hour: ${String(topHour[0]).padStart(2, '0')}:00 (${topHour[1]} sessions); after 19:00: ${evening}`, it: `Ora più frequente: le ${String(topHour[0]).padStart(2, '0')}:00 (${topHour[1]} sessioni); dopo le 19: ${evening}` }) : null,
-        baseDays >= 3
-          ? tr({ en: `Usual rate (${baseDays} days before): ${Math.round(perDayBefore * 10) / 10} a day; now: ${Math.round(perDayNow * 10) / 10} a day`, it: `Ritmo abituale (${baseDays} giorni prima): ${String(Math.round(perDayBefore * 10) / 10).replace('.', ',')} al giorno; ora: ${String(Math.round(perDayNow * 10) / 10).replace('.', ',')} al giorno` })
-          : tr({ en: 'Not enough history to compare with the usual rate', it: 'Storia insufficiente per confrontare col ritmo abituale' }),
+        tr({ en: `Usual rate (${baseDays} days before): ${Math.round(perDayBefore * 10) / 10} a day; now: ${Math.round(perDayNow * 10) / 10} a day`, it: `Ritmo abituale (${baseDays} giorni prima): ${String(Math.round(perDayBefore * 10) / 10).replace('.', ',')} al giorno; ora: ${String(Math.round(perDayNow * 10) / 10).replace('.', ',')} al giorno` }),
       ].filter(Boolean),
-      strength: Math.min(1, 0.35 + (ratio ? Math.min(0.4, (ratio - 2.5) / 10) : 0.15) + (shortSessions / ss.length) * 0.25),
+      strength: Math.min(1, 0.35 + (ratio ? Math.min(0.4, (ratio - 2.5) / 10) : 0.4) + (shortSessions / ss.length) * 0.25),
       sources: [x.evs[0].source],
     });
   }
