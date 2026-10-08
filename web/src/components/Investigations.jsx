@@ -14,6 +14,8 @@ const T = tr({
     perDay: 'Signals per day', perHour: 'At what time', timeline: 'Timeline', coverage: 'In the paper', sites: 'Where',
     back: '← All investigations', del: 'Delete', confirm: 'Sure?', period2: (a, b) => `${a} – ${b}`,
     latest: 'The investigation', read: 'Read',
+    working2: 'Being written', workingLong: 'The numbers are ready; the writer is working on the piece. With a local model it takes a few minutes (longer if an edition is being printed). You can leave this page: the investigation will be here.',
+    elapsed: (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`, failed: 'This investigation could not be finished.', retry: 'Try again', inProgress: 'being written',
   },
   it: {
     title: 'Inchieste', sub: 'Pezzi lunghi su un argomento, attraverso giorni o settimane, costruiti dall\'archivio.',
@@ -26,6 +28,8 @@ const T = tr({
     perDay: 'Segnali per giorno', perHour: 'A che ora', timeline: 'Cronologia', coverage: 'Sul giornale', sites: 'Dove',
     back: '← Tutte le inchieste', del: 'Elimina', confirm: 'Sicuro?', period2: (a, b) => `${a} – ${b}`,
     latest: 'L\'inchiesta', read: 'Leggi',
+    working2: 'In lavorazione', workingLong: 'I numeri sono pronti; il redattore sta scrivendo il pezzo. Con un modello locale ci vuole qualche minuto (di più se intanto si stampa un\'edizione). Puoi lasciare la pagina: l\'inchiesta resta qui.',
+    elapsed: (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`, failed: 'Questa inchiesta non è stata completata.', retry: 'Riprova', inProgress: 'in lavorazione',
   },
 });
 
@@ -91,8 +95,7 @@ function NewInvestigation({ onCreated }) {
           <button key={d} type="button" className={days === d ? 'on' : ''} onClick={() => setDays(d)}>{T.days(d)}</button>
         ))}
       </div>
-      <button className="btn" disabled={busy || !topic.trim()}>{busy ? '…' : T.start}</button>
-      {busy && <p className="working">{T.working}</p>}
+      <button className={`btn ${busy ? 'busy' : ''}`} disabled={busy || !topic.trim()}>{busy ? '…' : T.start}</button>
       {error && <p className="notice">{error}</p>}
       {ideas.length > 0 && (
         <div className="inv-ideas">
@@ -127,7 +130,7 @@ export function InvestigationsPage() {
             {(list || []).map((i) => (
               <li key={i.id}>
                 <a href={href.investigation(i.id)}>
-                  <span className="kicker"><span className="sec">{i.topic}</span><span className="sub"> · {T.period2(shortDate(i.from), shortDate(i.to))}</span></span>
+                  <span className="kicker"><span className="sec">{i.topic}</span><span className="sub"> · {T.period2(shortDate(i.from), shortDate(i.to))}</span>{i.status === 'working' && <span className="inv-badge"> · {T.inProgress}</span>}</span>
                   <span className="hl-md">{i.headline}</span>
                   {i.dek && <span className="dek dek-sm">{i.dek}</span>}
                 </a>
@@ -162,9 +165,24 @@ export function InvestigationPage({ id }) {
   const [inv, setInv] = useState(null);
   const [error, setError] = useState(null);
   const [armed, setArmed] = useState(false);
+  const [now, setNow] = useState(Date.now());
   useEffect(() => { api(`/investigations/${id}`).then(setInv).catch((e) => setError(e.message)); }, [id]);
+  // while the piece is being written: poll every 3 seconds, and tick the clock
+  const working = inv?.status === 'working';
+  useEffect(() => {
+    if (!working) return undefined;
+    const poll = setInterval(() => api(`/investigations/${id}`).then(setInv).catch(() => {}), 3000);
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => { clearInterval(poll); clearInterval(tick); };
+  }, [working, id]);
   if (error) return <p className="notice">{error}</p>;
   if (!inv) return null;
+
+  async function retry() {
+    const fresh = await api('/investigations', { method: 'POST', json: { topic: inv.topic, keywords: inv.keywords, days: inv.days } });
+    await api(`/investigations/${id}`, { method: 'DELETE' });
+    location.hash = href.investigation(fresh.id);
+  }
   const n = inv.numbers;
   const dayLabels = n.byDay.map((_, i) => dayKey(n.byDayFrom + i * 864e5).slice(5).replace('-', '/'));
   const hourLabels = n.byHour.map((_, i) => String(i).padStart(2, '0'));
@@ -185,7 +203,22 @@ export function InvestigationPage({ id }) {
         <div className="kicker"><span className="sec">{T.latest}</span><span className="sub"> · {inv.topic} · {T.period2(longDate(inv.from), longDate(inv.to))}</span></div>
         <h1 className="hl-story">{inv.headline}</h1>
         {inv.dek && <p className="dek dek-story">{inv.dek}</p>}
-        <div className="byline">{T.by} <strong>{T.desk}</strong><span> · {writerLabel(inv.writer)}</span><span> · {shortDate(inv.createdAt)}, {hhmm(inv.createdAt)}</span></div>
+        {inv.status === 'published' && <div className="byline">{T.by} <strong>{T.desk}</strong><span> · {writerLabel(inv.writer)}</span><span> · {shortDate(inv.createdAt)}, {hhmm(inv.createdAt)}</span></div>}
+        {working && (
+          <div className="inv-working" role="status">
+            <span className="inv-spinner" aria-hidden="true" />
+            <div>
+              <strong>{T.working2} · {T.elapsed(Math.max(0, Math.round((now - inv.createdAt) / 1000)))}</strong>
+              <p>{T.workingLong}</p>
+            </div>
+          </div>
+        )}
+        {inv.status === 'failed' && (
+          <div className="inv-working failed" role="status">
+            <div><strong>{T.failed}</strong>{inv.error && inv.error !== 'interrupted' && <p>{inv.error}</p>}</div>
+            <button className="btn btn-small" onClick={retry}>{T.retry}</button>
+          </div>
+        )}
       </header>
 
       <div className="inv-body-grid">

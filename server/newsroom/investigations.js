@@ -193,7 +193,12 @@ function typeset(topic, d, from, to) {
   };
 }
 
-export async function createInvestigation(store, config, { topic, keywords, days = 14, now = Date.now() }, log = console.log) {
+/**
+ * Open an investigation. The facts and the numbers are gathered right away (fast) and saved with
+ * status 'working'; the writing (slow with a local model) follows. With `background: true` the
+ * function returns at once and the page polls; otherwise it waits for the finished piece.
+ */
+export async function createInvestigation(store, config, { topic, keywords, days = 14, now = Date.now() }, log = console.log, { background = false } = {}) {
   const subject = String(topic || '').trim().slice(0, 80);
   if (!subject) throw new DeskError(tr({ en: 'Give the investigation a subject.', it: 'Dai un argomento all\'inchiesta.' }), 400);
   const span = Math.max(1, Math.min(90, Number(days) || 14));
@@ -201,44 +206,65 @@ export async function createInvestigation(store, config, { topic, keywords, days
   const to = now;
   const d = gather(store, { keywords: String(keywords || subject).slice(0, 120), from, to });
   const tl = timeline(d);
-  let text = null;
-  let writer = 'typesetting';
-  const llm = d.numbers.total ? await connectLLM(config) : null;
-  if (llm) {
-    try {
-      const j = parseJson(await chat(llm, config, prompt(subject, dataSheet(subject, d, tl, from, to), getLine(store)), 4000));
-      if (typeof j.headline === 'string' && Array.isArray(j.sections) && j.sections.length) {
-        text = {
-          headline: j.headline.trim().replace(/(?<!\.)\.$/, ''),
-          dek: String(j.dek || '').trim(),
-          sections: j.sections.map((s) => ({
-            heading: String(s.heading || '').trim(),
-            paragraphs: (Array.isArray(s.paragraphs) ? s.paragraphs : [s.paragraphs]).map((p) => String(p || '').trim()).filter(Boolean),
-          })).filter((s) => s.paragraphs.length),
-          findings: (Array.isArray(j.findings) ? j.findings : []).map((f) => String(f).trim()).filter(Boolean).slice(0, 3),
-        };
-        writer = llm.model;
-      }
-    } catch (e) {
-      log(tr({ en: `[investigation] the writer failed (${e.message}), typesetting takes over`, it: `[inchiesta] il redattore ha fallito (${e.message}), passa la tipografia` }));
-    }
-  }
-  text ||= typeset(subject, d, from, to);
-  const inv = {
+  const draft = store.saveInvestigation({
     topic: subject,
     keywords: String(keywords || subject),
     from, to, days: span,
     createdAt: Date.now(),
-    status: 'published',
-    writer,
-    ...text,
+    status: 'working',
+    writer: null,
+    headline: subject,
+    dek: '',
+    sections: [],
+    findings: [],
     numbers: { ...d.numbers },
     timeline: tl,
     coverage: d.coverage.slice(-20),
+  });
+
+  const write = async () => {
+    let text = null;
+    let writer = 'typesetting';
+    const llm = d.numbers.total ? await connectLLM(config) : null;
+    if (llm) {
+      try {
+        const j = parseJson(await chat(llm, config, prompt(subject, dataSheet(subject, d, tl, from, to), getLine(store)), 4000));
+        if (typeof j.headline === 'string' && Array.isArray(j.sections) && j.sections.length) {
+          text = {
+            headline: j.headline.trim().replace(/(?<!\.)\.$/, ''),
+            dek: String(j.dek || '').trim(),
+            sections: j.sections.map((x) => ({
+              heading: String(x.heading || '').trim(),
+              paragraphs: (Array.isArray(x.paragraphs) ? x.paragraphs : [x.paragraphs]).map((p) => String(p || '').trim()).filter(Boolean),
+            })).filter((x) => x.paragraphs.length),
+            findings: (Array.isArray(j.findings) ? j.findings : []).map((f) => String(f).trim()).filter(Boolean).slice(0, 3),
+          };
+          writer = llm.model;
+        }
+      } catch (e) {
+        log(tr({ en: `[investigation] the writer failed (${e.message}), typesetting takes over`, it: `[inchiesta] il redattore ha fallito (${e.message}), passa la tipografia` }));
+      }
+    }
+    text ||= typeset(subject, d, from, to);
+    if (!store.getInvestigation(draft.id)) return null; // deleted while it was being written
+    const done = store.saveInvestigation({ ...draft, ...text, writer, status: 'published', finishedAt: Date.now() });
+    log(tr({ en: `[investigation] “${done.headline}”: ${d.numbers.total} signals, writer ${writer}`, it: `[inchiesta] «${done.headline}»: ${d.numbers.total} segnali, redattore ${writer}` }));
+    return done;
   };
-  const saved = store.saveInvestigation(inv);
-  log(tr({ en: `[investigation] “${saved.headline}”: ${d.numbers.total} signals, writer ${writer}`, it: `[inchiesta] «${saved.headline}»: ${d.numbers.total} segnali, redattore ${writer}` }));
-  return saved;
+
+  if (!background) return write();
+  write().catch((e) => {
+    log(`[investigation] ${e.message}`);
+    if (store.getInvestigation(draft.id)) store.saveInvestigation({ ...draft, status: 'failed', error: e.message });
+  });
+  return draft;
+}
+
+/** After a restart, investigations left half-written can't be finished: mark them as interrupted. */
+export function interruptedInvestigations(store) {
+  for (const inv of store.investigations(200)) {
+    if (inv.status === 'working') store.saveInvestigation({ ...inv, status: 'failed', error: 'interrupted' });
+  }
 }
 
 /** Subjects worth an investigation: stories that keep coming back, and the sites of the week. */

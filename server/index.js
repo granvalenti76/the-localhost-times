@@ -20,7 +20,7 @@ import { createNotifier } from './notify.js';
 import { tr, lang, locale } from './i18n.js';
 import { rssFeed } from './feed.js';
 import { search, ask } from './newsroom/archive.js';
-import { createInvestigation, suggestions } from './newsroom/investigations.js';
+import { createInvestigation, suggestions, interruptedInvestigations } from './newsroom/investigations.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
 
@@ -45,6 +45,7 @@ if (process.env.LOCALHOST_TIMES_SERVICE === '1') {
   }, 3600e3).unref();
 }
 const store = new Store(config.dbFile);
+interruptedInvestigations(store);
 if (store.needsReindex()) {
   // first start after the archive was added: index what is already there
   store.reindex();
@@ -202,9 +203,10 @@ app.get('/api/investigations/:id', (req, res) => {
   if (!inv) return res.status(404).json({ error: tr({ en: 'Investigation not found', it: 'Inchiesta non trovata' }) });
   res.json(inv);
 });
+// returns at once (status 'working'); the page polls until the piece is written
 app.post('/api/investigations', wrap(async (req, res) => res.json(await createInvestigation(store, config, {
   topic: req.body?.topic, keywords: req.body?.keywords, days: req.body?.days,
-}, log))));
+}, log, { background: true }))));
 app.delete('/api/investigations/:id', (req, res) => {
   store.deleteInvestigation(Number(req.params.id));
   res.status(204).end();
@@ -236,8 +238,8 @@ if (fs.existsSync(dist)) {
 function listenFailed(e) {
   if (e.code === 'EADDRINUSE') {
     console.error(tr({
-      en: `Port ${config.port} is already in use: the paper is probably already running (as a service? npm run service:status). Or choose another "port" in config.json.`,
-      it: `La porta ${config.port} è già occupata: il giornale è probabilmente già in edicola (come servizio? npm run service:status). Oppure scegli un'altra "port" in config.json.`,
+      en: `Port ${config.port} is already in use: the paper is probably already running as a service (npm run service:status; stop it with npm run service:stop). Or choose another "port" in config.json.`,
+      it: `La porta ${config.port} è già occupata: il giornale è probabilmente già in edicola come servizio (npm run service:status; fermalo con npm run service:stop). Oppure scegli un'altra "port" in config.json.`,
     }));
   } else {
     console.error(e);

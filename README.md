@@ -26,6 +26,7 @@ Nothing leaves your computer. The only thing sent anywhere is the text of the st
 - [The writer: a local model](#the-writer-a-local-model)
 - [Permissions](#permissions)
 - [Run it in the background](#run-it-in-the-background)
+- [Updating](#updating)
 - [What's in the paper](#whats-in-the-paper)
 - [Privacy](#privacy)
 - [Configuration](#configuration)
@@ -110,13 +111,28 @@ Instead of keeping a Terminal window open, install the paper as a background ser
 ```bash
 npm run service:install     # builds the site, installs and starts the service
 npm run service:status      # is it running? can it read the sources?
-npm run service:logs        # follow the log
-npm run service:uninstall   # stop and remove it (your editions stay in data/)
+npm run service:restart     # rebuild and restart: after an update or a change to config.json
+npm run service:stop        # stop it (it starts again with service:start, or at the next login)
+npm run service:start       # start it again
+npm run service:logs        # follow the log (Ctrl-C to quit)
+npm run service:uninstall   # stop it and remove it for good (your editions stay in data/)
 ```
+
+While the service is running, `npm start` would find the port taken: use `service:stop` first if you want to run the paper in a Terminal window.
 
 As a service, the paper runs as `node` and not inside Terminal, so macOS asks for Full Disk Access again, **for `node` itself**. The install command prints the exact path to add, and `service:status` reminds you if a source is blocked. After a Node.js upgrade the path changes: add the new one.
 
 **Notifications.** When an edition is out you get a macOS notification with the lead headline (turn it off with `"notifications": { "enabled": false }`). Try it with `npm run notify:test`. With `brew install terminal-notifier`, clicking the notification opens the edition.
+
+## Updating
+
+```bash
+git pull
+npm install
+npm run service:restart     # if it runs as a service; otherwise stop npm start (Ctrl-C) and run it again
+```
+
+Your editions, settings and `config.json` are kept. New features that need new settings get their defaults automatically.
 
 ## What's in the paper
 
@@ -220,7 +236,9 @@ Environment variables override the file: `LOCALHOST_TIMES_LANG`, `LOCALHOST_TIME
 | `npm run print -- --hours 3` | Print the editions of the last hours now |
 | `npm run rebuild` | Wipe the paper and reprint the last 12 hours |
 | `npm run photos -- --hours 4` | Trace the photo search, page by page |
-| `npm run service:install` / `status` / `logs` / `uninstall` | Background service |
+| `npm run service:install` | Install and start the background service |
+| `npm run service:restart` / `stop` / `start` | Restart (after an update), stop, start the service |
+| `npm run service:status` / `logs` / `uninstall` | Check it, follow its log, remove it |
 | `npm run notify:test` | Send a test notification |
 | `npm run dev` | Development, with hot reload → http://localhost:5173 |
 | `npm test` | Run the tests |

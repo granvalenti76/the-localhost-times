@@ -105,7 +105,7 @@ function Ask() {
       <form onSubmit={go} className="arc-ask-row">
         <label className="sr-only" htmlFor="arc-ask">{T.ask}</label>
         <input id="arc-ask" value={q} onChange={(e) => setQ(e.target.value)} placeholder={T.askPh} />
-        <button className="btn" disabled={busy || !q.trim()}>{busy ? '…' : T.ask}</button>
+        <button className={`btn ${busy ? "busy" : ""}`} disabled={busy || !q.trim()}>{busy ? "…" : T.ask}</button>
       </form>
       {busy && <p className="working">{T.asking}</p>}
       {error && <p className="notice">{error}</p>}

@@ -130,7 +130,8 @@ button { font: inherit; color: inherit; }
   padding: 10px 16px; cursor: pointer; white-space: nowrap;
 }
 .btn:hover { background: transparent; color: var(--ink); }
-.btn:disabled { opacity: .6; cursor: progress; }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+.btn.busy { cursor: progress; }
 .btn-small { padding: 7px 12px; font-size: 12px; }
 .linkish { background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; font: inherit; }
 .notice { font: 500 13px/1.4 var(--f-sans); color: var(--accent); margin: 12px 0 0; }
@@ -819,3 +820,10 @@ a.btn-ghost { display: inline-block; }
 @media (prefers-color-scheme: dark) { .fc-verdict.v-true { color: #5cc48a; } .fc-verdict.v-mostly { color: #e0c050; } }
 .arc-filters .seg button { white-space: nowrap; padding: 7px 11px; }
 .investigation .story-top { margin-top: 16px; }
+.inv-working { display: flex; gap: 14px; align-items: flex-start; margin: 14px 0 0; padding: 14px 16px; border: 1px solid var(--rule); background: var(--card); font: 400 14px/1.45 var(--f-sans); }
+.inv-working p { margin: 4px 0 0; color: var(--ink-2); }
+.inv-working.failed { justify-content: space-between; align-items: center; border-color: var(--accent); }
+.inv-spinner { flex: none; width: 18px; height: 18px; margin-top: 1px; border: 2px solid var(--hair); border-top-color: var(--ink); border-radius: 50%; animation: inv-spin .9s linear infinite; }
+@keyframes inv-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .inv-spinner { animation-duration: 3s; } }
+.inv-badge { color: var(--accent); font-weight: 700; }

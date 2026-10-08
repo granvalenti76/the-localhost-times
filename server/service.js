@@ -3,6 +3,9 @@
  * it starts at login, restarts if it crashes, and prints every hour on its own.
  *
  *   npm run service:install     build the site, install and start the agent
+ *   npm run service:restart     rebuild the site and restart (after an update or a config change)
+ *   npm run service:stop        stop it (until service:start, or the next login)
+ *   npm run service:start       start it again
  *   npm run service:uninstall   stop it and remove the agent
  *   npm run service:status      is it running? can it read the sources?
  *   npm run service:logs        follow the log
@@ -135,8 +138,7 @@ async function install() {
       it: `C'è già qualcosa sulla porta ${config.port} (probabilmente "npm start" in un Terminale). Chiudilo e rilancia questo comando.`,
     }));
   }
-  console.log(tr({ en: '› Building the site…', it: '› Compilo il sito…' }));
-  execFileSync(path.join(ROOT, 'node_modules', '.bin', 'vite'), ['build', '--logLevel', 'warn'], { cwd: ROOT, stdio: 'inherit' });
+  buildSite();
 
   fs.mkdirSync(path.dirname(plistPath), { recursive: true });
   fs.mkdirSync(logDir, { recursive: true });
@@ -206,20 +208,77 @@ async function status() {
   if ((s.sources || []).some((x) => x.state === 'denied')) console.log(permissionsHelp());
 }
 
+async function waitUp(tries = 20) {
+  for (let i = 0; i < tries; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    if (await ping()) return true;
+  }
+  return false;
+}
+
+function notInstalled() {
+  throw new Error(tr({ en: 'The service is not installed: npm run service:install', it: 'Il servizio non è installato: npm run service:install' }));
+}
+
+function buildSite() {
+  console.log(tr({ en: '› Building the site…', it: '› Compilo il sito…' }));
+  execFileSync(path.join(ROOT, 'node_modules', '.bin', 'vite'), ['build', '--logLevel', 'warn'], { cwd: ROOT, stdio: 'inherit' });
+}
+
+async function start() {
+  if (!fs.existsSync(plistPath)) notInstalled();
+  const st = serviceState();
+  if (st.running) return console.log(tr({ en: `Already running (pid ${st.pid}).`, it: `È già in funzione (pid ${st.pid}).` }));
+  if (st.loaded) launchctl(['kickstart', target()]);
+  else {
+    launchctl(['enable', target()], { quiet: true });
+    launchctl(['bootstrap', `gui/${uid()}`, plistPath]);
+  }
+  console.log(await waitUp()
+    ? tr({ en: `✓ Started: http://localhost:${config.port}`, it: `✓ Avviato: http://localhost:${config.port}` })
+    : tr({ en: '! Not answering yet. Look at the log: npm run service:logs', it: '! Non risponde ancora. Guarda il log: npm run service:logs' }));
+}
+
+function stop() {
+  if (!fs.existsSync(plistPath)) notInstalled();
+  const st = serviceState();
+  if (!st.loaded) return console.log(tr({ en: 'The service is already stopped.', it: 'Il servizio è già fermo.' }));
+  // bootout, not kill: with KeepAlive, launchd would restart a killed process right away
+  launchctl(['bootout', target()], { quiet: true });
+  console.log(tr({
+    en: '✓ Stopped. It starts again with npm run service:start, or by itself at the next login.',
+    it: '✓ Fermato. Riparte con npm run service:start, o da solo al prossimo accesso.',
+  }));
+}
+
+async function restart() {
+  if (!fs.existsSync(plistPath)) notInstalled();
+  buildSite(); // after an update the page must be rebuilt too
+  const st = serviceState();
+  if (st.loaded) launchctl(['kickstart', '-k', target()]); // -k: kill the running one and start again
+  else {
+    launchctl(['enable', target()], { quiet: true });
+    launchctl(['bootstrap', `gui/${uid()}`, plistPath]);
+  }
+  console.log(await waitUp()
+    ? tr({ en: `✓ Restarted: http://localhost:${config.port}`, it: `✓ Riavviato: http://localhost:${config.port}` })
+    : tr({ en: '! Not answering yet. Look at the log: npm run service:logs', it: '! Non risponde ancora. Guarda il log: npm run service:logs' }));
+}
+
 function logs() {
   if (!fs.existsSync(logFile)) return console.log(tr({ en: 'No log yet.', it: 'Ancora nessun log.' }));
   spawn('/usr/bin/tail', ['-n', '60', '-f', logFile], { stdio: 'inherit' });
 }
 
 const cmd = process.argv[2];
-const run = { install, uninstall, status, logs }[cmd];
+const run = { install, uninstall, status, logs, start, stop, restart }[cmd];
 // run only as a script (not when imported by the tests); realpath copes with spaces and symlinks
 const isMain = (() => {
   try { return fs.realpathSync(process.argv[1] || '') === fs.realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
 })();
 if (isMain) {
   if (!run) {
-    console.log('Usage: node server/service.js install | uninstall | status | logs');
+    console.log('Usage: node server/service.js install | start | stop | restart | status | logs | uninstall');
     process.exit(1);
   }
   Promise.resolve(run()).catch((e) => {
