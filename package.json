@@ -1,0 +1,32 @@
+{
+  "name": "dailymac",
+  "version": "0.1.0",
+  "description": "The Daily Mac — il giornale di ciò che il tuo Mac ha fatto, un'edizione ogni ora.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,magenta \"node --disable-warning=ExperimentalWarning --watch server/index.js\" \"vite\"",
+    "build": "vite build",
+    "start": "vite build && node --disable-warning=ExperimentalWarning server/index.js",
+    "demo": "vite build && DAILYMAC_DEMO=1 node --disable-warning=ExperimentalWarning server/index.js",
+    "probe": "node --disable-warning=ExperimentalWarning server/cli.js probe",
+    "collect": "node --disable-warning=ExperimentalWarning server/cli.js collect",
+    "print": "node --disable-warning=ExperimentalWarning server/cli.js print"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@fontsource-variable/libre-franklin": "^5.2.5",
+    "@fontsource-variable/source-serif-4": "^5.2.5",
+    "@fontsource/unifrakturmaguntia": "^5.2.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.0.7"
+  }
+}

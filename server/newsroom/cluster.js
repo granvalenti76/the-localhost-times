@@ -1,0 +1,226 @@
+/**
+ * Dal flusso grezzo di eventi alle "storie": gruppi di eventi che meritano un articolo.
+ */
+import { SECTIONS } from './sections.js';
+import { hhmm } from '../util.js';
+
+const log2 = (n) => Math.log2(Math.max(1, n));
+
+const groupBy = (arr, fn) => {
+  const m = new Map();
+  for (const x of arr) {
+    const k = fn(x);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(x);
+  }
+  return m;
+};
+
+const uniqBy = (arr, fn) => {
+  const seen = new Set();
+  return arr.filter((x) => {
+    const k = fn(x);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+};
+
+export function siteOf(host = '') {
+  const p = host.split('.');
+  if (p.length <= 2) return host;
+  const sld = p[p.length - 2];
+  if (p[p.length - 1].length === 2 && ['co', 'com', 'org', 'net', 'gov', 'ac', 'edu'].includes(sld)) {
+    return p.slice(-3).join('.');
+  }
+  return p.slice(-2).join('.');
+}
+
+const cleanTitle = (t = '', site = '') =>
+  t.replace(new RegExp(`\\s*[|\\-–—·:]\\s*(${site.split('.')[0]}|${site})[^|–—]*$`, 'i'), '').trim() || t;
+
+const normSubject = (s = '') =>
+  s.replace(/^\s*((re|r|fwd?|i|inoltra|aw|wg|tr|rif)\s*(\[\d+\])?\s*:\s*)+/i, '').trim().toLowerCase();
+
+const TRIVIAL = new Set(['ls', 'cd', 'clear', 'pwd', 'exit', 'll', 'la', 'cls', 'history', 'z', 'which', 'echo', 'cat']);
+
+function story(source, kind, key, events, weight, extra = {}) {
+  return {
+    id: `${source}:${kind}:${key}`.replace(/[^\w:.-]+/g, '-').slice(0, 120),
+    source,
+    section: SECTIONS[source].name,
+    kind,
+    events,
+    weight,
+    first: events[0]?.ts,
+    last: events[events.length - 1]?.ts,
+    ...extra,
+  };
+}
+
+function safariStories(evs) {
+  const out = [];
+  const searches = evs.filter((e) => e.kind === 'search');
+  const visits = evs.filter((e) => e.kind === 'visit');
+  const uniqSearches = uniqBy(searches, (e) => e.title.toLowerCase());
+  if (uniqSearches.length) {
+    out.push(story('safari', 'searches', 'all', uniqSearches, 2.5 + log2(uniqSearches.length + 1) * 1.2, {
+      topic: uniqSearches[0].title,
+    }));
+  }
+  const small = [];
+  for (const [site, list] of groupBy(visits, (e) => siteOf(e.meta.host))) {
+    const pages = uniqBy(list, (e) => e.title);
+    if (pages.length >= 3) {
+      pages.forEach((p) => { p.clean = cleanTitle(p.title, site); });
+      out.push(story('safari', 'site', site, list, 1.5 + log2(pages.length + 1) * 1.4, {
+        topic: site, pages,
+      }));
+    } else small.push(...list);
+  }
+  const sites = [...groupBy(small, (e) => siteOf(e.meta.host)).keys()];
+  if (sites.length >= 2) {
+    out.push(story('safari', 'roundup', 'web', small, 1 + log2(sites.length + 1) * 0.6, { topic: 'rassegna', sites }));
+  } else if (small.length) {
+    out.push(story('safari', 'roundup', 'web', small, 0.6, { topic: 'rassegna', sites }));
+  }
+  return out;
+}
+
+function mailStories(evs) {
+  const out = [];
+  const rest = [];
+  for (const [subj, list] of groupBy(evs, (e) => normSubject(e.title))) {
+    const sent = list.filter((e) => e.kind === 'sent');
+    const people = [...new Set(list.map((e) => (e.kind === 'sent' ? e.meta.to?.[0] : e.meta.fromName || e.meta.from)).filter(Boolean))];
+    const allNews = list.every((e) => e.meta.newsletter);
+    if (!allNews && (list.length >= 2 || sent.length)) {
+      out.push(story('mail', 'thread', subj || 'senza-oggetto', list, (sent.length ? 4 : 3) + list.length * 0.45, {
+        topic: list[0].title, people, sentCount: sent.length,
+      }));
+    } else rest.push(...list);
+  }
+  if (rest.length) {
+    out.push(story('mail', 'inbox', 'all', rest, 1.4 + log2(rest.length) * 0.9, {
+      topic: 'posta in arrivo',
+      newsletters: rest.filter((e) => e.meta.newsletter).length,
+      unread: rest.filter((e) => e.meta.unread).length,
+    }));
+  }
+  return out;
+}
+
+function terminalStories(evs) {
+  if (!evs.length) return [];
+  const serious = evs.filter((e) => !TRIVIAL.has(e.meta.family));
+  const fam = [...groupBy(serious, (e) => e.meta.family)].map(([f, l]) => ({ family: f, count: l.length }))
+    .sort((a, b) => b.count - a.count);
+  const commits = serious
+    .filter((e) => e.meta.family === 'git commit')
+    .map((e) => {
+      const m = /-[a-z]*m\s+(?:"([^"]*)"|'([^']*)'|(\S+))/.exec(e.title);
+      return m && (m[1] ?? m[2] ?? m[3]);
+    })
+    .filter(Boolean);
+  const hosts = serious.filter((e) => e.meta.family === 'ssh').map((e) => e.title.split(/\s+/).pop());
+  const weight = serious.length ? 2 + log2(serious.length + 1) * 1.3 + commits.length * 0.6 : 0.5;
+  return [story('terminal', 'session', 'all', evs, weight, {
+    topic: fam[0]?.family || 'terminale', families: fam.slice(0, 8), commits, hosts: [...new Set(hosts)],
+    serious: serious.length,
+  })];
+}
+
+function perKey(source, kind, keyFn, baseWeight, weightFn) {
+  return (evs) => [...groupBy(evs, keyFn)].map(([k, list]) =>
+    story(source, kind, k, list, baseWeight + weightFn(list), { topic: list[0].title }));
+}
+
+const notesStories = perKey('notes', 'note', (e) => e.meta.noteId, 3,
+  (l) => l.length * 0.4 + (l.some((e) => e.kind === 'created') ? 0.8 : 0) + (l.at(-1).meta.snippet?.length > 200 ? 0.6 : 0));
+const journalStories = perKey('journal', 'entry', (e) => e.id.split(':').slice(0, 3).join(':'), 2.5,
+  (l) => (l.at(-1).meta.text ? 2.5 : 0) + Math.min(1.5, (l.at(-1).meta.words || 0) / 200));
+const podcastStories = perKey('podcasts', 'episode', (e) => e.meta.episodeId, 3,
+  (l) => Math.min(3, (l.at(-1).meta.playhead || 0) / 900));
+const bookStories = perKey('books', 'book', (e) => e.meta.assetId, 3,
+  (l) => l.filter((e) => e.kind === 'highlight').length * 0.8);
+
+const BUILDERS = {
+  safari: safariStories, mail: mailStories, terminal: terminalStories, notes: notesStories,
+  journal: journalStories, podcasts: podcastStories, books: bookStories,
+};
+
+export function buildStories(events) {
+  const out = [];
+  for (const [src, list] of groupBy(events, (e) => e.source)) {
+    if (BUILDERS[src]) out.push(...BUILDERS[src](list));
+  }
+  return out.sort((a, b) => b.weight - a.weight);
+}
+
+/** Descrizione testuale della storia per il redattore (LLM). */
+export function factSheet(s) {
+  const L = [];
+  const t = (e) => hhmm(e.ts);
+  L.push(`Sezione: ${s.section}`);
+  L.push(`Intervallo: ${hhmm(s.first)}–${hhmm(s.last)}`);
+  switch (s.kind) {
+    case 'searches':
+      L.push(`Ricerche fatte sul web (${s.events.length}):`);
+      s.events.slice(0, 30).forEach((e) => L.push(`- ${t(e)} [${e.detail}] «${e.title}»`));
+      break;
+    case 'site':
+      L.push(`Sito: ${s.topic} — ${s.events.length} visite, ${s.pages.length} pagine diverse.`);
+      s.pages.slice(0, 25).forEach((e) => L.push(`- ${t(e)} «${e.clean}»`));
+      break;
+    case 'roundup':
+      L.push(`Visite brevi su siti diversi (${s.events.length}):`);
+      uniqBy(s.events, (e) => e.title).slice(0, 20).forEach((e) => L.push(`- ${t(e)} ${e.meta.host}: «${e.title}»`));
+      break;
+    case 'thread':
+      L.push(`Conversazione email «${s.topic}» — ${s.events.length} messaggi, ${s.sentCount} inviati dal proprietario.`);
+      s.events.forEach((e) => L.push(`- ${t(e)} ${e.kind === 'sent' ? `INVIATA a ${e.meta.to?.join(', ') || '?'}` : `RICEVUTA da ${e.meta.fromName || e.meta.from}`}: «${e.title}»${e.meta.summary ? ` — ${e.meta.summary}` : ''}`));
+      break;
+    case 'inbox':
+      L.push(`Posta in arrivo: ${s.events.length} messaggi (${s.newsletters} newsletter/notifiche, ${s.unread} ancora da leggere).`);
+      s.events.slice(0, 25).forEach((e) => L.push(`- ${t(e)} da ${e.meta.fromName || e.meta.from}${e.meta.newsletter ? ' (newsletter)' : ''}: «${e.title}»`));
+      break;
+    case 'session':
+      L.push(`Comandi nel terminale: ${s.events.length} totali, ${s.serious} non banali.`);
+      if (s.families.length) L.push(`Famiglie di comandi: ${s.families.map((f) => `${f.family} ×${f.count}`).join(', ')}`);
+      if (s.commits.length) L.push(`Messaggi di commit git: ${s.commits.map((c) => `«${c}»`).join('; ')}`);
+      if (s.hosts.length) L.push(`Connessioni ssh verso: ${s.hosts.join(', ')}`);
+      L.push('Alcuni comandi:');
+      s.events.filter((e) => !TRIVIAL.has(e.meta.family)).slice(-25).forEach((e) => L.push(`- ${e.meta.timed ? t(e) : '~'} $ ${e.title.slice(0, 160)}`));
+      break;
+    case 'note': {
+      const last = s.events.at(-1);
+      L.push(`Nota «${last.title}»${last.meta.folder ? ` nella cartella «${last.meta.folder}»` : ''}: ${s.events.some((e) => e.kind === 'created') ? 'creata' : 'modificata'} (${s.events.length} salvataggi).`);
+      if (last.meta.locked) L.push('La nota è protetta da password: contenuto non disponibile.');
+      if (last.meta.snippet) L.push(`Estratto: «${last.meta.snippet}»`);
+      break;
+    }
+    case 'entry': {
+      const e = s.events.at(-1);
+      L.push(`Nuova voce nel diario personale (app Journal) alle ${t(e)}.${e.title ? ` Titolo: «${e.title}».` : ''}${e.meta.words ? ` Circa ${e.meta.words} parole.` : ''}`);
+      L.push(e.meta.text ? `Testo: «${e.meta.text}»` : 'Il contenuto è riservato: non citarlo e non inventarlo, rispetta la riservatezza.');
+      break;
+    }
+    case 'episode': {
+      const e = s.events.at(-1);
+      const m = e.meta;
+      L.push(`Podcast «${m.show || '?'}»${m.author ? ` (${m.author})` : ''}, episodio «${e.title}».`);
+      if (m.duration) L.push(`Durata ${Math.round(m.duration / 60)} min; ascoltato fino al minuto ${Math.round((m.playhead || 0) / 60)}.`);
+      if (m.description) L.push(`Descrizione dell'episodio: ${m.description}`);
+      break;
+    }
+    case 'book': {
+      const e = s.events[0];
+      const opened = s.events.filter((x) => x.kind === 'opened').at(-1);
+      L.push(`Libro «${e.title}»${e.meta.author ? ` di ${e.meta.author}` : ''}.`);
+      if (opened?.meta.progress != null) L.push(`Avanzamento lettura: ${Math.round(opened.meta.progress * 100)}%.`);
+      s.events.filter((x) => x.kind === 'highlight').forEach((h) => L.push(`- Evidenziato alle ${t(h)}: «${h.meta.text}»${h.meta.note ? ` (nota: ${h.meta.note})` : ''}`));
+      break;
+    }
+  }
+  return L.join('\n');
+}

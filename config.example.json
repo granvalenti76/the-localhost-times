@@ -1,0 +1,33 @@
+{
+  "port": 4321,
+  "llm": {
+    "baseUrl": "http://192.168.1.20:8080/v1",
+    "model": "",
+    "apiKey": "",
+    "timeoutMs": 180000,
+    "concurrency": 2,
+    "temperature": 0.7
+  },
+  "collectEveryMinutes": 5,
+  "backfillHours": 12,
+  "sources": {
+    "safari": true,
+    "mail": true,
+    "terminal": true,
+    "notes": true,
+    "journal": true,
+    "podcasts": true,
+    "books": true
+  },
+  "privacy": {
+    "blockedDomains": [],
+    "blockedMailSenders": [],
+    "blockedNoteFolders": [],
+    "mailIncludeSummary": false,
+    "notesIncludeSnippet": true,
+    "journalIncludeText": false
+  },
+  "edition": {
+    "maxArticles": 9
+  }
+}
