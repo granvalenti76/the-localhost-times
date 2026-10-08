@@ -130,3 +130,11 @@ export function readingTime(a) {
   const min = Math.max(1, Math.round(words / tr({ en: 230, it: 200 })));
   return tr({ en: `${min} min read`, it: `${min} min di lettura` });
 }
+
+
+/** Names of the house styles (the server has the full descriptions). */
+const STYLE_NAMES = {
+  en: { daily: 'Daily paper', magazine: 'Literary magazine', essay: 'Essay', tech: 'Tech news', newsletter: 'Newsletter', explainer: 'Explainer', economist: 'The Economist', noir: 'Noir' },
+  it: { daily: 'Quotidiano', magazine: 'Magazine letterario', essay: 'Saggio', tech: 'Tech news', newsletter: 'Newsletter', explainer: 'Spiegone', economist: 'The Economist', noir: 'Noir' },
+};
+export const styleName = (id) => tr(STYLE_NAMES)[id || 'daily'] || '';

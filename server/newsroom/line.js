@@ -2,6 +2,7 @@
  * The editorial line: chosen by the editor-in-chief (you) in the Newsroom.
  * Stored in the database, read at every edition.
  */
+import { isStyle } from './styles.js';
 import { L, tr } from '../i18n.js';
 import { DEFAULT_DESKS, WRITER_IDS } from './writers.js';
 
@@ -91,9 +92,9 @@ export function saveLine(store, patch) {
   for (const id of Object.keys(next.staff)) {
     if (!WRITER_IDS.includes(id)) { delete next.staff[id]; continue; }
     const w = next.staff[id] || {};
-    next.staff[id] = Object.fromEntries(['name', 'role', 'style']
+    next.staff[id] = Object.fromEntries(['name', 'role', 'style', 'house']
       .map((k) => [k, String(w[k] ?? '').trim().slice(0, k === 'style' ? 400 : 60)])
-      .filter(([, v]) => v));
+      .filter(([k, v]) => v && (k !== 'house' || isStyle(v))));
   }
   for (const [k, v] of Object.entries(next.sectionWeights)) {
     next.sectionWeights[k] = Math.max(0, Math.min(3, Number(v) || 0));

@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, href, hhmm, dayKey, longDate, SECTIONS, writerLabel, edHour, edSince, readingTime } from '../lib.js';
+import { api, href, hhmm, dayKey, longDate, SECTIONS, writerLabel, edHour, edSince, readingTime, styleName } from '../lib.js';
 import Meeting from './Meeting.jsx';
 import DeskCartoon from './DeskCartoon.jsx';
 import FactCheck from './FactCheck.jsx';
 import NextEdition from './NextEdition.jsx';
 import { tr } from '../i18n.js';
+import Para from './Para.jsx';
 
 const T = tr({
   en: {
@@ -33,7 +34,7 @@ const T = tr({
     reprintTitle: 'Rewrites the whole edition with the current editorial line.', reprintingLong: 'Reprinting… (a few minutes)',
     confirm: 'Sure? You lose the manual edits', reprint: 'Reprint', brief: 'The Brief', spiked: 'Spiked', restore: 'Restore',
     panels: 'Newsroom panels', meeting: 'Meeting', line: 'Editorial line', nextTab: 'Next edition',
-    staffTitle: 'The bylines', desksTitle: 'Who writes what', unsigned: 'Unsigned (the newsroom)', briefDesk: 'The Brief and the editorial', wName: 'Name', wRole: 'Role', wStyle: 'Style (how they write)', staffHint: 'Invented writers: the same model plays a different character for each.', openEdition: 'Open an edition to discuss it.',
+    staffTitle: 'The bylines', desksTitle: 'Who writes what', unsigned: 'Unsigned (the newsroom)', briefDesk: 'The Brief and the editorial', wName: 'Name', wRole: 'Role', wStyle: 'Voice (how they write)', wHouse: 'House style', staffHint: 'Invented writers: the same model plays a different character for each.', openEdition: 'Open an edition to discuss it.',
   },
   it: {
     quick: ['Più corto', 'Più ironico', 'Più serio', 'Titolo migliore', 'Solo i fatti'],
@@ -61,7 +62,7 @@ const T = tr({
     reprintTitle: 'Riscrive tutta l\'edizione con la linea editoriale attuale.', reprintingLong: 'Ristampo… (qualche minuto)',
     confirm: 'Confermi? Perdi le modifiche a mano', reprint: 'Ristampa', brief: 'Il punto', spiked: 'Cestino', restore: 'Ripristina',
     panels: 'Pannelli della redazione', meeting: 'Riunione', line: 'Linea editoriale', nextTab: 'Prossima',
-    staffTitle: 'Le firme', desksTitle: 'Chi scrive cosa', unsigned: 'Senza firma (la redazione)', briefDesk: 'Il Punto e l\'editoriale', wName: 'Nome', wRole: 'Ruolo', wStyle: 'Stile (come scrive)', staffHint: 'Redattori inventati: lo stesso modello interpreta un personaggio diverso per ciascuno.', openEdition: 'Apri un\'edizione per discuterne.',
+    staffTitle: 'Le firme', desksTitle: 'Chi scrive cosa', unsigned: 'Senza firma (la redazione)', briefDesk: 'Il Punto e l\'editoriale', wName: 'Nome', wRole: 'Ruolo', wStyle: 'Carattere (come scrive)', wHouse: 'Stile', staffHint: 'Redattori inventati: lo stesso modello interpreta un personaggio diverso per ciascuno.', openEdition: 'Apri un\'edizione per discuterne.',
   },
 });
 // tone names, also for ids stored by older editions
@@ -88,6 +89,7 @@ function LinePanel({ onSaved }) {
   // the staff as shown: defaults with the editor's edits on top
   const people = meta?.staff ? Object.values(meta.staff).map((w) => ({ ...w, ...(line?.staff?.[w.id] || {}) })) : [];
   const setPerson = (id, k, v) => setLine((l) => ({ ...l, staff: { ...l.staff, [id]: { ...(l.staff?.[id] || {}), [k]: v } } }));
+  const styleLabel = (id) => meta?.styles?.find((s) => s.id === (id || 'daily'))?.label || '';
   const setDesk = (k, v) => setLine((l) => ({ ...l, desks: { ...l.desks, [k]: v } }));
 
   if (!line) return <div className="line-panel" />;
@@ -173,7 +175,13 @@ function LinePanel({ onSaved }) {
         <p className="hint-small">{T.staffHint}</p>
         {people.map((w) => (
           <details key={w.id} className="person">
-            <summary><strong>{w.name}</strong> · {w.role}</summary>
+            <summary><strong>{w.name}</strong> · {w.role} · <em>{styleLabel(w.house)}</em></summary>
+            <label className="lbl">{T.wHouse}
+              <select value={w.house || 'daily'} onChange={(e) => setPerson(w.id, 'house', e.target.value)}>
+                {(meta.styles || []).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+              <span className="hint-small">{meta.styles?.find((s) => s.id === (w.house || 'daily'))?.hint}</span>
+            </label>
             <label className="lbl">{T.wName}<input value={w.name} onChange={(e) => setPerson(w.id, 'name', e.target.value)} /></label>
             <label className="lbl">{T.wRole}<input value={w.role} onChange={(e) => setPerson(w.id, 'role', e.target.value)} /></label>
             <label className="lbl">{T.wStyle}<textarea rows={3} value={w.style} onChange={(e) => setPerson(w.id, 'style', e.target.value)} /></label>
@@ -260,7 +268,7 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
         <div className="draft-tags">
           <span className="sec">{a.section}</span>
           <span className="tag">{T.size[OLD_SIZE[a.size] || a.size] || a.size || '—'}</span>
-          <span className="tag">{a.byline ? `${a.byline.name} · ` : ''}{writerLabel(a.writer)}</span>
+          <span className="tag">{a.byline ? `${a.byline.name} · ${styleName(a.byline.house)} · ` : ''}{writerLabel(a.writer)}</span>
           {a.rewrittenWith && <span className="tag">{T.rewritten}: «{a.rewrittenWith}»</span>}
           <span className="tag">{a.sources.length} {a.sources.length === 1 ? T.source : T.sources}</span>
           <span className="tag" title={a.expanded ? tr({ en: 'The first draft was too short: the writer expanded it.', it: 'La prima bozza era troppo corta: la firma l\'ha allungata.' }) : undefined}>{a.body.join(' ').split(/\s+/).filter(Boolean).length} {tr({ en: 'words', it: 'parole' })} · {readingTime(a)}{a.expanded ? ' ↥' : ''}</span>
@@ -297,7 +305,7 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
               </div>
               {a.image && <img className="draft-thumb" src={a.image.src} alt="" loading="lazy" />}
             </div>
-            {open && <div className="draft-text">{a.body.map((p, k) => <p key={k}>{p}</p>)}</div>}
+            {open && <div className="draft-text">{a.body.map((p, k) => <Para key={k} a={a} p={p} />)}</div>}
 
             {mode === 'rewrite' && (
               <div className="rewrite">

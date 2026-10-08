@@ -1,5 +1,6 @@
 import React from 'react';
 import { href, hhmm, SECTIONS, episodeLabel, readingTime } from '../lib.js';
+import Para from './Para.jsx';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
 import Market from './Market.jsx';
@@ -86,7 +87,7 @@ export default function FrontPage({ edition }) {
                 <div className="lead-split">
                   <Photo image={lead.image} size="md" />
                   <div className="lead-body">
-                    {leadParas.map((p, i) => <p key={i} className={i === 0 && p.length > 120 ? 'dropcap' : ''}>{p}</p>)}
+                    {leadParas.map((p, i) => <Para key={i} a={lead} p={p} className={i === 0 && p.length > 120 ? 'dropcap' : ''} />)}
                     <a className="more" href={link(lead)}>{tr({ en: 'Continue reading', it: 'Continua a leggere' })} →</a>
                   </div>
                 </div>
@@ -108,7 +109,7 @@ export default function FrontPage({ edition }) {
                   <Kicker a={a} />
                   <h2 className="hl-lg"><a href={link(a)}>{a.headline}</a></h2>
                   {a.dek && <p className="dek">{a.dek}</p>}
-                  <p className="excerpt">{a.body[0]}</p>
+                  <Para a={a} p={a.body[0]} className="excerpt" />
                   <Meta a={a} />
                 </article>
               ))}

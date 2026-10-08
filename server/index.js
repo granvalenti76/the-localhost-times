@@ -18,6 +18,7 @@ import { publishEvening, editEveningCartoon } from './newsroom/evening.js';
 import { SCENES } from './newsroom/scenes.js';
 import { createNotifier } from './notify.js';
 import { staff } from './newsroom/writers.js';
+import { styleList } from './newsroom/styles.js';
 import { menubarText } from './menubar.js';
 import { radioFeed, radioDir } from './newsroom/radio.js';
 import { tr, lang, locale } from './i18n.js';
@@ -129,7 +130,7 @@ app.post('/api/print', wrap(async (req, res) => {
 }));
 
 // ── The Newsroom ──
-app.get('/api/line', (req, res) => { const line = getLine(store); res.json({ line, tones: TONES, lengths: LENGTHS, weights: WEIGHTS, staff: staff(line) }); });
+app.get('/api/line', (req, res) => { const line = getLine(store); res.json({ line, tones: TONES, lengths: LENGTHS, weights: WEIGHTS, staff: staff(line), styles: styleList() }); });
 app.put('/api/line', (req, res) => { const line = saveLine(store, req.body || {}); res.json({ line, staff: staff(line) }); });
 app.get('/api/drafts', (req, res) => res.json(store.drafts()));
 

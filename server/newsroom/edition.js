@@ -73,8 +73,8 @@ async function ensureLength(text, msgs, story, size, ctx) {
 async function writeArticle(story, rank, ctx) {
   const { llm, config, hourLabel, log, line } = ctx;
   let text = null;
-  const size = sizeOf(story, rank, line);
   const writer = writerFor(line, story.source); // the byline of the section
+  const size = sizeOf(story, rank, line, writer);
   if (llm) {
     try {
       const facts = factSheet(story) + seriesFacts(story.series, Date.now());
@@ -411,9 +411,9 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   const ctx = await ctxFor(store, config, ed, log);
   const story = buildStories(cleanEvents(store.eventsBetween(ed.start, ed.end), config)).find((s) => s.id === aid);
   if (!story) throw new DeskError(tr({ en: 'The facts behind this article are no longer available.', it: 'Non trovo più i fatti di questo articolo.' }), 409);
-  const size = sizeOf(story, i, ctx.line);
   story.series = prev.series || null;
   const writer = writerFor(ctx.line, story.source);
+  const size = sizeOf(story, i, ctx.line, writer);
   const msgs = rewritePrompt(story, factSheet(story) + seriesFacts(story.series, Date.now()), ctx.hourLabel, size, ctx.line, prev, instruction, writer);
   const raw = await chat(ctx.llm, config, msgs, maxTokensFor(size));
   let text;

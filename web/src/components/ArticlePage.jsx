@@ -1,5 +1,6 @@
 import React from 'react';
 import { href, hhmm, writerLabel, edHour, shortDate, episodeLabel, readingTime } from '../lib.js';
+import Para from './Para.jsx';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
 
@@ -38,7 +39,7 @@ export default function ArticlePage({ edition, article: a }) {
         </div>
         <Photo image={a.image} size="lg" />
         <div className="story-body">
-          {a.body.map((p, i) => <p key={i} className={i === 0 && p.length > 160 ? 'dropcap' : ''}>{p}</p>)}
+          {a.body.map((p, i) => <Para key={i} a={a} p={p} className={i === 0 && p.length > 160 ? 'dropcap' : ''} />)}
         </div>
 
         {a.series && (

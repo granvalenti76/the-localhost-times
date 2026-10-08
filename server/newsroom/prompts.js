@@ -2,6 +2,7 @@ import { sceneMenu } from './scenes.js';
 import { linePrompt, LENGTHS, toneId } from './line.js';
 import { L, tr } from '../i18n.js';
 import { personaPrompt } from './writers.js';
+import { styleOf } from './styles.js';
 
 const SYSTEM_EN = `You are a reporter for The Localhost Times, a daily paper that tells what happened on a MacBook in the last hour. The style is that of a good newspaper: dry, precise, with light, understated irony. Never emphatic.
 
@@ -117,15 +118,16 @@ const format = (id, a, b, f, paras) => {
 };
 
 /** Article format based on the story's weight (and the length chosen by the editors). */
-export function sizeOf(story, rank, line) {
+export function sizeOf(story, rank, line, writer = null) {
   const id = LENGTHS[line?.length] ? line.length : 'standard';
-  const f = LENGTHS[id].factor;
+  const st = writer ? styleOf(writer) : null;
+  const f = LENGTHS[id].factor * (st?.factor || 1);
   const t = THRESHOLDS[id] || THRESHOLDS.standard;
   const n = story.events.length;
-  if (rank === 0 && n >= t.lead) return format('lead', 150, 220, f, f < 1 ? '2' : f > 1 ? '4' : '3');
+  if (rank === 0 && n >= t.lead) return format('lead', 150, 220, f, st?.labeled ? '5' : f < 1 ? '2' : f > 1 ? '4' : '3');
   // the top of the page is never a brief, unless the story is only a couple of signals
-  if (n >= t.article || story.weight >= t.weight || (rank === 0 && n >= 3)) return format('article', 90, 150, f, f > 1 ? '3' : '2');
-  return format('brief', 35, 70, f, '1');
+  if (n >= t.article || story.weight >= t.weight || (rank === 0 && n >= 3)) return format('article', 90, 150, f, st?.labeled ? '4' : f > 1 ? '3' : '2');
+  return format('brief', 35, 70, f, st?.labeled ? '2' : '1');
 }
 
 /** Words in an article's body. */
@@ -189,7 +191,7 @@ export function rewritePrompt(story, facts, hourLabel, size, line, previous, ins
 
 export function summaryPrompt(articles, total, hourLabel, line, writer = null) {
   const lines = articles.map((a) => `- [${a.section}] ${a.headline}`).join('\n');
-  const extra = (line ? '\n' + linePrompt(line) : '') + personaPrompt(writer);
+  const extra = (line ? '\n' + linePrompt(line) : '') + personaPrompt(writer, 'brief');
   return [
     {
       role: 'system',
@@ -263,7 +265,7 @@ export function eveningPrompt({ top, timeline, stats, market, line, writer = nul
   const mk = market?.rows?.slice(0, 6).map((r) => (en
     ? `${r.ticker} (${r.site}) ${r.close} visits${r.change == null ? ', new since yesterday' : `, ${pct(r.change)} on yesterday`}`
     : `${r.ticker} (${r.site}) ${r.close} visite${r.change == null ? ', nuovo rispetto a ieri' : `, ${pct(r.change)} su ieri`}`)).join('; ');
-  const extra = (line ? '\n' + linePrompt(line) : '') + personaPrompt(writer);
+  const extra = (line ? '\n' + linePrompt(line) : '') + personaPrompt(writer, 'editorial');
   const busiest = `${String(stats.busiestHour).padStart(2, '0')}:00`;
   return [
     {
