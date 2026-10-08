@@ -1,14 +1,15 @@
 /**
- * Le storie che continuano: un tema già comparso nelle edizioni recenti (stesso sito,
- * stessa conversazione, stessa nota, stesso libro…) diventa una serie a puntate.
+ * Continuing stories: a topic that already appeared in recent editions (same site,
+ * same conversation, same note, same book…) becomes a serialised story.
  */
 import { hhmm, dayKey } from '../util.js';
+import { tr, locale } from '../i18n.js';
 
 const DAY = 24 * 3600e3;
-// temi troppo generici per farne una serie
+// topics too generic to make a series of
 const NOT_SERIAL = new Set(['roundup', 'searches', 'inbox', 'session', 'webmail']);
 
-/** Puntate precedenti delle storie, cercate nelle edizioni degli ultimi `days` giorni. */
+/** Previous instalments of stories, looked up in the editions of the last `days` days. */
 export function findSeries(store, stories, { before, excludeId, days = 7 } = {}) {
   const wanted = new Set(stories.filter((s) => !NOT_SERIAL.has(s.kind)).map((s) => s.id));
   if (!wanted.size) return new Map();
@@ -34,20 +35,24 @@ export function seriesInfo(previous) {
     episode: previous.length + 1,
     days: days.size,
     since: previous[0].hour,
-    previous: previous.slice(-4).reverse(), // le più recenti prima
+    previous: previous.slice(-4).reverse(), // most recent first
   };
 }
 
 const when = (ms, now) => {
   const d = dayKey(ms);
-  if (d === dayKey(now)) return `oggi alle ${hhmm(ms)}`;
-  if (d === dayKey(now - DAY)) return `ieri alle ${hhmm(ms)}`;
-  return `${new Intl.DateTimeFormat('it-IT', { weekday: 'long' }).format(ms)} alle ${hhmm(ms)}`;
+  const at = tr({ en: 'at', it: 'alle' });
+  if (d === dayKey(now)) return `${tr({ en: 'today', it: 'oggi' })} ${at} ${hhmm(ms)}`;
+  if (d === dayKey(now - DAY)) return `${tr({ en: 'yesterday', it: 'ieri' })} ${at} ${hhmm(ms)}`;
+  return `${new Intl.DateTimeFormat(locale(), { weekday: 'long' }).format(ms)} ${at} ${hhmm(ms)}`;
 };
 
-/** Righe da aggiungere ai fatti per il redattore. */
+/** Lines to add to the facts for the writer. */
 export function seriesFacts(series, now) {
   if (!series) return '';
-  const lines = series.previous.map((p) => `- ${when(p.hour, now)}: «${p.headline}»${p.dek ? ` — ${p.dek}` : ''}`);
-  return `\nSTORIA CHE CONTINUA: è la ${series.episode}ª puntata${series.days > 1 ? `, in ${series.days} giorni diversi` : ''}. Puntate precedenti:\n${lines.join('\n')}`;
+  const en = tr({ en: true, it: false });
+  const lines = series.previous.map((p) => `- ${when(p.hour, now)}: ${en ? `“${p.headline}”` : `«${p.headline}»`}${p.dek ? ` — ${p.dek}` : ''}`);
+  return en
+    ? `\nCONTINUING STORY: this is instalment no. ${series.episode}${series.days > 1 ? `, over ${series.days} different days` : ''}. Previous instalments:\n${lines.join('\n')}`
+    : `\nSTORIA CHE CONTINUA: è la ${series.episode}ª puntata${series.days > 1 ? `, in ${series.days} giorni diversi` : ''}. Puntate precedenti:\n${lines.join('\n')}`;
 }

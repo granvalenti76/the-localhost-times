@@ -52,7 +52,7 @@ button { font: inherit; color: inherit; }
   padding: 0 24px 48px;
 }
 
-/* ───────── Testata ───────── */
+/* ───────── Masthead ───────── */
 .mast { padding-top: 18px; }
 .mast-head {
   display: grid; grid-template-columns: minmax(150px, 1fr) auto minmax(150px, 1fr); align-items: end; gap: 20px;
@@ -94,7 +94,7 @@ button { font: inherit; color: inherit; }
 .sections a:hover { text-decoration: none; border-bottom-color: var(--hair); }
 .sections a.dim { color: var(--muted); }
 
-/* ───────── Linea del tempo ───────── */
+/* ───────── Timeline ───────── */
 .edbar {
   display: flex; align-items: center; gap: 16px;
   padding: 10px 0;
@@ -135,7 +135,7 @@ button { font: inherit; color: inherit; }
 .linkish { background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; font: inherit; }
 .notice { font: 500 13px/1.4 var(--f-sans); color: var(--accent); margin: 12px 0 0; }
 
-/* ───────── Tipografia degli articoli ───────── */
+/* ───────── Article typography ───────── */
 .kicker { font: 700 11.5px/1.2 var(--f-sans); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
 .kicker .sec { color: var(--accent); }
 .kicker .sub { color: var(--muted); font-weight: 600; text-transform: none; letter-spacing: .01em; }
@@ -172,7 +172,7 @@ button { font: inherit; color: inherit; }
   border-top: 1px solid var(--rule); padding-top: 9px; margin: 0 0 12px;
 }
 
-/* ───────── Prima pagina ───────── */
+/* ───────── Front page ───────── */
 .front-top {
   display: grid; grid-template-columns: minmax(0, 2.25fr) minmax(0, 1fr);
   padding: 22px 0 26px;
@@ -188,7 +188,7 @@ button { font: inherit; color: inherit; }
 .lead-split .photo { margin: 0; }
 .lead-split .lead-body { margin-top: 0; }
 
-/* ───────── La vignetta ───────── */
+/* ───────── The cartoon ───────── */
 .cartoon { margin: 0; border: 1px solid var(--rule); background: var(--card, #fff); padding: 14px 14px 12px; color: var(--ink); }
 .cartoon svg { display: block; width: 100%; height: auto; }
 .cartoon figcaption { margin-top: 8px; text-align: center; font: italic 400 15.5px/1.32 var(--f-display); text-wrap: balance; }
@@ -225,7 +225,7 @@ button { font: inherit; color: inherit; }
 .briefs li { break-inside: avoid; padding: 0 0 10px; font-size: 15.5px; line-height: 1.4; }
 .briefs .sec { font: 700 10.5px/1 var(--f-sans); letter-spacing: .07em; text-transform: uppercase; color: var(--accent); margin-right: 6px; }
 
-/* ───────── Articolo ───────── */
+/* ───────── Article ───────── */
 .story-wrap { max-width: 700px; margin: 0 auto; padding: 26px 0 0; }
 .back { font: 600 12.5px/1 var(--f-sans); color: var(--muted); display: inline-block; margin-bottom: 26px; }
 .story .kicker a.sec { color: var(--accent); }
@@ -251,7 +251,7 @@ button { font: inherit; color: inherit; }
 .also-item:hover { text-decoration: none; }
 .also-item:hover .hl-sm { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 
-/* ───────── Sezione ───────── */
+/* ───────── Section ───────── */
 .section-page { max-width: 820px; margin: 0 auto; padding-top: 26px; }
 .section-head { text-align: center; border-bottom: 1px solid var(--rule); padding-bottom: 16px; margin-bottom: 8px; }
 .section-head h2 { font: 700 46px/1 var(--f-display); margin: 0 0 8px; letter-spacing: -.02em; }
@@ -260,7 +260,7 @@ button { font: inherit; color: inherit; }
 .section-list li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--hair); }
 .section-list time { font: 700 13px/1.6 var(--f-sans); font-variant-numeric: tabular-nums; }
 
-/* ───────── Vuoto ───────── */
+/* ───────── Empty state ───────── */
 .empty { text-align: center; padding: 72px 0 56px; }
 .empty-title { font: italic 600 34px/1.1 var(--f-display); margin: 0 0 12px; }
 .empty-text { font-size: 17px; color: var(--ink-2); max-width: 520px; margin: 0 auto 22px; line-height: 1.5; }
@@ -329,7 +329,7 @@ button { font: inherit; color: inherit; }
   .section-list li { grid-template-columns: 48px minmax(0, 1fr); gap: 10px; }
 }
 
-/* ───────── Foto ───────── */
+/* ───────── Photo ───────── */
 .photo { margin: 14px 0 16px; }
 .photo-frame { background: var(--chip); overflow: hidden; }
 .photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -345,7 +345,7 @@ button { font: inherit; color: inherit; }
 .photo .credit { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .story .photo { margin: 6px 0 26px; }
 
-/* ───────── Borsa dei siti ───────── */
+/* ───────── Site market ───────── */
 .market { --up: #1d7a46; --down: #b3261e; }
 @media (prefers-color-scheme: dark) { .market { --up: #5cc48a; --down: #f0857e; } }
 .mkt-index {
@@ -377,7 +377,7 @@ button { font: inherit; color: inherit; }
 .mkt-comment { font: italic 400 15px/1.4 var(--f-display); margin: 12px 0 6px; text-wrap: pretty; }
 .mkt-note { font: 400 11px/1.35 var(--f-sans); color: var(--muted); margin: 0; }
 
-/* ───────── Menu: Redazione ───────── */
+/* ───────── Menu: Newsroom ───────── */
 .sections .desk-link { margin-left: 8px; padding-left: 22px; border-left: 1px solid var(--hair); border-bottom-color: transparent; font-weight: 700; }
 .sections .desk-link.on { border-bottom-color: transparent; color: var(--accent); }
 .badge {
@@ -386,7 +386,7 @@ button { font: inherit; color: inherit; }
 }
 .story-top { display: flex; justify-content: space-between; gap: 12px; }
 
-/* ───────── La Redazione ───────── */
+/* ───────── The Newsroom ───────── */
 .desk { padding-top: 26px; }
 .desk-head { border-bottom: 1px solid var(--rule); padding-bottom: 14px; margin-bottom: 22px; }
 .desk-head h2 { font: 700 40px/1 var(--f-display); margin: 0 0 6px; letter-spacing: -.02em; }
@@ -479,7 +479,7 @@ a.btn-ghost { display: inline-block; }
 .spiked-row .sec { font: 700 10.5px/1 var(--f-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .spiked-row .t { font-size: 15px; color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 
-/* Linea editoriale */
+/* Editorial line */
 .desk-side { padding-left: 28px; position: sticky; top: 12px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; min-width: 0; }
 .line-panel { overflow-y: auto; padding-right: 4px; }
 .side-tabs { display: flex; border-bottom: 1px solid var(--rule); margin-bottom: 14px; }
@@ -490,7 +490,7 @@ a.btn-ghost { display: inline-block; }
 .side-tabs button.on { color: var(--ink); border-bottom-color: var(--ink); }
 .side-tabs button:hover { color: var(--ink); }
 
-/* Riunione */
+/* Meeting */
 .meeting { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .meeting-log { overflow-y: auto; flex: 1; min-height: 220px; max-height: calc(100vh - 330px); padding-right: 4px; }
 .meeting-empty p { font: italic 400 15px/1.45 var(--f-display); margin: 0 0 12px; color: var(--ink-2); }
@@ -516,7 +516,7 @@ a.btn-ghost { display: inline-block; }
 .focus-chip { display: flex; justify-content: space-between; gap: 8px; align-items: center; background: var(--chip); padding: 6px 10px; margin-bottom: 6px; font: 600 12px/1.3 var(--f-sans); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* Sera in redazione */
+/* Evening in the newsroom */
 .ed-chip-evening { font-style: italic; }
 .desk-editorial { padding: 16px 0; border-bottom: 1px solid var(--rule); }
 .desk-editorial .hl-lg { margin: 8px 0 6px; }
@@ -574,7 +574,7 @@ a.btn-ghost { display: inline-block; }
   .sections .desk-link { margin-left: 0; padding-left: 0; border-left: 0; }
 }
 
-/* ───────── Linea del tempo: ore unite e sera ───────── */
+/* ───────── Timeline: merged hours and evening ───────── */
 .edbar-hours .merged .dot { background: transparent; border: 1px solid var(--muted); opacity: .7; width: 6px; height: 6px; }
 .edbar-evening {
   font: 700 12px/1 var(--f-display); font-style: italic; letter-spacing: .01em;
@@ -590,7 +590,7 @@ a.btn-ghost { display: inline-block; }
 .evening-banner strong { font: italic 600 18px/1.2 var(--f-display); }
 .evening-banner a { font-weight: 700; white-space: nowrap; }
 
-/* ───────── Edizione della sera ───────── */
+/* ───────── Evening edition ───────── */
 .evening .front-top { padding-top: 26px; }
 .hl-editorial {
   font-family: var(--f-display); font-weight: 600; font-style: italic;
@@ -627,7 +627,7 @@ a.btn-ghost { display: inline-block; }
   .evening-banner { flex-direction: column; align-items: flex-start; }
 }
 
-/* Riunioni: sessioni */
+/* Meetings: sessions */
 .meeting-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
 .meeting-head .hint-small { margin: 0; }
 .meeting-head .linkish { font: 600 12px/1 var(--f-sans); }
@@ -639,7 +639,7 @@ a.btn-ghost { display: inline-block; }
 .meeting-session > summary { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 12.5px; }
 .meeting-session .msg { opacity: .85; }
 
-/* ───────── Storie che continuano ───────── */
+/* ───────── Continuing stories ───────── */
 .segue {
   display: inline-block; margin-right: 8px; padding: 2px 6px; vertical-align: 1px;
   background: var(--ink); color: var(--paper); font: 800 9.5px/1.3 var(--f-sans); letter-spacing: .08em; text-transform: uppercase;
@@ -653,7 +653,7 @@ a.btn-ghost { display: inline-block; }
 .episodes time { font: 600 12px/1.4 var(--f-sans); color: var(--muted); }
 .episodes span { font: 600 16px/1.3 var(--f-display); }
 
-/* ───────── Lettere al direttore ───────── */
+/* ───────── Letters to the editor ───────── */
 .sections .letters-link.on { border-bottom-color: var(--ink); font-weight: 700; }
 .letter { padding: 4px 0 12px; }
 .letter + .letter { border-top: 1px solid var(--hair); padding-top: 12px; }

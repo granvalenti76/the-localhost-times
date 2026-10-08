@@ -1,3 +1,4 @@
+import { tr } from '../i18n.js';
 import { home, fileState, withSnapshot, columns, pick, cdToMs, msToCd } from '../util.js';
 
 const FILE = home('Library/Group Containers/group.com.apple.notes/NoteStore.sqlite');
@@ -5,7 +6,7 @@ const T = 'ZICCLOUDSYNCINGOBJECT';
 
 export default {
   id: 'notes',
-  label: 'Note',
+  get label() { return tr({ en: 'Notes', it: 'Note' }); },
   locate: () => ({ file: FILE, state: fileState(FILE) }),
 
   collect({ since, config }) {
@@ -16,7 +17,7 @@ export default {
       const mod = pick(c, ['ZMODIFICATIONDATE1', 'ZMODIFICATIONDATE']);
       const created = pick(c, ['ZCREATIONDATE3', 'ZCREATIONDATE1', 'ZCREATIONDATE']);
       const folderTitle = pick(c, ['ZTITLE2', 'ZTITLE']);
-      if (!title || !mod) throw new Error(`Schema Note non riconosciuto (colonne: ${c.slice(0, 12).join(', ')}…)`);
+      if (!title || !mod) throw new Error(tr({ en: `Unrecognised Notes schema (columns: ${c.slice(0, 12).join(', ')}…)`, it: `Schema Note non riconosciuto (colonne: ${c.slice(0, 12).join(', ')}…)` }));
 
       const snippet = c.includes('ZSNIPPET') ? 'n.ZSNIPPET' : 'NULL';
       const locked = c.includes('ZISPASSWORDPROTECTED') ? 'n.ZISPASSWORDPROTECTED' : '0';
@@ -39,7 +40,7 @@ export default {
 
       const events = [];
       for (const r of rows) {
-        if (r.ftype === 1) continue; // "Eliminate di recente"
+        if (r.ftype === 1) continue; // "Recently Deleted"
         if (r.folder && blockedFolders.includes(String(r.folder).toLowerCase())) continue;
         const ts = cdToMs(r.mod);
         const createdMs = cdToMs(r.created);

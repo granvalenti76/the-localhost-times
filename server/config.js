@@ -6,19 +6,21 @@ export const ROOT = path.resolve(import.meta.dirname, '..');
 
 const DEFAULTS = {
   port: 4321,
+  host: '127.0.0.1',     // only this Mac can open the paper; '0.0.0.0' to share it on your network
   language: 'en',        // 'en' | 'it': the language the paper is written in
   demo: false,
   llm: {
-    baseUrl: 'http://localhost:8080/v1',
+    baseUrl: 'auto',      // 'auto' finds Ollama, LM Studio or llama.cpp on this Mac; or a URL ending in /v1; or '' for none
     model: '',
     apiKey: '',
-    timeoutMs: 300000,   // per richiesta, dal momento in cui parte davvero
-    concurrency: 1,      // richieste al modello in parallelo (1 = in fila, adatto ai server locali)
+    timeoutMs: 300000,   // per request, from the moment it actually starts
+    concurrency: 1,      // parallel requests to the model (1 = queued, suits local servers)
     temperature: 0.7,
     thinking: false,
   },
   collectEveryMinutes: 5,
   backfillHours: 1,
+  keepEventsDays: 60,    // raw signals are kept this long (editions are kept forever); 0 = forever
   sources: {
     safari: true, mail: true, terminal: true, notes: true,
     journal: true, podcasts: true, books: true,
@@ -33,9 +35,9 @@ const DEFAULTS = {
   },
   edition: {
     maxArticles: 9,
-    minEvents: 8,        // sotto questa soglia l'ora confluisce nell'edizione successiva
-    maxMergeHours: 3,    // al massimo tre ore in un'unica edizione
-    eveningHour: 21,     // l'edizione della sera esce a quest'ora (null per disattivarla)
+    minEvents: 8,        // below this threshold the hour merges into the next edition
+    maxMergeHours: 3,    // at most three hours in a single edition
+    eveningHour: 21,     // the evening edition comes out at this hour (null to disable it)
   },
   notifications: {
     enabled: true,       // macOS notification when a new edition is out
@@ -44,13 +46,19 @@ const DEFAULTS = {
 };
 
 function merge(base, over) {
-  if (Array.isArray(base) || typeof base !== 'object' || base === null) return over ?? base;
+  // `null` is a real value (e.g. eveningHour: null = no evening edition); only a missing key keeps the default
+  if (Array.isArray(base) || typeof base !== 'object' || base === null) return over === undefined ? base : over;
   const out = { ...base };
   for (const [k, v] of Object.entries(over || {})) {
     out[k] = k in base ? merge(base[k], v) : v;
   }
   return out;
 }
+
+/** The default settings (a fresh copy), optionally merged with overrides: used by the tests. */
+export const defaultConfig = (over = {}) => merge(structuredClone(DEFAULTS), over);
+
+const env = (name) => process.env[`LOCALHOST_TIMES_${name}`] ?? process.env[`DAILYMAC_${name}`]; // DAILYMAC_* = old names
 
 export function loadConfig() {
   let user = {};
@@ -59,17 +67,20 @@ export function loadConfig() {
     try {
       user = JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch (e) {
-      console.error(`[config] config.json non valido: ${e.message}`);
+      console.error(`\n✗ config.json is not valid JSON: ${e.message}\n  Fix it, or delete it and run "npm run setup" to create a new one.\n`);
+      process.exit(1);
     }
   }
   const cfg = merge(DEFAULTS, user);
-  if (process.env.DAILYMAC_DEMO === '1') cfg.demo = true;
-  if (process.env.DAILYMAC_LLM_URL) cfg.llm.baseUrl = process.env.DAILYMAC_LLM_URL;
-  if (process.env.DAILYMAC_LLM_MODEL) cfg.llm.model = process.env.DAILYMAC_LLM_MODEL;
+  if (env('DEMO') === '1' || process.argv.includes('--demo')) cfg.demo = true;
+  if (env('LLM_URL')) cfg.llm.baseUrl = env('LLM_URL');
+  if (env('LLM_MODEL')) cfg.llm.model = env('LLM_MODEL');
+  if (env('LANG')) cfg.language = env('LANG');
   if (process.env.PORT) cfg.port = Number(process.env.PORT);
-  if (process.env.LOCALHOST_TIMES_LANG) cfg.language = process.env.LOCALHOST_TIMES_LANG;
   cfg.language = setLang(cfg.language);
   cfg.dataDir = path.join(ROOT, 'data');
-  cfg.dbFile = path.join(cfg.dataDir, cfg.demo ? 'demo.sqlite' : 'dailymac.sqlite');
+  // the database was called dailymac.sqlite before the paper had its name: keep using it if it exists
+  const legacy = path.join(cfg.dataDir, 'dailymac.sqlite');
+  cfg.dbFile = cfg.demo ? path.join(cfg.dataDir, 'demo.sqlite') : fs.existsSync(legacy) ? legacy : path.join(cfg.dataDir, 'localhost-times.sqlite');
   return cfg;
 }

@@ -58,14 +58,14 @@ export class Store {
         payload TEXT NOT NULL
       );
     `);
-    // migrazione: stato dell'edizione (bozza / pubblicata)
+    // migration: edition status (draft / published)
     const cols = this.db.prepare(`PRAGMA table_info(editions)`).all().map((r) => r.name);
     if (!cols.includes('status')) {
       this.db.exec(`ALTER TABLE editions ADD COLUMN status TEXT NOT NULL DEFAULT 'published'`);
     }
   }
 
-  /** Svuota eventi, cursori ed edizioni: la prossima raccolta rilegge le ultime 24 ore. */
+  /** Clear events, cursors and editions: the next collection rereads the last 24 hours. */
   reset() {
     this.db.exec('DELETE FROM events; DELETE FROM cursors; DELETE FROM editions; DELETE FROM evenings; DELETE FROM threads; DELETE FROM letters;');
   }
@@ -105,6 +105,11 @@ export class Store {
     return this.db.prepare(`SELECT ts FROM events WHERE ts >= ?`).all(start).map((r) => r.ts);
   }
 
+  /** Raw events older than `before` are deleted: the editions written from them stay. */
+  pruneEvents(before) {
+    return Number(this.db.prepare(`DELETE FROM events WHERE ts < ?`).run(before).changes);
+  }
+
   countEvents() {
     return this.db.prepare(`SELECT source, COUNT(*) AS n FROM events GROUP BY source`).all();
   }
@@ -121,7 +126,7 @@ export class Store {
       .run(source, JSON.stringify(value));
   }
 
-  // ── Impostazioni (linea editoriale) ──
+  // ── Settings (editorial line) ──
   getSetting(key, fallback = null) {
     const r = this.db.prepare(`SELECT value FROM settings WHERE key = ?`).get(key);
     return r ? JSON.parse(r.value) : fallback;
@@ -134,7 +139,7 @@ export class Store {
       .run(key, JSON.stringify(value));
   }
 
-  // ── Foto (cache delle immagini di anteprima) ──
+  // ── Photos (preview image cache) ──
   getPhoto(pageUrl) {
     return this.db.prepare(`SELECT * FROM photos WHERE page_url = ?`).get(pageUrl) || null;
   }
@@ -145,7 +150,7 @@ export class Store {
       .run(p.pageUrl, p.imageUrl ?? null, p.file ?? null, p.host ?? null, p.ok ? 1 : 0, Date.now());
   }
 
-  /** Le altre pagine che usano la stessa immagine (servono a riconoscere il logo del sito). */
+  /** The other pages using the same image (used to recognize the site logo). */
   imageUsers(imageUrl, exceptPage) {
     return this.db
       .prepare(`SELECT page_url FROM photos WHERE image_url = ? AND page_url != ?`)
@@ -153,7 +158,7 @@ export class Store {
       .map((r) => r.page_url);
   }
 
-  // ── Edizione della sera ──
+  // ── Evening edition ──
   saveEvening(ev) {
     this.db
       .prepare(`INSERT OR REPLACE INTO evenings (day, status, created_at, payload) VALUES (?, ?, ?, ?)`)
@@ -165,7 +170,7 @@ export class Store {
     return r ? JSON.parse(r.payload) : null;
   }
 
-  // ── Lettere al direttore ──
+  // ── Letters to the editor ──
   addLetter(letter) {
     const r = this.db
       .prepare(`INSERT INTO letters (ts, status, payload) VALUES (?, 'pending', ?)`)
@@ -189,7 +194,7 @@ export class Store {
       .map((r) => ({ ...JSON.parse(r.payload), id: r.id, status: r.status }));
   }
 
-  // ── Riunioni di redazione ──
+  // ── Editorial meetings ──
   getThread(id) {
     const r = this.db.prepare(`SELECT payload FROM threads WHERE id = ?`).get(id);
     return r ? JSON.parse(r.payload) : { id, messages: [] };
@@ -201,7 +206,7 @@ export class Store {
       .run(t.id, Date.now(), JSON.stringify(t));
   }
 
-  // ── Edizioni ──
+  // ── Editions ──
   saveEdition(ed) {
     this.db
       .prepare(`INSERT OR REPLACE INTO editions (id, start_ts, end_ts, final, created_at, payload, status)
@@ -221,7 +226,7 @@ export class Store {
     return { id: r.id, final: !!r.final, status: r.status, edited: !!p.edited };
   }
 
-  /** Fine dell'ultima edizione oraria che chiude entro `limit` (esclusa `exceptId`). */
+  /** End of the last hourly edition closing by `limit` (excluding `exceptId`). */
   lastEditionEnd(limit, exceptId) {
     const r = this.db.prepare(`SELECT MAX(end_ts) AS e FROM editions WHERE end_ts <= ? AND id != ?`).get(limit, exceptId || '');
     return r?.e ?? null;

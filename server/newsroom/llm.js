@@ -1,6 +1,7 @@
 /**
- * Client per un server OpenAI-compatibile (llama.cpp, LM Studio, Ollama, vLLM…).
+ * Client for an OpenAI-compatible server (llama.cpp, LM Studio, Ollama, vLLM…).
  */
+import { tr } from '../i18n.js';
 async function fetchT(url, opts = {}, ms = 10000) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
@@ -11,45 +12,98 @@ async function fetchT(url, opts = {}, ms = 10000) {
   }
 }
 
-const LOCAL_NET_HINT = 'macOS potrebbe bloccare la rete locale: Impostazioni di Sistema → Privacy e sicurezza → Rete locale → abilita l\'app da cui lanci Node (Terminale, iTerm, VS Code…)';
+const LOCAL_NET_HINT = () => tr({
+  en: 'macOS may be blocking the local network: System Settings → Privacy & Security → Local Network → enable the app you run Node from (Terminal, iTerm, VS Code…)',
+  it: 'macOS potrebbe bloccare la rete locale: Impostazioni di Sistema → Privacy e sicurezza → Rete locale → abilita l\'app da cui lanci Node (Terminale, iTerm, VS Code…)',
+});
 
 export function describeError(e) {
-  if (e?.name === 'AbortError') return 'timeout: nessuna risposta in 4 secondi';
+  if (e?.name === 'AbortError') return tr({ en: 'timeout: no answer within 4 seconds', it: 'timeout: nessuna risposta in 4 secondi' });
   const code = e?.cause?.code || e?.code;
   const msg = e?.cause?.message || e?.message || String(e);
-  if (['EHOSTUNREACH', 'ENETUNREACH', 'EPERM', 'EACCES'].includes(code)) return `${code} — ${LOCAL_NET_HINT}`;
-  if (code === 'ECONNREFUSED') return 'ECONNREFUSED — il computer risponde ma nessun server ascolta su quella porta';
-  if (code === 'ETIMEDOUT' || code === 'UND_ERR_CONNECT_TIMEOUT') return `${code} — l'indirizzo non risponde (spento? IP cambiato? oppure ${LOCAL_NET_HINT})`;
+  if (['EHOSTUNREACH', 'ENETUNREACH', 'EPERM', 'EACCES'].includes(code)) return `${code} — ${LOCAL_NET_HINT()}`;
+  if (code === 'ECONNREFUSED') return tr({ en: 'ECONNREFUSED — the computer answers but no server is listening on that port', it: 'ECONNREFUSED — il computer risponde ma nessun server ascolta su quella porta' });
+  if (code === 'ETIMEDOUT' || code === 'UND_ERR_CONNECT_TIMEOUT') return tr({ en: `${code} — the address does not answer (switched off? IP changed? or ${LOCAL_NET_HINT()})`, it: `${code} — l'indirizzo non risponde (spento? IP cambiato? oppure ${LOCAL_NET_HINT()})` });
   return code ? `${code} — ${msg}` : msg;
 }
 
-export const llmStatus = { state: 'unknown', model: null, at: null, error: null };
+export const llmStatus = { state: 'unknown', model: null, base: null, at: null, error: null };
+
+/** Where local OpenAI-compatible servers usually listen (baseUrl: 'auto'). */
+export const LOCAL_SERVERS = [
+  { name: 'Ollama', base: 'http://127.0.0.1:11434/v1' },
+  { name: 'LM Studio', base: 'http://127.0.0.1:1234/v1' },
+  { name: 'llama.cpp', base: 'http://127.0.0.1:8080/v1' },
+  { name: 'vLLM', base: 'http://127.0.0.1:8000/v1' },
+];
+
+/** The first chat model in a /models answer (embedding models can't write). */
+function pickModel(j) {
+  const ids = [...(j.data || []).map((m) => m.id), ...(j.models || []).map((m) => m.name || m.model)].filter(Boolean);
+  return ids.find((id) => !/embed|rerank|whisper|tts/i.test(id)) || null;
+}
+
+async function probe(base, headers, ms) {
+  const r = await fetchT(`${base}/models`, { headers }, ms);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return pickModel(await r.json());
+}
+
+/** Look for a local server with a chat model on the usual ports; null if none. */
+export async function findLocalServer(model = '') {
+  // no API key here: it is not sent to whatever happens to listen on these ports
+  const tries = await Promise.allSettled(LOCAL_SERVERS.map((s) => probe(s.base, {}, 1500).then((m) => ({ ...s, model: model || m }))));
+  // a server with no chat model (e.g. Ollama with nothing pulled) can't write
+  return tries.find((t) => t.status === 'fulfilled' && t.value.model)?.value || null;
+}
+
+let autoCache = null; // { base, at }
 
 export async function connectLLM(config) {
-  const base = (config.llm.baseUrl || '').replace(/\/+$/, '');
-  if (!base) {
-    Object.assign(llmStatus, { state: 'disabled', model: null, at: Date.now(), error: null });
+  const wanted = (config.llm.baseUrl || '').trim().replace(/\/+$/, '');
+  if (!wanted || wanted === 'none') {
+    Object.assign(llmStatus, { state: 'disabled', model: null, base: null, at: Date.now(), error: null });
     return null;
   }
   const headers = { 'Content-Type': 'application/json' };
   if (config.llm.apiKey) headers.Authorization = `Bearer ${config.llm.apiKey}`;
   try {
-    const r = await fetchT(`${base}/models`, { headers }, 4000);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const j = await r.json();
-    const model = config.llm.model || j.data?.[0]?.id || j.models?.[0]?.name || 'local';
-    Object.assign(llmStatus, { state: 'online', model, at: Date.now(), error: null });
+    let base = wanted;
+    let model;
+    if (wanted === 'auto') {
+      // reuse the server found recently, otherwise look again
+      if (autoCache && Date.now() - autoCache.at < 10 * 60e3) {
+        base = autoCache.base;
+        model = await probe(base, headers, 4000);
+      } else {
+        const found = await findLocalServer(config.llm.model);
+        if (!found) {
+          throw new Error(tr({
+            en: 'no local model found (looked for Ollama, LM Studio, llama.cpp and vLLM on their usual ports). Start one, or set llm.baseUrl in config.json',
+            it: 'nessun modello locale trovato (cercati Ollama, LM Studio, llama.cpp e vLLM sulle porte abituali). Avviane uno, o imposta llm.baseUrl in config.json',
+          }));
+        }
+        base = found.base;
+        model = found.model;
+      }
+      autoCache = { base, at: Date.now() };
+    } else {
+      model = await probe(base, headers, 4000);
+    }
+    model = config.llm.model || model || 'local';
+    Object.assign(llmStatus, { state: 'online', model, base, at: Date.now(), error: null });
     return { base, headers, model };
   } catch (e) {
-    Object.assign(llmStatus, { state: 'offline', model: null, at: Date.now(), error: describeError(e) });
+    if (wanted === 'auto') autoCache = null;
+    Object.assign(llmStatus, { state: 'offline', model: null, base: wanted === 'auto' ? null : wanted, at: Date.now(), error: e.message?.startsWith('no local') || e.message?.startsWith('nessun') ? e.message : describeError(e) });
     return null;
   }
 }
 
 /**
- * La fila per il redattore: i server locali (llama.cpp, LM Studio…) di solito elaborano
- * una richiesta alla volta. Mandarne di più insieme le fa solo aspettare in coda sul server,
- * dove il tempo massimo scade prima ancora che il modello cominci a scrivere.
+ * The writer's queue: local servers (llama.cpp, LM Studio…) usually process
+ * one request at a time. Sending several at once just makes them wait in the server's queue,
+ * where the timeout expires before the model even starts writing.
  */
 let active = 0;
 const waiting = [];
@@ -69,7 +123,10 @@ export async function chat(llm, config, messages, maxTokens = 1400) {
     return await chatNow(llm, config, messages, maxTokens);
   } catch (e) {
     if (e.name === 'AbortError') {
-      throw new Error(`il modello non ha risposto entro ${Math.round(config.llm.timeoutMs / 1000)} secondi (troppo lento o occupato)`);
+      throw new Error(tr({
+        en: `the model did not answer within ${Math.round(config.llm.timeoutMs / 1000)} seconds (too slow or busy)`,
+        it: `il modello non ha risposto entro ${Math.round(config.llm.timeoutMs / 1000)} secondi (troppo lento o occupato)`,
+      }));
     }
     throw e;
   } finally {
@@ -89,7 +146,7 @@ async function chatNow(llm, config, messages, maxTokens) {
         temperature: config.llm.temperature,
         max_tokens: maxTokens,
         stream: false,
-        // i modelli che "ragionano" consumano token prima di rispondere: per un giornale non serve
+        // "reasoning" models spend tokens before answering: a newspaper does not need that
         ...(config.llm.thinking ? {} : { chat_template_kwargs: { enable_thinking: false, thinking: false } }),
       }),
     },
@@ -102,26 +159,26 @@ async function chatNow(llm, config, messages, maxTokens) {
   if (!content.trim()) {
     const thought = choice.message?.reasoning_content || choice.message?.reasoning || '';
     throw new Error(choice.finish_reason === 'length'
-      ? `risposta troncata: finiti i ${maxTokens} token${thought ? ' mentre il modello ragionava' : ''}`
-      : 'risposta vuota');
+      ? tr({ en: `truncated answer: ran out of ${maxTokens} tokens${thought ? ' while the model was thinking' : ''}`, it: `risposta troncata: finiti i ${maxTokens} token${thought ? ' mentre il modello ragionava' : ''}` })
+      : tr({ en: 'empty answer', it: 'risposta vuota' }));
   }
   if (choice.finish_reason === 'length') llmStatus.truncated = (llmStatus.truncated || 0) + 1;
   return content;
 }
 
-/** Estrae un oggetto JSON anche da risposte "sporche" (think, ```json, testo attorno). */
+/** Extracts a JSON object even from "dirty" responses (think, ```json, surrounding text). */
 export function parseJson(text) {
   let t = String(text || '')
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
     .replace(/```(?:json)?/gi, '');
   const a = t.indexOf('{');
   const b = t.lastIndexOf('}');
-  if (a < 0 || b <= a) throw new Error('Nessun JSON nella risposta');
+  if (a < 0 || b <= a) throw new Error(tr({ en: 'No JSON in the answer', it: 'Nessun JSON nella risposta' }));
   t = t.slice(a, b + 1);
   try {
     return JSON.parse(t);
   } catch {
-    // virgole finali e simili
+    // trailing commas and the like
     return JSON.parse(t.replace(/,\s*([}\]])/g, '$1'));
   }
 }

@@ -1,8 +1,8 @@
 /**
- * Journal (app Diario di Apple, macOS 26+).
- * Apple non documenta dove salva i dati: qui proviamo a scoprirlo da soli.
- * Cerchiamo database SQLite nei container dell'app e una tabella che assomigli
- * a una "entry" con una data. È SPERIMENTALE: `npm run probe` mostra cosa trova.
+ * Journal (Apple's Journal app, macOS 26+).
+ * Apple doesn't document where it stores its data: here we try to find out ourselves.
+ * We look for SQLite databases in the app's containers and a table resembling
+ * an "entry" with a date. EXPERIMENTAL: `npm run probe` shows what it finds.
  */
 import path from 'node:path';
 import { home, listDir, findFiles, withSnapshot, tables, columns, cdToMs, msToCd } from '../util.js';
@@ -29,7 +29,7 @@ export function journalCandidates() {
   return { dirs, files, denied };
 }
 
-/** Trova tabella/colonne plausibili in un database. */
+/** Find plausible table/columns in a database. */
 export function inspectJournalDb(db) {
   for (const t of tables(db)) {
     if (!/ENTRY|ENTRIES/i.test(t) || /ASSET|ATTACH|MEDIA|TAG/i.test(t)) continue;
@@ -64,7 +64,7 @@ export default {
         found = withSnapshot(file, (db) => {
           const s = inspectJournalDb(db);
           if (!s) return null;
-          // Le date possono essere Core Data (secondi dal 2001) o Unix: decidiamo dal valore.
+          // Dates may be Core Data (seconds since 2001) or Unix: we decide from the value.
           const max = db.prepare(`SELECT MAX("${s.date}") AS m FROM "${s.table}"`).get().m;
           const isCoreData = typeof max === 'number' && max < 1.5e9 && max > 3e8;
           const sinceVal = isCoreData ? msToCd(since) : since / 1000;

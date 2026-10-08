@@ -1,7 +1,7 @@
 /**
- * L'edizione della sera: la giornata in una prima pagina.
- * Editoriale del direttore, le notizie del giorno (dalle edizioni orarie),
- * la giornata ora per ora, la Borsa di chiusura e la vignetta del giorno.
+ * The evening edition: the day on one front page.
+ * The editor's editorial, the day's news (from the hourly editions),
+ * the day hour by hour, the closing Borsa and the cartoon of the day.
  */
 import { connectLLM, chat, parseJson } from './llm.js';
 import { getLine } from './line.js';
@@ -12,12 +12,13 @@ import { siteOf } from './cluster.js';
 import { ticker } from './market.js';
 import { SECTION_ORDER } from './sections.js';
 import { dayRange } from '../util.js';
+import { tr } from '../i18n.js';
 import { autoScene, validScene } from './scenes.js';
 
 const HOUR = 3600e3;
 const cleanQuote = (s) => String(s).trim().replace(/^[«"“']+|[»"”']+$/g, '').trim();
 
-/** Le notizie del giorno: gli articoli più pesanti, una sola volta per argomento. */
+/** The day's news: the weightiest articles, once per topic. */
 function topStories(editions, n = 6) {
   const byStory = new Map();
   for (const e of editions) {
@@ -56,7 +57,7 @@ function dayStats(events, a) {
   };
 }
 
-/** Borsa di chiusura: visite del giorno per sito, confronto con ieri alla stessa ora. */
+/** The closing market: the day's visits per site, compared with yesterday at the same time. */
 function dayMarket(store, config, a, end) {
   const isVisit = (e) => e.source === 'safari' && e.kind === 'visit';
   const today = cleanEvents(store.eventsBetween(a, end), config).filter(isVisit);
@@ -130,7 +131,7 @@ export async function printEvening({ store, config, day, until = Date.now(), log
         };
       }
     } catch (e) {
-      log(`[sera] editoriale: ${e.message}`);
+      log(tr({ en: `[evening] editorial: ${e.message}`, it: `[sera] editoriale: ${e.message}` }));
     }
   }
   const fb = fallbackEditorial({ top, timeline, stats, market });
@@ -146,12 +147,12 @@ export async function printEvening({ store, config, day, until = Date.now(), log
     end,
     status: prev?.status === 'published' || line.autoPublish ? 'published' : 'draft',
     createdAt: Date.now(),
-    writer: written ? llm.model : 'tipografia',
+    writer: written ? llm.model : 'typesetting',
     tone: line.tone,
     editorial: { headline: ed.headline, oneliner: ed.oneliner, body: ed.body },
     cartoon: written?.cartoon
-      ? { caption: written.cartoon, scene: written.scene || autoScene(top.map((t) => ({ ...t, id: t.articleId })), stats), by: 'redattore' }
-      : { caption: fb.cartoon, scene: 'newspaper', by: 'tipografia' },
+      ? { caption: written.cartoon, scene: written.scene || autoScene(top.map((t) => ({ ...t, id: t.articleId })), stats), by: 'writer' }
+      : { caption: fb.cartoon, scene: 'newspaper', by: 'typesetting' },
     top,
     timeline,
     stats,
@@ -159,31 +160,40 @@ export async function printEvening({ store, config, day, until = Date.now(), log
     editions: editions.length,
   };
   store.saveEvening(evening);
-  log(`[sera] edizione della sera ${day}: ${editions.length} edizioni, ${events.length} segnali, redattore ${evening.writer}`);
+  log(tr({
+    en: `[evening] evening edition ${day}: ${editions.length} editions, ${events.length} signals, writer ${evening.writer}`,
+    it: `[sera] edizione della sera ${day}: ${editions.length} edizioni, ${events.length} segnali, redattore ${evening.writer}`,
+  }));
   return evening;
 }
 
 export async function rewriteEditorial(store, config, day, instruction, log = console.log) {
   const ev = store.getEvening(day);
-  if (!ev) throw new DeskError('Edizione della sera non trovata', 404);
+  if (!ev) throw new DeskError(tr({ en: 'Evening edition not found', it: 'Edizione della sera non trovata' }), 404);
   const llm = await connectLLM(config);
-  if (!llm) throw new DeskError('Il redattore non risponde: impossibile riscrivere ora.', 503);
+  if (!llm) throw new DeskError(tr({ en: 'The writer is not answering: cannot rewrite now.', it: 'Il redattore non risponde: impossibile riscrivere ora.' }), 503);
   const msgs = eveningPrompt({ top: ev.top, timeline: ev.timeline, stats: ev.stats, market: ev.market, line: getLine(store) });
   msgs.push({ role: 'assistant', content: JSON.stringify({ headline: ev.editorial.headline, oneliner: ev.editorial.oneliner, editorial: ev.editorial.body }) });
-  msgs.push({ role: 'user', content: `Il direttore chiede di riscrivere l'editoriale. Indicazione: «${instruction || 'una versione migliore'}». Stessi fatti, stesse regole, stesso formato JSON.` });
+  msgs.push({
+    role: 'user',
+    content: tr({
+      en: `The editor asks for a rewrite of the editorial. Instruction: “${instruction || 'a better version'}”. Same facts, same rules, same JSON format.`,
+      it: `Il direttore chiede di riscrivere l'editoriale. Indicazione: «${instruction || 'una versione migliore'}». Stessi fatti, stesse regole, stesso formato JSON.`,
+    }),
+  });
   let j;
   try {
     j = parseJson(await chat(llm, config, msgs, 3000));
   } catch (e) {
-    throw new DeskError(`Il redattore ha risposto male: ${e.message}`, 502);
+    throw new DeskError(tr({ en: `The writer gave a bad answer: ${e.message}`, it: `Il redattore ha risposto male: ${e.message}` }), 502);
   }
-  if (!Array.isArray(j.editorial) || !j.editorial.length) throw new DeskError('Il redattore non ha scritto l\'editoriale.', 502);
+  if (!Array.isArray(j.editorial) || !j.editorial.length) throw new DeskError(tr({ en: 'The writer did not write the editorial.', it: 'Il redattore non ha scritto l\'editoriale.' }), 502);
   ev.editorial = {
     headline: String(j.headline || ev.editorial.headline).trim().replace(/(?<!\.)\.$/, ''),
     oneliner: String(j.oneliner || ev.editorial.oneliner || '').trim(),
     body: j.editorial.map((p) => String(p).trim()).filter(Boolean),
   };
-  if (j.cartoon) ev.cartoon = { ...ev.cartoon, caption: cleanQuote(j.cartoon).slice(0, 160), scene: validScene(j.scene) || ev.cartoon?.scene || 'newspaper', by: 'redattore' };
+  if (j.cartoon) ev.cartoon = { ...ev.cartoon, caption: cleanQuote(j.cartoon).slice(0, 160), scene: validScene(j.scene) || ev.cartoon?.scene || 'newspaper', by: 'writer' };
   ev.writer = llm.model;
   ev.edited = true;
   store.saveEvening(ev);
@@ -192,7 +202,7 @@ export async function rewriteEditorial(store, config, day, instruction, log = co
 
 export function editEveningCartoon(store, day, patch) {
   const ev = store.getEvening(day);
-  if (!ev) throw new DeskError('Edizione della sera non trovata', 404);
+  if (!ev) throw new DeskError(tr({ en: 'Evening edition not found', it: 'Edizione della sera non trovata' }), 404);
   ev.cartoon = applyCartoon(ev.cartoon, patch);
   ev.edited = true;
   store.saveEvening(ev);
@@ -201,7 +211,7 @@ export function editEveningCartoon(store, day, patch) {
 
 export function publishEvening(store, day) {
   const ev = store.getEvening(day);
-  if (!ev) throw new DeskError('Edizione della sera non trovata', 404);
+  if (!ev) throw new DeskError(tr({ en: 'Evening edition not found', it: 'Edizione della sera non trovata' }), 404);
   ev.status = 'published';
   store.saveEvening(ev);
   return ev;

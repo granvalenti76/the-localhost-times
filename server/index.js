@@ -24,15 +24,23 @@ import { submitLetter, answerNow } from './newsroom/letters.js';
 
 const [maj, min] = process.versions.node.split('.').map(Number);
 if (maj < 22 || (maj === 22 && min < 13)) {
-  console.error(`The Localhost Times richiede Node 22.13 o superiore (hai ${process.versions.node}). Aggiorna con: brew install node`);
+  console.error(`The Localhost Times needs Node 22.13 or later (you have ${process.versions.node}). Upgrade with: brew install node`);
   process.exit(1);
 }
 
 const config = loadConfig();
-// as a service, launchd appends to one log file: keep it small
+// As a service, launchd appends our output to one log file that it keeps open:
+// once an hour, if it got big, copy it aside and empty it in place.
 if (process.env.LOCALHOST_TIMES_SERVICE === '1') {
   const f = path.join(config.dataDir, 'logs', 'server.log');
-  try { if (fs.statSync(f).size > 5e6) fs.renameSync(f, `${f}.1`); } catch { /* no log yet */ }
+  setInterval(() => {
+    try {
+      if (fs.statSync(f).size > 5e6) {
+        fs.copyFileSync(f, `${f}.1`);
+        fs.truncateSync(f, 0);
+      }
+    } catch { /* no log yet */ }
+  }, 3600e3).unref();
 }
 const store = new Store(config.dbFile);
 const log = (...a) => console.log(new Date().toLocaleTimeString(locale()), ...a);
@@ -41,11 +49,28 @@ const newsroom = createNewsroom({ store, config, log, notify });
 
 if (config.demo) {
   const n = seedDemo(store);
-  if (n) log(`[demo] ${n} eventi dimostrativi inseriti`);
+  if (n) log(tr({ en: `[demo] ${n} demo events inserted`, it: `[demo] ${n} eventi dimostrativi inseriti` }));
   for (const s of SOURCES) sourceStatus[s.id] = { id: s.id, label: s.label, state: 'demo' };
 }
 
 const app = express();
+
+// DNS-rebinding guard: when the paper is only served to this Mac, accept only requests addressed to it,
+// so a web page can't point its own domain at 127.0.0.1 and read the paper.
+const LOOPBACK_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+const loopbackOnly = ['127.0.0.1', 'localhost', '::1'].includes(config.host);
+app.use((req, res, next) => {
+  if (loopbackOnly && !LOOPBACK_HOST.test(req.headers.host || '')) return res.status(403).type('text').send('Forbidden: unexpected Host header');
+  next();
+});
+
+// Cross-site guard: API calls that change something must carry a custom header,
+// which a page on another site can't add to a request without the browser asking us first.
+app.use('/api', (req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.get('x-localhost-times') === '1') return next();
+  res.status(403).json({ error: 'Missing X-Localhost-Times header' });
+});
+
 app.use(express.json());
 
 const wrap = (fn) => (req, res) =>
@@ -76,13 +101,13 @@ app.get('/api/editions', (req, res) => {
 
 app.get('/api/editions/latest', (req, res) => {
   const e = store.latestEdition();
-  if (!e) return res.status(404).json({ error: 'Nessuna edizione' });
+  if (!e) return res.status(404).json({ error: tr({ en: 'No editions', it: 'Nessuna edizione' }) });
   res.json(e);
 });
 
 app.get('/api/editions/:id', (req, res) => {
   const e = store.getEdition(req.params.id);
-  if (!e) return res.status(404).json({ error: 'Edizione non trovata' });
+  if (!e) return res.status(404).json({ error: tr({ en: 'Edition not found', it: 'Edizione non trovata' }) });
   res.json(e);
 });
 
@@ -92,7 +117,7 @@ app.post('/api/print', wrap(async (req, res) => {
   res.json(ed);
 }));
 
-// ── La Redazione ──
+// ── The Newsroom ──
 app.get('/api/line', (req, res) => res.json({ line: getLine(store), tones: TONES, lengths: LENGTHS, weights: WEIGHTS }));
 app.put('/api/line', (req, res) => res.json({ line: saveLine(store, req.body || {}) }));
 app.get('/api/drafts', (req, res) => res.json(store.drafts()));
@@ -110,30 +135,30 @@ app.get('/api/scenes', (req, res) => res.json(Object.entries(SCENES).map(([id, s
 app.post('/api/editions/:id/publish', wrap((req, res) => res.json(publishEdition(store, req.params.id))));
 app.post('/api/editions/:id/reprint', wrap(async (req, res) => {
   const ed = store.getEdition(req.params.id);
-  if (!ed) return res.status(404).json({ error: 'Edizione non trovata' });
+  if (!ed) return res.status(404).json({ error: tr({ en: 'Edition not found', it: 'Edizione non trovata' }) });
   res.json(await newsroom.printHour(ed.hour ?? ed.start, ed.final, true));
 }));
 
-// ── Edizione della sera ──
+// ── Evening edition ──
 app.get('/api/evening/:day', (req, res) => {
   const ev = store.getEvening(req.params.day);
-  if (!ev) return res.status(404).json({ error: 'Nessuna edizione della sera' });
+  if (!ev) return res.status(404).json({ error: tr({ en: 'No evening edition', it: 'Nessuna edizione della sera' }) });
   res.json(ev);
 });
 app.post('/api/evening/:day/print', wrap(async (req, res) => {
   const ev = await newsroom.printEveningFor(req.params.day);
-  if (!ev) return res.status(409).json({ error: 'Nessuna edizione oraria da riassumere in questo giorno.' });
+  if (!ev) return res.status(409).json({ error: tr({ en: 'No hourly editions to sum up on this day.', it: 'Nessuna edizione oraria da riassumere in questo giorno.' }) });
   res.json(ev);
 }));
 app.patch('/api/evening/:day/cartoon', wrap((req, res) => res.json(editEveningCartoon(store, req.params.day, req.body || {}))));
 app.post('/api/evening/:day/publish', wrap((req, res) => res.json(publishEvening(store, req.params.day))));
 
-// ── Lettere al direttore ──
+// ── Letters to the editor ──
 app.get('/api/letters', (req, res) => res.json(store.letters({ limit: 100 })));
 app.post('/api/letters', wrap((req, res) => res.json(submitLetter(store, req.body || {}))));
 app.post('/api/letters/:id/answer', wrap(async (req, res) => res.json(await answerNow(store, config, req.params.id, log))));
 
-// ── Riunione di redazione ──
+// ── Editorial meeting ──
 app.get('/api/threads/:id', wrap((req, res) => res.json(getThreadRepaired(store, config, req.params.id))));
 app.post('/api/threads/:id', wrap(async (req, res) =>
   res.json(await discuss({ store, config, threadId: req.params.id, text: req.body?.text, articleId: req.body?.articleId, session: req.body?.session, log }))));
@@ -145,7 +170,7 @@ app.post('/api/collect', wrap(async (req, res) => {
   res.json({ added: n });
 }));
 
-// Foto scaricate dalla redazione
+// Photos downloaded by the newsroom
 app.use('/media', express.static(path.join(config.dataDir, 'media'), { maxAge: '30d', immutable: true }));
 
 // ── Feeds ──
@@ -163,6 +188,7 @@ if (fs.existsSync(dist)) {
     .replace('<html lang="it">', `<html lang="${lang()}">`)
     .replace('<html lang="en">', `<html lang="${lang()}">`)
     .replace('</head>', `<script>window.__LT__=${JSON.stringify({ lang: lang() })}</script></head>`);
+  app.get('/index.html', (req, res) => res.type('html').send(page()));
   app.use(express.static(dist, { index: false }));
   app.use((req, res, next) => {
     if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/media')) return res.type('html').send(page());
@@ -170,16 +196,26 @@ if (fs.existsSync(dist)) {
   });
 }
 
-const server = app.listen(config.port, () => {
-  log(`The Localhost Times è in edicola su http://localhost:${config.port}${config.demo ? '  (modalità demo)' : ''}`);
-  log(`Redattore: ${config.llm.baseUrl || 'nessuno'}`);
-  newsroom.start().catch((e) => log('[avvio]', e));
-});
-server.on('error', (e) => {
-  if (e.code !== 'EADDRINUSE') throw e;
-  console.error(tr({
-    en: `Port ${config.port} is already in use: the paper is probably already running (as a service? npm run service:status).`,
-    it: `La porta ${config.port} è già occupata: il giornale è probabilmente già in edicola (come servizio? npm run service:status).`,
-  }));
+function listenFailed(e) {
+  if (e.code === 'EADDRINUSE') {
+    console.error(tr({
+      en: `Port ${config.port} is already in use: the paper is probably already running (as a service? npm run service:status). Or choose another "port" in config.json.`,
+      it: `La porta ${config.port} è già occupata: il giornale è probabilmente già in edicola (come servizio? npm run service:status). Oppure scegli un'altra "port" in config.json.`,
+    }));
+  } else {
+    console.error(e);
+  }
   process.exit(1);
+}
+
+// Only this Mac can read the paper: it is served on the loopback interface (config.host to change it).
+const server = app.listen(config.port, config.host, (err) => {
+  if (err) return listenFailed(err); // Express 5 reports listen errors here
+  log(tr({
+    en: `The Localhost Times is on the newsstand at http://localhost:${config.port}${config.demo ? '  (demo mode)' : ''}`,
+    it: `The Localhost Times è in edicola su http://localhost:${config.port}${config.demo ? '  (modalità demo)' : ''}`,
+  }));
+  log(`${tr({ en: 'Writer', it: 'Redattore' })}: ${config.llm.baseUrl === 'auto' ? tr({ en: 'looking for a local model (Ollama, LM Studio, llama.cpp…)', it: 'cerco un modello locale (Ollama, LM Studio, llama.cpp…)' }) : config.llm.baseUrl || tr({ en: 'none', it: 'nessuno' })}`);
+  newsroom.start().catch((e) => log('[start]', e));
 });
+server.on('error', listenFailed);

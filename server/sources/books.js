@@ -1,3 +1,4 @@
+import { tr } from '../i18n.js';
 import { home, findFiles, newest, withSnapshot, columns, pick, cdToMs, msToCd, fileState } from '../util.js';
 
 const BASE = home('Library/Containers/com.apple.iBooksX/Data/Documents');
@@ -13,7 +14,7 @@ function locate() {
 
 export default {
   id: 'books',
-  label: 'Libri',
+  get label() { return tr({ en: 'Books', it: 'Libri' }); },
   locate,
 
   collect({ since }) {
@@ -78,7 +79,7 @@ export default {
             });
           }
         });
-      } catch { /* annotazioni facoltative */ }
+      } catch { /* annotations are optional */ }
     }
     return { events };
   },

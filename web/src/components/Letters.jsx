@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api, href, hhmm, shortDate } from '../lib.js';
+import { tr } from '../i18n.js';
 
-/** Una lettera pubblicata, con la risposta della redazione. */
+/** A published letter, with the newsroom's answer. */
 export function Letter({ l, compact }) {
   return (
     <article className={`letter ${compact ? 'compact' : ''}`}>
@@ -11,35 +12,38 @@ export function Letter({ l, compact }) {
       {l.reply && (
         <div className="letter-reply">
           <p>{l.reply}</p>
-          <span className="letter-who">Risponde il caporedattore</span>
+          <span className="letter-who">{tr({ en: 'The managing editor replies', it: 'Risponde il caporedattore' })}</span>
         </div>
       )}
     </article>
   );
 }
 
-/** Il riquadro in prima pagina. */
+/** The front-page box. */
 export function LettersBox({ letters }) {
   if (!letters?.length) {
     return (
       <section className="box letters-box">
-        <h3 className="box-title">Lettere al direttore</h3>
-        <p className="letters-empty">Nessuna lettera in questa edizione. <a href={href.letters()}>Scrivi al giornale →</a></p>
+        <h3 className="box-title">{tr({ en: 'Letters to the editor', it: 'Lettere al direttore' })}</h3>
+        <p className="letters-empty">{tr({ en: 'No letters in this edition.', it: 'Nessuna lettera in questa edizione.' })} <a href={href.letters()}>{tr({ en: 'Write to the paper', it: 'Scrivi al giornale' })} →</a></p>
       </section>
     );
   }
   return (
     <section className="box letters-box">
-      <h3 className="box-title">Lettere al direttore</h3>
+      <h3 className="box-title">{tr({ en: 'Letters to the editor', it: 'Lettere al direttore' })}</h3>
       {letters.map((l) => <Letter key={l.id} l={l} compact />)}
-      <a className="more" href={href.letters()}>Tutte le lettere · Scrivi al giornale →</a>
+      <a className="more" href={href.letters()}>{tr({ en: 'All letters · Write to the paper', it: 'Tutte le lettere · Scrivi al giornale' })} →</a>
     </section>
   );
 }
 
-const STATUS = { pending: 'In attesa della prossima edizione', answered: 'Risposta pronta, esce nella prossima edizione' };
+const STATUS = tr({
+  en: { pending: 'Waiting for the next edition', answered: 'Answer ready, out in the next edition' },
+  it: { pending: 'In attesa della prossima edizione', answered: 'Risposta pronta, esce nella prossima edizione' },
+});
 
-/** La pagina delle lettere: scrivi e rileggi. */
+/** The letters page: write and read back. */
 export default function LettersPage() {
   const [list, setList] = useState(null);
   const [text, setText] = useState('');
@@ -80,38 +84,38 @@ export default function LettersPage() {
   return (
     <section className="letters-page">
       <header className="section-head">
-        <h2>Lettere al direttore</h2>
-        <p>Scrivi al giornale: la redazione risponde nella prossima edizione, con i dati alla mano.</p>
+        <h2>{tr({ en: 'Letters to the editor', it: 'Lettere al direttore' })}</h2>
+        <p>{tr({ en: 'Write to the paper: the newsroom answers in the next edition, with the data at hand.', it: 'Scrivi al giornale: la redazione risponde nella prossima edizione, con i dati alla mano.' })}</p>
       </header>
 
       <div className="letter-form">
-        <label htmlFor="letter-text" className="lbl">La tua lettera</label>
+        <label htmlFor="letter-text" className="lbl">{tr({ en: 'Your letter', it: 'La tua lettera' })}</label>
         <textarea id="letter-text" rows={6} value={text} onChange={(e) => setText(e.target.value)}
-          placeholder="Caro direttore, perché oggi ho aperto dodici volte la stessa pagina…" />
+          placeholder={tr({ en: 'Dear editor, why did I open the same page twelve times today…', it: 'Caro direttore, perché oggi ho aperto dodici volte la stessa pagina…' })} />
         <div className="letter-form-row">
-          <label className="sr-only" htmlFor="letter-sign">Firma</label>
-          <input id="letter-sign" value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="Firma (es. «Luca, dal divano»)" />
+          <label className="sr-only" htmlFor="letter-sign">{tr({ en: 'Signature', it: 'Firma' })}</label>
+          <input id="letter-sign" value={signature} onChange={(e) => setSignature(e.target.value)} placeholder={tr({ en: 'Signature (e.g. “Sam, from the couch”)', it: 'Firma (es. «Luca, dal divano»)' })} />
           <button className="btn" onClick={send} disabled={busy === 'send' || text.trim().length < 3}>
-            {busy === 'send' ? 'Spedisco…' : 'Spedisci'}
+            {busy === 'send' ? tr({ en: 'Sending…', it: 'Spedisco…' }) : tr({ en: 'Send', it: 'Spedisci' })}
           </button>
         </div>
         {error && <p className="notice">{error}</p>}
       </div>
 
       <div className="letters-list">
-        {list && !list.length && <p className="empty-text">Ancora nessuna lettera. La prima è la più difficile.</p>}
+        {list && !list.length && <p className="empty-text">{tr({ en: 'No letters yet. The first one is the hardest.', it: 'Ancora nessuna lettera. La prima è la più difficile.' })}</p>}
         {(list || []).map((l) => (
           <div key={l.id} className="letters-item">
             <div className="letters-meta">
               <time>{shortDate(l.ts)}, {hhmm(l.ts)}</time>
               {l.status === 'published' && l.editionId ? (
-                <a href={href.edition(l.editionId)}>Pubblicata nell'edizione delle {l.editionId.slice(11)}:00</a>
+                <a href={href.edition(l.editionId)}>{tr({ en: `Published in the ${l.editionId.slice(11)}:00 edition`, it: `Pubblicata nell'edizione delle ${l.editionId.slice(11)}:00` })}</a>
               ) : (
                 <span>{STATUS[l.status] || l.status}</span>
               )}
               {l.status !== 'published' && (
                 <button className="btn-ghost" disabled={!!busy} onClick={() => answer(l.id)}>
-                  {busy === l.id ? 'Il caporedattore scrive…' : 'Rispondi subito'}
+                  {busy === l.id ? tr({ en: 'The managing editor is writing…', it: 'Il caporedattore scrive…' }) : tr({ en: 'Answer now', it: 'Rispondi subito' })}
                 </button>
               )}
             </div>

@@ -2,11 +2,75 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, href, hhmm, dayKey, longDate, SECTIONS, writerLabel, edHour, edSince } from '../lib.js';
 import Meeting from './Meeting.jsx';
 import DeskCartoon from './DeskCartoon.jsx';
+import { tr } from '../i18n.js';
 
-const QUICK = ['Più corto', 'Più ironico', 'Più serio', 'Titolo migliore', 'Solo i fatti'];
-const SIZE_LABEL = { apertura: 'Apertura', articolo: 'Articolo', breve: 'Breve' };
+const T = tr({
+  en: {
+    quick: ['Shorter', 'More ironic', 'More serious', 'Better headline', 'Just the facts'],
+    size: { lead: 'Lead', article: 'Article', brief: 'Brief' },
+    tone: 'Tone', length: 'Article length', space: 'Room for each section', notes: 'Editor\'s notes',
+    notesPh: 'Rules for the writers, for example:\n· Never talk about Facebook\n· Work on TurboCode is always news\n· Call me “the Editor”',
+    printing: 'Printing', autoPub: 'Publish automatically', autoPubHint: 'If you turn it off, every edition stays a draft until you send it to press from here.',
+    photos: 'Photos', photosHint: 'Previews of public pages and YouTube thumbnails.',
+    saving: 'Saving…', updateLine: 'Update the line', lineSaved: 'Line up to date',
+    lineHint: 'Applies from the next edition. To apply it to the open one, use “Reprint”.',
+    up: 'Up', down: 'Down', leadShort: 'Ld.', rewritten: 'rewritten', source: 'source', sources: 'sources',
+    kicker: 'Kicker', headline: 'Headline', dek: 'Summary', paraHint: 'A blank line separates paragraphs.', removePhoto: 'Remove the photo',
+    save: 'Save', cancel: 'Cancel', orWrite: 'Or write your own: “say more about the TurboCode project”', rewrite: 'Rewrite',
+    closeText: 'Close text', readText: 'Read text', toLead: 'Make it the lead', edit: 'Edit', discuss: 'Discuss', spike: 'Spike',
+    working: 'The writer is working…',
+    title: 'The Newsroom', subtitle: 'The editor\'s desk · drafts, page plan and editorial line',
+    draft: 'draft', retouched: 'edited', noEditions: 'No editions today.', evening: 'Evening',
+    writingEvening: 'Writing the evening…', printEvening: 'Print the evening edition',
+    oneDraft: 'One draft is waiting', nDrafts: (n) => `${n} drafts are waiting`, toPress: 'to go to press:',
+    draftStatus: 'Draft', onStand: 'On the newsstand', eveningEdition: 'Evening edition',
+    editions: 'editions', signals: 'signals', articles: 'articles', toneLabel: 'tone',
+    inPress: 'Printing…', sendToPress: 'Send to press', reprinting: 'Reprinting…', reprintEvening: 'Reprint the evening',
+    seeOnPage: 'See on the page →', editorial: 'The editorial', dayNews: 'The day\'s news', eveningNotOut: 'The evening edition is not out yet.',
+    editionOf: (h) => `The ${h} edition`, writing: 'Writing…', regenBrief: 'Regenerate the Brief',
+    reprintTitle: 'Rewrites the whole edition with the current editorial line.', reprintingLong: 'Reprinting… (a few minutes)',
+    confirm: 'Sure? You lose the manual edits', reprint: 'Reprint', brief: 'The Brief', spiked: 'Spiked', restore: 'Restore',
+    panels: 'Newsroom panels', meeting: 'Meeting', line: 'Editorial line', openEdition: 'Open an edition to discuss it.',
+  },
+  it: {
+    quick: ['Più corto', 'Più ironico', 'Più serio', 'Titolo migliore', 'Solo i fatti'],
+    size: { lead: 'Apertura', article: 'Articolo', brief: 'Breve' },
+    tone: 'Tono', length: 'Lunghezza degli articoli', space: 'Spazio alle sezioni', notes: 'Note del direttore',
+    notesPh: 'Regole per i redattori, per esempio:\n· Non parlare mai di Facebook\n· Il lavoro su TurboCode è sempre notizia\n· Chiamami «il Direttore»',
+    printing: 'Stampa', autoPub: 'Pubblicazione automatica', autoPubHint: 'Se la togli, ogni edizione resta in bozza finché non la mandi in stampa da qui.',
+    photos: 'Foto', photosHint: 'Anteprime delle pagine pubbliche e miniature di YouTube.',
+    saving: 'Salvo…', updateLine: 'Aggiorna la linea', lineSaved: 'Linea aggiornata',
+    lineHint: 'Vale dalla prossima edizione. Per applicarla a quella aperta usa «Ristampa».',
+    up: 'Su', down: 'Giù', leadShort: 'Ap.', rewritten: 'riscritto', source: 'fonte', sources: 'fonti',
+    kicker: 'Occhiello', headline: 'Titolo', dek: 'Sommario', paraHint: 'Una riga vuota separa i paragrafi.', removePhoto: 'Togli la foto',
+    save: 'Salva', cancel: 'Annulla', orWrite: 'Oppure scrivi tu: «parla di più del progetto TurboCode»', rewrite: 'Riscrivi',
+    closeText: 'Chiudi testo', readText: 'Leggi testo', toLead: 'In apertura', edit: 'Modifica', discuss: 'Discuti', spike: 'Cestina',
+    working: 'Il redattore lavora…',
+    title: 'La Redazione', subtitle: 'Il tavolo del direttore · bozze, menabò e linea editoriale',
+    draft: 'bozza', retouched: 'ritoccata', noEditions: 'Nessuna edizione oggi.', evening: 'Sera',
+    writingEvening: 'Scrivo la sera…', printEvening: 'Stampa l\'edizione della sera',
+    oneDraft: 'Una bozza attende', nDrafts: (n) => `${n} bozze attendono`, toPress: 'di andare in stampa:',
+    draftStatus: 'Bozza', onStand: 'In edicola', eveningEdition: 'Edizione della sera',
+    editions: 'edizioni', signals: 'segnali', articles: 'articoli', toneLabel: 'tono',
+    inPress: 'In stampa…', sendToPress: 'Manda in stampa', reprinting: 'Ristampo…', reprintEvening: 'Ristampa la sera',
+    seeOnPage: 'Vedi in pagina →', editorial: 'L\'editoriale', dayNews: 'Le notizie del giorno', eveningNotOut: 'L\'edizione della sera non è ancora uscita.',
+    editionOf: (h) => `Edizione delle ${h}`, writing: 'Scrivo…', regenBrief: 'Rigenera il Punto',
+    reprintTitle: 'Riscrive tutta l\'edizione con la linea editoriale attuale.', reprintingLong: 'Ristampo… (qualche minuto)',
+    confirm: 'Confermi? Perdi le modifiche a mano', reprint: 'Ristampa', brief: 'Il punto', spiked: 'Cestino', restore: 'Ripristina',
+    panels: 'Pannelli della redazione', meeting: 'Riunione', line: 'Linea editoriale', openEdition: 'Apri un\'edizione per discuterne.',
+  },
+});
+// tone names, also for ids stored by older editions
+const OLD_TONE = { asciutto: 'dry', ironico: 'ironic', satirico: 'satirical', strillone: 'tabloid' };
+const TONE_NAMES = tr({
+  en: { dry: 'dry', ironic: 'ironic', satirical: 'satirical', british: 'understatement', tabloid: 'tabloid' },
+  it: { dry: 'asciutto', ironic: 'ironico', satirical: 'satirico', british: 'understatement', tabloid: 'strillone' },
+});
+const toneName = (t) => TONE_NAMES[OLD_TONE[t] || t || 'dry'] || t;
+// sizes as stored by older editions
+const OLD_SIZE = { apertura: 'lead', articolo: 'article', breve: 'brief' };
 
-// ───────────────────────── Linea editoriale ─────────────────────────
+// ───────────────────────── Editorial line ─────────────────────────
 
 function LinePanel({ onSaved }) {
   const [meta, setMeta] = useState(null);
@@ -39,7 +103,7 @@ function LinePanel({ onSaved }) {
     <div className="line-panel">
 
       <fieldset className="field">
-        <legend>Tono</legend>
+        <legend>{T.tone}</legend>
         <div className="tones">
           {Object.entries(meta.tones).map(([k, t]) => (
             <label key={k} className={`tone ${line.tone === k ? 'on' : ''}`}>
@@ -52,7 +116,7 @@ function LinePanel({ onSaved }) {
       </fieldset>
 
       <fieldset className="field">
-        <legend>Lunghezza degli articoli</legend>
+        <legend>{T.length}</legend>
         <div className="seg">
           {Object.entries(meta.lengths).map(([k, l]) => (
             <button key={k} type="button" className={line.length === k ? 'on' : ''} onClick={() => set({ length: k })}>{l.label}</button>
@@ -61,7 +125,7 @@ function LinePanel({ onSaved }) {
       </fieldset>
 
       <fieldset className="field">
-        <legend>Spazio alle sezioni</legend>
+        <legend>{T.space}</legend>
         <div className="weights">
           {SECTIONS.map((s) => (
             <div key={s.id} className="weight-row">
@@ -81,36 +145,36 @@ function LinePanel({ onSaved }) {
       </fieldset>
 
       <fieldset className="field">
-        <legend>Note del direttore</legend>
+        <legend>{T.notes}</legend>
         <textarea
           rows={5}
           value={line.notes}
-          placeholder={'Regole per i redattori, per esempio:\n· Non parlare mai di Facebook\n· Il lavoro su TurboCode è sempre notizia\n· Chiamami «il Direttore»'}
+          placeholder={T.notesPh}
           onChange={(e) => set({ notes: e.target.value })}
         />
       </fieldset>
 
       <fieldset className="field">
-        <legend>Stampa</legend>
+        <legend>{T.printing}</legend>
         <label className="check">
           <input type="checkbox" checked={line.autoPublish} onChange={(e) => set({ autoPublish: e.target.checked })} />
-          <span><strong>Pubblicazione automatica</strong><em>Se la togli, ogni edizione resta in bozza finché non la mandi in stampa da qui.</em></span>
+          <span><strong>{T.autoPub}</strong><em>{T.autoPubHint}</em></span>
         </label>
         <label className="check">
           <input type="checkbox" checked={line.photos} onChange={(e) => set({ photos: e.target.checked })} />
-          <span><strong>Foto</strong><em>Anteprime delle pagine pubbliche e miniature di YouTube.</em></span>
+          <span><strong>{T.photos}</strong><em>{T.photosHint}</em></span>
         </label>
       </fieldset>
 
       <button className="btn btn-block" onClick={save} disabled={!dirty || busy}>
-        {busy ? 'Salvo…' : dirty ? 'Aggiorna la linea' : 'Linea aggiornata'}
+        {busy ? T.saving : dirty ? T.updateLine : T.lineSaved}
       </button>
-      <p className="hint-small">Vale dalla prossima edizione. Per applicarla a quella aperta usa «Ristampa».</p>
+      <p className="hint-small">{T.lineHint}</p>
     </div>
   );
 }
 
-// ───────────────────────── Bozza di un articolo ─────────────────────────
+// ───────────────────────── An article draft ─────────────────────────
 
 function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
   const [mode, setMode] = useState(null); // 'edit' | 'rewrite'
@@ -150,36 +214,36 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
   return (
     <article className={`draft ${busy ? 'busy' : ''} ${i === 0 ? 'is-lead' : ''}`}>
       <div className="draft-pos">
-        <span className="draft-n">{i === 0 ? 'Ap.' : i + 1}</span>
-        <button disabled={i === 0 || busy} onClick={() => call('/move', { method: 'POST', json: { to: 'up' } })} aria-label="Su">↑</button>
-        <button disabled={i === n - 1 || busy} onClick={() => call('/move', { method: 'POST', json: { to: 'down' } })} aria-label="Giù">↓</button>
+        <span className="draft-n">{i === 0 ? T.leadShort : i + 1}</span>
+        <button disabled={i === 0 || busy} onClick={() => call('/move', { method: 'POST', json: { to: 'up' } })} aria-label={T.up}>↑</button>
+        <button disabled={i === n - 1 || busy} onClick={() => call('/move', { method: 'POST', json: { to: 'down' } })} aria-label={T.down}>↓</button>
       </div>
 
       <div className="draft-main">
         <div className="draft-tags">
           <span className="sec">{a.section}</span>
-          <span className="tag">{SIZE_LABEL[a.size] || a.size || '—'}</span>
+          <span className="tag">{T.size[OLD_SIZE[a.size] || a.size] || a.size || '—'}</span>
           <span className="tag">{writerLabel(a.writer)}</span>
-          {a.rewrittenWith && <span className="tag">riscritto: «{a.rewrittenWith}»</span>}
-          <span className="tag">{a.sources.length} {a.sources.length === 1 ? 'fonte' : 'fonti'}</span>
+          {a.rewrittenWith && <span className="tag">{T.rewritten}: «{a.rewrittenWith}»</span>}
+          <span className="tag">{a.sources.length} {a.sources.length === 1 ? T.source : T.sources}</span>
         </div>
 
         {mode === 'edit' ? (
           <div className="draft-form">
-            <input value={form.kicker} onChange={(e) => setForm({ ...form, kicker: e.target.value })} placeholder="Occhiello" />
-            <input className="f-head" value={form.headline} onChange={(e) => setForm({ ...form, headline: e.target.value })} placeholder="Titolo" />
-            <input value={form.dek} onChange={(e) => setForm({ ...form, dek: e.target.value })} placeholder="Sommario" />
+            <input value={form.kicker} onChange={(e) => setForm({ ...form, kicker: e.target.value })} placeholder={T.kicker} />
+            <input className="f-head" value={form.headline} onChange={(e) => setForm({ ...form, headline: e.target.value })} placeholder={T.headline} />
+            <input value={form.dek} onChange={(e) => setForm({ ...form, dek: e.target.value })} placeholder={T.dek} />
             <textarea rows={8} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
-            <p className="hint-small">Una riga vuota separa i paragrafi.</p>
+            <p className="hint-small">{T.paraHint}</p>
             {a.image && (
               <label className="check check-inline">
                 <input type="checkbox" checked={form.removeImage} onChange={(e) => setForm({ ...form, removeImage: e.target.checked })} />
-                <span>Togli la foto</span>
+                <span>{T.removePhoto}</span>
               </label>
             )}
             <div className="draft-actions">
-              <button className="btn btn-small" onClick={saveEdit} disabled={busy}>Salva</button>
-              <button className="btn-ghost" onClick={() => setMode(null)}>Annulla</button>
+              <button className="btn btn-small" onClick={saveEdit} disabled={busy}>{T.save}</button>
+              <button className="btn-ghost" onClick={() => setMode(null)}>{T.cancel}</button>
             </div>
           </div>
         ) : (
@@ -197,24 +261,24 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
             {mode === 'rewrite' && (
               <div className="rewrite">
                 <div className="chips">
-                  {QUICK.map((q) => <button key={q} className="chip" disabled={busy} onClick={() => rewrite(q)}>{q}</button>)}
+                  {T.quick.map((q) => <button key={q} className="chip" disabled={busy} onClick={() => rewrite(q)}>{q}</button>)}
                 </div>
                 <div className="rewrite-row">
-                  <input value={instr} onChange={(e) => setInstr(e.target.value)} placeholder="Oppure scrivi tu: «parla di più del progetto TurboCode»"
+                  <input value={instr} onChange={(e) => setInstr(e.target.value)} placeholder={T.orWrite}
                     onKeyDown={(e) => e.key === 'Enter' && instr.trim() && rewrite(instr.trim())} />
-                  <button className="btn btn-small" disabled={busy || !instr.trim()} onClick={() => rewrite(instr.trim())}>Riscrivi</button>
+                  <button className="btn btn-small" disabled={busy || !instr.trim()} onClick={() => rewrite(instr.trim())}>{T.rewrite}</button>
                 </div>
               </div>
             )}
 
             <div className="draft-actions">
-              <button className="btn-ghost" onClick={() => setOpen((o) => !o)}>{open ? 'Chiudi testo' : 'Leggi testo'}</button>
-              {i > 0 && <button className="btn-ghost" disabled={busy} onClick={() => call('/move', { method: 'POST', json: { to: 'top' } })}>In apertura</button>}
-              <button className="btn-ghost" onClick={startEdit}>Modifica</button>
-              <button className={`btn-ghost ${mode === 'rewrite' ? 'on' : ''}`} onClick={() => setMode(mode === 'rewrite' ? null : 'rewrite')}>Riscrivi</button>
-              <button className="btn-ghost" onClick={() => onDiscuss?.(a)}>Discuti</button>
-              <button className="btn-ghost danger" disabled={busy} onClick={() => call('/spike', { method: 'POST' })}>Cestina</button>
-              {busy && <span className="working">Il redattore lavora…</span>}
+              <button className="btn-ghost" onClick={() => setOpen((o) => !o)}>{open ? T.closeText : T.readText}</button>
+              {i > 0 && <button className="btn-ghost" disabled={busy} onClick={() => call('/move', { method: 'POST', json: { to: 'top' } })}>{T.toLead}</button>}
+              <button className="btn-ghost" onClick={startEdit}>{T.edit}</button>
+              <button className={`btn-ghost ${mode === 'rewrite' ? 'on' : ''}`} onClick={() => setMode(mode === 'rewrite' ? null : 'rewrite')}>{T.rewrite}</button>
+              <button className="btn-ghost" onClick={() => onDiscuss?.(a)}>{T.discuss}</button>
+              <button className="btn-ghost danger" disabled={busy} onClick={() => call('/spike', { method: 'POST' })}>{T.spike}</button>
+              {busy && <span className="working">{T.working}</span>}
             </div>
           </>
         )}
@@ -223,7 +287,7 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
   );
 }
 
-// ───────────────────────── Il tavolo ─────────────────────────
+// ───────────────────────── The desk ─────────────────────────
 
 export default function Newsroom({ editionId, onPublished }) {
   const isEvening = !!editionId?.startsWith('sera-');
@@ -241,7 +305,7 @@ export default function Newsroom({ editionId, onPublished }) {
   const [armed, setArmed] = useState(false);
 
   function reprint() {
-    // edizione ritoccata a mano: serve un secondo clic per confermare
+    // an edition edited by hand: a second click confirms
     if (ed.edited && !armed) {
       setArmed(true);
       setTimeout(() => setArmed(false), 4000);
@@ -259,7 +323,7 @@ export default function Newsroom({ editionId, onPublished }) {
   useEffect(() => { api('/status').then(setStatusInfo).catch(() => {}); }, []);
   useEffect(() => { refreshList(); }, [refreshList]);
 
-  // edizione aperta: quella richiesta, altrimenti la più recente del giorno
+  // the open edition: the one requested, otherwise the day's latest
   const currentId = isEvening ? null : editionId || list.at(-1)?.id || null;
   useEffect(() => {
     if (!currentId) { setEd(null); return; }
@@ -268,7 +332,7 @@ export default function Newsroom({ editionId, onPublished }) {
 
   const update = (next) => { setEd(next); refreshList(); };
 
-  // risultato di un'azione approvata in riunione
+  // the result of an action approved in the meeting
   function onMeetingResult(r) {
     if (r.edition) setEd(r.edition);
     if (r.evening) setEvening(r.evening);
@@ -311,8 +375,8 @@ export default function Newsroom({ editionId, onPublished }) {
   return (
     <div className="desk">
       <header className="desk-head">
-        <h2>La Redazione</h2>
-        <p>Il tavolo del direttore · bozze, menabò e linea editoriale</p>
+        <h2>{T.title}</h2>
+        <p>{T.subtitle}</p>
       </header>
 
       <div className="desk-grid">
@@ -323,18 +387,18 @@ export default function Newsroom({ editionId, onPublished }) {
               {list.map((e) => (
                 <a key={e.id} href={href.desk(e.id)} className={`ed-chip ${e.id === ed?.id ? 'on' : ''} ${e.status === 'draft' ? 'draft' : ''}`}>
                   {hhmm(edHour(e))}
-                  {e.status === 'draft' && <em>bozza</em>}
-                  {e.edited && e.status !== 'draft' && <em>ritoccata</em>}
+                  {e.status === 'draft' && <em>{T.draft}</em>}
+                  {e.edited && e.status !== 'draft' && <em>{T.retouched}</em>}
                 </a>
               ))}
-              {!list.length && <span className="hint-small">Nessuna edizione oggi.</span>}
+              {!list.length && <span className="hint-small">{T.noEditions}</span>}
               {evening ? (
                 <a href={href.desk(`sera-${day}`)} className={`ed-chip ed-chip-evening ${isEvening ? 'on' : ''}`}>
-                  Sera{evening.status === 'draft' && <em>bozza</em>}
+                  {T.evening}{evening.status === 'draft' && <em>{T.draft}</em>}
                 </a>
               ) : list.length > 0 && (
                 <button className="btn-ghost" disabled={!!busy} onClick={() => eveningAct('evening', '/print')}>
-                  {busy === 'evening' ? 'Scrivo la sera…' : 'Stampa l\'edizione della sera'}
+                  {busy === 'evening' ? T.writingEvening : T.printEvening}
                 </button>
               )}
             </div>
@@ -342,7 +406,7 @@ export default function Newsroom({ editionId, onPublished }) {
 
           {otherDrafts.length > 0 && (
             <p className="desk-alert">
-              {otherDrafts.length === 1 ? 'Una bozza attende' : `${otherDrafts.length} bozze attendono`} di andare in stampa:{' '}
+              {otherDrafts.length === 1 ? T.oneDraft : T.nDrafts(otherDrafts.length)} {T.toPress}{' '}
               {otherDrafts.slice(0, 4).map((d, k) => (
                 <a key={d.id} href={href.desk(d.id)}>{k ? ', ' : ''}{hhmm(edHour(d))}</a>
               ))}
@@ -355,31 +419,31 @@ export default function Newsroom({ editionId, onPublished }) {
             <>
               <div className="desk-bar">
                 <div>
-                  <span className={`status ${evening.status}`}>{evening.status === 'draft' ? 'Bozza' : 'In edicola'}</span>
-                  <strong>Edizione della sera</strong>
-                  <span className="muted"> · {evening.editions} edizioni · {evening.stats.total} segnali · {writerLabel(evening.writer)}</span>
+                  <span className={`status ${evening.status}`}>{evening.status === 'draft' ? T.draftStatus : T.onStand}</span>
+                  <strong>{T.eveningEdition}</strong>
+                  <span className="muted"> · {evening.editions} {T.editions} · {evening.stats.total} {T.signals} · {writerLabel(evening.writer)}</span>
                 </div>
                 <div className="desk-bar-actions">
                   {evening.status === 'draft' && (
                     <button className="btn btn-small" disabled={!!busy} onClick={() => eveningAct('publish', '/publish')}>
-                      {busy === 'publish' ? 'In stampa…' : 'Manda in stampa'}
+                      {busy === 'publish' ? T.inPress : T.sendToPress}
                     </button>
                   )}
                   <button className="btn-ghost" disabled={!!busy} onClick={() => eveningAct('evening', '/print')}>
-                    {busy === 'evening' ? 'Ristampo…' : 'Ristampa la sera'}
+                    {busy === 'evening' ? T.reprinting : T.reprintEvening}
                   </button>
-                  {evening.status !== 'draft' && <a className="btn-ghost" href={href.evening(day)}>Vedi in pagina →</a>}
+                  {evening.status !== 'draft' && <a className="btn-ghost" href={href.evening(day)}>{T.seeOnPage}</a>}
                 </div>
               </div>
               <article className="desk-editorial">
-                <span className="lbl">L'editoriale</span>
+                <span className="lbl">{T.editorial}</span>
                 <h3 className="hl-lg">{evening.editorial.headline}</h3>
                 {evening.editorial.oneliner && <p className="dek">{evening.editorial.oneliner}</p>}
                 <div className="draft-text">{evening.editorial.body.map((p, k) => <p key={k}>{p}</p>)}</div>
               </article>
               <DeskCartoon cartoon={evening.cartoon} endpoint={`/evening/${day}/cartoon`} onChange={setEvening} setError={setError} />
               <section className="desk-top">
-                <span className="lbl">Le notizie del giorno</span>
+                <span className="lbl">{T.dayNews}</span>
                 <ol>
                   {evening.top.map((t) => (
                     <li key={t.articleId}><span className="sec">{t.section} · {hhmm(t.hour)}</span> {t.headline}</li>
@@ -388,36 +452,36 @@ export default function Newsroom({ editionId, onPublished }) {
               </section>
             </>
           )}
-          {isEvening && !evening && <p className="empty-text">L'edizione della sera non è ancora uscita.</p>}
+          {isEvening && !evening && <p className="empty-text">{T.eveningNotOut}</p>}
 
           {!isEvening && ed && (
             <>
               <div className="desk-bar">
                 <div>
-                  <span className={`status ${status}`}>{status === 'draft' ? 'Bozza' : 'In edicola'}</span>
-                  <strong>Edizione delle {hhmm(edHour(ed))}</strong>{edSince(ed)}
-                  <span className="muted"> · {ed.articles.length} articoli · tono {ed.tone || 'asciutto'} · {writerLabel(ed.writer)}</span>
+                  <span className={`status ${status}`}>{status === 'draft' ? T.draftStatus : T.onStand}</span>
+                  <strong>{T.editionOf(hhmm(edHour(ed)))}</strong>{edSince(ed)}
+                  <span className="muted"> · {ed.articles.length} {T.articles} · {T.toneLabel} {toneName(ed.tone)} · {writerLabel(ed.writer)}</span>
                 </div>
                 <div className="desk-bar-actions">
                   {status === 'draft' && (
                     <button className="btn btn-small" disabled={!!busy} onClick={() => act('publish', '/publish')}>
-                      {busy === 'publish' ? 'In stampa…' : 'Manda in stampa'}
+                      {busy === 'publish' ? T.inPress : T.sendToPress}
                     </button>
                   )}
                   <button className="btn-ghost" disabled={!!busy} onClick={() => act('summary', '/summary')}>
-                    {busy === 'summary' ? 'Scrivo…' : 'Rigenera il Punto'}
+                    {busy === 'summary' ? T.writing : T.regenBrief}
                   </button>
                   <button className={`btn-ghost ${armed ? 'danger on' : ''}`} disabled={!!busy}
-                    title="Riscrive tutta l'edizione con la linea editoriale attuale."
+                    title={T.reprintTitle}
                     onClick={reprint}>
-                    {busy === 'reprint' ? 'Ristampo… (qualche minuto)' : armed ? 'Confermi? Perdi le modifiche a mano' : 'Ristampa'}
+                    {busy === 'reprint' ? T.reprintingLong : armed ? T.confirm : T.reprint}
                   </button>
-                  {status === 'published' && <a className="btn-ghost" href={href.edition(ed.id)}>Vedi in pagina →</a>}
+                  {status === 'published' && <a className="btn-ghost" href={href.edition(ed.id)}>{T.seeOnPage}</a>}
                 </div>
               </div>
 
               <div className="desk-punto">
-                <span className="lbl">Il punto</span>
+                <span className="lbl">{T.brief}</span>
                 <p>{ed.summary}</p>
               </div>
               <DeskCartoon cartoon={ed.cartoon} endpoint={`/editions/${encodeURIComponent(ed.id)}/cartoon`} onChange={update} setError={setError} />
@@ -431,14 +495,14 @@ export default function Newsroom({ editionId, onPublished }) {
 
               {ed.spiked?.length > 0 && (
                 <section className="spiked">
-                  <h3 className="box-title">Cestino</h3>
+                  <h3 className="box-title">{T.spiked}</h3>
                   {ed.spiked.map((a) => (
                     <div key={a.id} className="spiked-row">
                       <span className="sec">{a.section}</span>
                       <span className="t">{a.headline}</span>
                       <button className="btn-ghost" onClick={async () => {
                         try { update(await api(`/editions/${encodeURIComponent(ed.id)}/articles/${encodeURIComponent(a.id)}/restore`, { method: 'POST' })); } catch (e) { setError(e.message); }
-                      }}>Ripristina</button>
+                      }}>{T.restore}</button>
                     </div>
                   ))}
                 </section>
@@ -448,9 +512,9 @@ export default function Newsroom({ editionId, onPublished }) {
         </section>
 
         <aside className="desk-side">
-          <div className="side-tabs" role="tablist" aria-label="Pannelli della redazione">
-            <button role="tab" aria-selected={tab === 'meeting'} className={tab === 'meeting' ? 'on' : ''} onClick={() => setTab('meeting')}>Riunione</button>
-            <button role="tab" aria-selected={tab === 'line'} className={tab === 'line' ? 'on' : ''} onClick={() => setTab('line')}>Linea editoriale</button>
+          <div className="side-tabs" role="tablist" aria-label={T.panels}>
+            <button role="tab" aria-selected={tab === 'meeting'} className={tab === 'meeting' ? 'on' : ''} onClick={() => setTab('meeting')}>{T.meeting}</button>
+            <button role="tab" aria-selected={tab === 'line'} className={tab === 'line' ? 'on' : ''} onClick={() => setTab('line')}>{T.line}</button>
           </div>
           {tab === 'meeting' ? (
             (isEvening ? evening : ed) ? (
@@ -462,7 +526,7 @@ export default function Newsroom({ editionId, onPublished }) {
                 onResult={onMeetingResult}
                 model={statusInfo?.llm?.model}
               />
-            ) : <p className="hint-small">Apri un'edizione per discuterne.</p>
+            ) : <p className="hint-small">{T.openEdition}</p>
           ) : (
             <LinePanel key={lineKey} />
           )}

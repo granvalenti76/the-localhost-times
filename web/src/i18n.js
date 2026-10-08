@@ -5,3 +5,6 @@
 export const lang = (typeof window !== 'undefined' && window.__LT__?.lang) || 'en';
 export const locale = lang === 'it' ? 'it-IT' : 'en-US';
 export const tr = (d) => d[lang] ?? d.en;
+
+/** Quotation marks of the paper's language: “…” in English, «…» in Italian. */
+export const quote = (s) => (lang === 'it' ? `«${s}»` : `“${s}”`);

@@ -1,3 +1,4 @@
+import { tr } from '../i18n.js';
 import path from 'node:path';
 import { home, listDir, fileState, withSnapshot, columns, pick, cdToMs, msToCd } from '../util.js';
 
@@ -14,7 +15,7 @@ function locate() {
 
 export default {
   id: 'podcasts',
-  label: 'Podcast',
+  get label() { return tr({ en: 'Podcasts', it: 'Podcast' }); },
   locate,
 
   collect({ since }) {
@@ -23,7 +24,7 @@ export default {
       const ec = columns(db, 'ZMTEPISODE');
       const pc = columns(db, 'ZMTPODCAST');
       const played = pick(ec, ['ZLASTDATEPLAYED', 'ZLASTUSERINTERACTEDDATE']);
-      if (!played) throw new Error('Schema Podcast non riconosciuto');
+      if (!played) throw new Error(tr({ en: 'Unrecognised Podcasts schema', it: 'Schema Podcast non riconosciuto' }));
       const playhead = ec.includes('ZPLAYHEAD') ? 'e.ZPLAYHEAD' : 'NULL';
       const duration = ec.includes('ZDURATION') ? 'e.ZDURATION' : 'NULL';
       const author = pc.includes('ZAUTHOR') ? 'p.ZAUTHOR' : 'NULL';

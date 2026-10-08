@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-/** Foto con didascalia e credito, in stile quotidiano. Sparisce se l'immagine non carica. */
+/** A photo with caption and credit, newspaper style. Disappears if the image fails to load. */
 export default function Photo({ image, size = 'md', caption = true }) {
   const [broken, setBroken] = useState(false);
   if (!image || broken) return null;

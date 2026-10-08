@@ -1,5 +1,6 @@
 import React from 'react';
-import { href, hhmm, SECTIONS } from '../lib.js';
+import { href, hhmm, SECTIONS, episodeLabel } from '../lib.js';
+import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
 import Market from './Market.jsx';
 import Cartoon from './Cartoon.jsx';
@@ -8,7 +9,7 @@ import { LettersBox } from './Letters.jsx';
 function Kicker({ a }) {
   return (
     <div className="kicker">
-      {a.series && <span className="segue">Segue · {a.series.episode}ª puntata</span>}
+      {a.series && <span className="segue">{episodeLabel(a.series.episode)}</span>}
       <span className="sec">{a.section}</span>
       {a.kicker && a.kicker.toLowerCase() !== a.section.toLowerCase() && <span className="sub"> · {a.kicker}</span>}
     </div>
@@ -16,7 +17,7 @@ function Kicker({ a }) {
 }
 
 function Meta({ a }) {
-  return <div className="meta">{hhmm(a.first)}{a.last - a.first > 60e3 ? `–${hhmm(a.last)}` : ''} · {a.sources.length} {a.sources.length === 1 ? 'fonte' : 'fonti'}</div>;
+  return <div className="meta">{hhmm(a.first)}{a.last - a.first > 60e3 ? `–${hhmm(a.last)}` : ''} · {a.sources.length} {a.sources.length === 1 ? tr({ en: 'source', it: 'fonte' }) : tr({ en: 'sources', it: 'fonti' })}</div>;
 }
 
 function Activity({ stats, start }) {
@@ -24,7 +25,7 @@ function Activity({ stats, start }) {
   const W = 240, H = 64, bw = W / 12;
   return (
     <figure className="activity">
-      <svg viewBox={`0 0 ${W} ${H + 14}`} role="img" aria-label="Segnali ogni cinque minuti">
+      <svg viewBox={`0 0 ${W} ${H + 14}`} role="img" aria-label={tr({ en: 'Signals every five minutes', it: 'Segnali ogni cinque minuti' })}>
         {stats.bins.map((v, i) => {
           const h = v ? Math.max(2, (v / max) * H) : 0;
           return <rect key={i} x={i * bw + 2} y={H - h} width={bw - 4} height={h} />;
@@ -34,7 +35,7 @@ function Activity({ stats, start }) {
           <text key={i} x={i * bw + bw / 2} y={H + 12} textAnchor="middle">:{String(i * 5).padStart(2, '0')}</text>
         ))}
       </svg>
-      <figcaption>Segnali ogni cinque minuti, dalle {hhmm(start)}</figcaption>
+      <figcaption>{tr({ en: `Signals every five minutes, since ${hhmm(start)}`, it: `Segnali ogni cinque minuti, dalle ${hhmm(start)}` })}</figcaption>
     </figure>
   );
 }
@@ -51,7 +52,7 @@ function Numbers({ stats }) {
           </tr>
         ))}
         <tr className="tot">
-          <th>Totale</th>
+          <th>{tr({ en: 'Total', it: 'Totale' })}</th>
           <td>{stats.total}</td>
         </tr>
       </tbody>
@@ -83,7 +84,7 @@ export default function FrontPage({ edition }) {
                   <Photo image={lead.image} size="md" />
                   <div className="lead-body">
                     {leadParas.map((p, i) => <p key={i} className={i === 0 && p.length > 120 ? 'dropcap' : ''}>{p}</p>)}
-                    <a className="more" href={link(lead)}>Continua a leggere →</a>
+                    <a className="more" href={link(lead)}>{tr({ en: 'Continue reading', it: 'Continua a leggere' })} →</a>
                   </div>
                 </div>
               ) : (
@@ -91,7 +92,7 @@ export default function FrontPage({ edition }) {
                   <div className={`lead-body ${longLead ? 'two' : ''}`}>
                     {leadParas.map((p, i) => <p key={i} className={i === 0 && p.length > 160 ? 'dropcap' : ''}>{p}</p>)}
                   </div>
-                  <a className="more" href={link(lead)}>Continua a leggere →</a>
+                  <a className="more" href={link(lead)}>{tr({ en: 'Continue reading', it: 'Continua a leggere' })} →</a>
                 </>
               )}
             </article>
@@ -114,13 +115,13 @@ export default function FrontPage({ edition }) {
         <aside className="rail">
           <Cartoon cartoon={edition.cartoon} />
           <section className="box punto">
-            <h3 className="box-title">Il punto</h3>
+            <h3 className="box-title">{tr({ en: 'The Brief', it: 'Il punto' })}</h3>
             <p>{edition.summary}</p>
           </section>
           <LettersBox letters={edition.letters} />
           <Market market={edition.market} />
           <section className="box">
-            <h3 className="box-title">In numeri</h3>
+            <h3 className="box-title">{tr({ en: 'By the numbers', it: 'In numeri' })}</h3>
             <Activity stats={edition.stats} start={edition.start} />
             <Numbers stats={edition.stats} />
           </section>
@@ -143,7 +144,7 @@ export default function FrontPage({ edition }) {
 
       {edition.briefs.length > 0 && (
         <section className="briefs">
-          <h3 className="box-title">In breve</h3>
+          <h3 className="box-title">{tr({ en: 'Briefly', it: 'In breve' })}</h3>
           <ul>
             {edition.briefs.map((b, i) => (
               <li key={i}><span className="sec">{b.section}</span> {b.text}</li>

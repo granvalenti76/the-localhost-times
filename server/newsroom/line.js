@@ -1,51 +1,58 @@
 /**
- * La linea editoriale: decisa dal direttore (tu) nell'area Redazione.
- * Salvata nel database, letta a ogni edizione.
+ * The editorial line: chosen by the editor-in-chief (you) in the Newsroom.
+ * Stored in the database, read at every edition.
  */
-export const TONES = {
-  asciutto: {
-    label: 'Asciutto',
-    hint: 'Quotidiano serio, ironia rara',
-    prompt: 'Tono asciutto e preciso. Ironia rara, di sottrazione.',
+import { L, tr } from '../i18n.js';
+
+const TONE_TEXT = {
+  en: {
+    dry: { label: 'Dry', hint: 'A serious paper, rare irony', prompt: 'Dry, precise tone. Irony is rare and understated.' },
+    ironic: { label: 'Ironic', hint: 'One joke per paragraph', prompt: 'Ironic tone: allow yourself one joke per paragraph, always grounded in the facts, never mean.' },
+    satirical: { label: 'Satirical', hint: 'A column on manners', prompt: 'The tone of a satirical column on manners: gently exaggerate the owner\'s small manias, like an old-school columnist. Never offensive, never vulgar.' },
+    british: { label: 'Understatement', hint: 'British calm', prompt: 'British understatement: everything is "rather", "not entirely negligible". Olympian calm even in front of a hundred and sixty visits to the same site.' },
+    tabloid: { label: 'Tabloid', hint: 'Yellow press, for fun', prompt: 'For fun, old-fashioned tabloid style: punchy headlines, "SHOCK", "REVEALED", exclamation marks allowed in headlines. The body stays short and the facts stay true.' },
   },
-  ironico: {
-    label: 'Ironico',
-    hint: 'Una battuta per paragrafo',
-    prompt: 'Tono ironico: concediti una battuta per paragrafo, sempre fondata sui fatti, mai cattiva.',
-  },
-  satirico: {
-    label: 'Satirico',
-    hint: 'Corsivo di costume',
-    prompt: 'Tono da corsivo satirico di costume: esagera con garbo le piccole manie del proprietario, come un corsivista d\'altri tempi. Mai offensivo, mai volgare.',
-  },
-  british: {
-    label: 'Understatement',
-    hint: 'Calma britannica',
-    prompt: 'Understatement britannico: tutto è «piuttosto», «non del tutto trascurabile». Calma olimpica anche davanti a centosessanta visite allo stesso sito.',
-  },
-  strillone: {
-    label: 'Strillone',
-    hint: 'Tabloid, per gioco',
-    prompt: 'Per gioco, stile da tabloid d\'altri tempi: titoli a effetto, «CLAMOROSO», «ECCO», punti esclamativi ammessi nei titoli. Il corpo resta breve e i fatti restano veri.',
+  it: {
+    dry: { label: 'Asciutto', hint: 'Quotidiano serio, ironia rara', prompt: 'Tono asciutto e preciso. Ironia rara, di sottrazione.' },
+    ironic: { label: 'Ironico', hint: 'Una battuta per paragrafo', prompt: 'Tono ironico: concediti una battuta per paragrafo, sempre fondata sui fatti, mai cattiva.' },
+    satirical: { label: 'Satirico', hint: 'Corsivo di costume', prompt: 'Tono da corsivo satirico di costume: esagera con garbo le piccole manie del proprietario, come un corsivista d\'altri tempi. Mai offensivo, mai volgare.' },
+    british: { label: 'Understatement', hint: 'Calma britannica', prompt: 'Understatement britannico: tutto è «piuttosto», «non del tutto trascurabile». Calma olimpica anche davanti a centosessanta visite allo stesso sito.' },
+    tabloid: { label: 'Strillone', hint: 'Tabloid, per gioco', prompt: 'Per gioco, stile da tabloid d\'altri tempi: titoli a effetto, «CLAMOROSO», «ECCO», punti esclamativi ammessi nei titoli. Il corpo resta breve e i fatti restano veri.' },
   },
 };
 
-export const LENGTHS = {
-  corti: { label: 'Corti', factor: 0.65 },
-  standard: { label: 'Standard', factor: 1 },
-  lunghi: { label: 'Lunghi', factor: 1.5 },
-};
+const lazy = (ids, text) => Object.fromEntries(ids.map((id) => [id, {
+  get label() { return L(text)[id].label; },
+  get hint() { return L(text)[id].hint; },
+  get prompt() { return L(text)[id].prompt; },
+}]));
+
+export const TONES = lazy(['dry', 'ironic', 'satirical', 'british', 'tabloid'], TONE_TEXT);
+
+const LENGTH_LABELS = { en: { short: 'Short', standard: 'Standard', long: 'Long' }, it: { short: 'Corti', standard: 'Standard', long: 'Lunghi' } };
+const FACTORS = { short: 0.65, standard: 1, long: 1.5 };
+export const LENGTHS = Object.fromEntries(Object.keys(FACTORS).map((id) => [id, {
+  factor: FACTORS[id],
+  get label() { return L(LENGTH_LABELS)[id]; },
+}]));
 
 export const WEIGHTS = [
-  { value: 0, label: 'Nascosta' },
+  { value: 0, get label() { return tr({ en: 'Hidden', it: 'Nascosta' }); } },
   { value: 0.5, label: '−' },
   { value: 1, label: '=' },
   { value: 1.6, label: '+' },
   { value: 2.5, label: '++' },
 ];
 
+// ids used before the paper became bilingual
+const OLD_TONES = { asciutto: 'dry', ironico: 'ironic', satirico: 'satirical', strillone: 'tabloid' };
+const OLD_LENGTHS = { corti: 'short', lunghi: 'long' };
+export const toneId = (t) => OLD_TONES[t] || (TONES[t] ? t : 'dry');
+export const isTone = (t) => !!(OLD_TONES[t] || TONES[t]);
+export const lengthId = (l) => OLD_LENGTHS[l] || (FACTORS[l] ? l : 'standard');
+
 export const DEFAULT_LINE = {
-  tone: 'asciutto',
+  tone: 'dry',
   length: 'standard',
   autoPublish: true,
   photos: true,
@@ -55,18 +62,21 @@ export const DEFAULT_LINE = {
 
 export function getLine(store) {
   const saved = store.getSetting('line', {});
-  return {
+  const line = {
     ...DEFAULT_LINE,
     ...saved,
     sectionWeights: { ...DEFAULT_LINE.sectionWeights, ...(saved.sectionWeights || {}) },
   };
+  line.tone = toneId(line.tone);
+  line.length = lengthId(line.length);
+  return line;
 }
 
 export function saveLine(store, patch) {
   const cur = getLine(store);
   const next = { ...cur, ...patch, sectionWeights: { ...cur.sectionWeights, ...(patch.sectionWeights || {}) } };
-  if (!TONES[next.tone]) next.tone = 'asciutto';
-  if (!LENGTHS[next.length]) next.length = 'standard';
+  next.tone = toneId(next.tone);
+  next.length = lengthId(next.length);
   next.notes = String(next.notes || '').slice(0, 2000);
   next.autoPublish = !!next.autoPublish;
   next.photos = !!next.photos;
@@ -77,9 +87,13 @@ export function saveLine(store, patch) {
   return next;
 }
 
-/** Blocco da aggiungere alle istruzioni del redattore. */
+/** The block appended to the writer's instructions. */
 export function linePrompt(line) {
-  const parts = [`\nLINEA EDITORIALE DELLA DIREZIONE (prevale sulle indicazioni di stile qui sopra, non su quelle sui fatti):\n- ${TONES[line.tone]?.prompt || TONES.asciutto.prompt}`];
-  if (line.notes?.trim()) parts.push(`- Note del direttore: ${line.notes.trim()}`);
+  const tone = TONES[toneId(line.tone)].prompt;
+  const parts = [tr({
+    en: `\nTHE EDITOR-IN-CHIEF'S EDITORIAL LINE (overrides the style guidance above, not the rules about facts):\n- ${tone}`,
+    it: `\nLINEA EDITORIALE DELLA DIREZIONE (prevale sulle indicazioni di stile qui sopra, non su quelle sui fatti):\n- ${tone}`,
+  })];
+  if (line.notes?.trim()) parts.push(tr({ en: `- Editor's notes: ${line.notes.trim()}`, it: `- Note del direttore: ${line.notes.trim()}` }));
   return parts.join('\n');
 }

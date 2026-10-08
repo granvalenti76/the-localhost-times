@@ -1,3 +1,4 @@
+import { tr } from './i18n.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,14 +8,17 @@ import { DatabaseSync } from 'node:sqlite';
 export const HOME = os.homedir();
 export const home = (...p) => path.join(HOME, ...p);
 
-// Core Data / NSDate: secondi dal 2001-01-01 UTC
+// Core Data / NSDate: seconds since 2001-01-01 UTC
 export const CD_EPOCH = 978307200;
 export const cdToMs = (t) => (t == null ? null : Math.round((Number(t) + CD_EPOCH) * 1000));
 export const msToCd = (ms) => ms / 1000 - CD_EPOCH;
 
 export class PermissionError extends Error {
   constructor(file) {
-    super(`Accesso negato a ${file}. Serve "Accesso completo al disco" per l'app che esegue Node (es. Terminale).`);
+    super(tr({
+      en: `Access denied to ${file}. The app running Node (e.g. Terminal) needs "Full Disk Access".`,
+      it: `Accesso negato a ${file}. Serve "Accesso completo al disco" per l'app che esegue Node (es. Terminale).`,
+    }));
     this.file = file;
   }
 }
@@ -43,7 +47,7 @@ export function listDir(dir) {
   }
 }
 
-/** Cerca file che soddisfano `re` sotto `dir`, fino a `depth` livelli. */
+/** Find files matching `re` under `dir`, up to `depth` levels deep. */
 export function findFiles(dir, re, depth = 1) {
   const out = [];
   let denied = false;
@@ -72,8 +76,8 @@ export function newest(files) {
 }
 
 /**
- * Copia un database SQLite (con -wal e -shm) in una cartella temporanea e lo apre.
- * Così non tocchiamo mai i file originali e non litighiamo con i lock delle app.
+ * Copy a SQLite database (with -wal and -shm) to a temp folder and open it.
+ * This way we never touch the original files or fight with the apps' locks.
  */
 export function snapshot(file) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dailymac-'));
@@ -86,7 +90,7 @@ export function snapshot(file) {
     throw e;
   }
   for (const ext of ['-wal', '-shm']) {
-    try { fs.copyFileSync(file + ext, base + ext); } catch { /* opzionale */ }
+    try { fs.copyFileSync(file + ext, base + ext); } catch { /* optional */ }
   }
   const db = new DatabaseSync(base);
   return {
@@ -113,7 +117,7 @@ export function hostOf(url) {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return null; }
 }
 
-/** Le pagine del giornale stesso (localhost / 127.0.0.1 sulla porta del giornale). */
+/** The paper's own pages (localhost / 127.0.0.1 on the paper's port). */
 export function isSelfUrl(url, port) {
   try {
     const u = new URL(url);

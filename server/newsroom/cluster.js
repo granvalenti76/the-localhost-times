@@ -1,8 +1,9 @@
 /**
- * Dal flusso grezzo di eventi alle "storie": gruppi di eventi che meritano un articolo.
+ * From the raw stream of events to "stories": groups of events worth an article.
  */
 import { SECTIONS } from './sections.js';
 import { hhmm } from '../util.js';
+import { tr, lang } from '../i18n.js';
 
 const log2 = (n) => Math.log2(Math.max(1, n));
 
@@ -26,8 +27,8 @@ const uniqBy = (arr, fn) => {
   });
 };
 
-// Teniamo separati i sottodomini con identità propria (mail.google.com ≠ google.com),
-// ma uniamo le varianti banali (www., m., mobile., lingua).
+// Keep subdomains with an identity of their own apart (mail.google.com ≠ google.com),
+// but merge the trivial variants (www., m., mobile., language).
 export function siteOf(host = '') {
   return host.replace(/^(www\d?|m|mobile|amp|[a-z]{2}(-[a-z]{2})?)\.(?=[^.]+\.[^.]+)/i, '');
 }
@@ -88,7 +89,7 @@ function safariStories(evs) {
     if (pages.length >= 3) {
       pages.forEach((p) => { p.clean = cleanTitle(p.title, registrable(site)); p.generic = isGeneric(p.clean, site); });
       const informative = pages.filter((p) => !p.generic).length;
-      // i titoli informativi prima (più lunghi = più specifici), quelli generici in fondo
+      // informative titles first (longer = more specific), generic ones last
       pages.sort((a, b) => (a.generic - b.generic) || (b.clean.length - a.clean.length));
       out.push(story('safari', 'site', site, list, 1.2 + log2(informative + 1) * 1.4 + log2(list.length) * 0.3, {
         topic: site, pages, informative,
@@ -97,9 +98,9 @@ function safariStories(evs) {
   }
   const sites = [...groupBy(small, (e) => siteOf(e.meta.host)).keys()];
   if (sites.length >= 2) {
-    out.push(story('safari', 'roundup', 'web', small, 1 + log2(sites.length + 1) * 0.6, { topic: 'rassegna', sites }));
+    out.push(story('safari', 'roundup', 'web', small, 1 + log2(sites.length + 1) * 0.6, { topic: tr({ en: 'roundup', it: 'rassegna' }), sites }));
   } else if (small.length) {
-    out.push(story('safari', 'roundup', 'web', small, 0.6, { topic: 'rassegna', sites }));
+    out.push(story('safari', 'roundup', 'web', small, 0.6, { topic: tr({ en: 'roundup', it: 'rassegna' }), sites }));
   }
   return out;
 }
@@ -112,7 +113,7 @@ function webmailStory(evs) {
   const unreadEnd = counts.at(-1)?.meta.unreadCount ?? null;
   const all = evs.filter((e) => e.kind === 'read' || e.kind === 'inbox');
   return [story('mail', 'webmail', 'gmail', all, (reads.length ? 2.5 : 1) + log2(reads.length + 1) * 1.2 + (counts.length ? 0.4 : 0), {
-    topic: reads[0]?.title || 'Posta in arrivo',
+    topic: reads[0]?.title || tr({ en: 'Inbox', it: 'Posta in arrivo' }),
     reads,
     service: evs[0].meta.webmail || 'Gmail',
     unreadStart,
@@ -130,14 +131,14 @@ function mailStories(all) {
     const people = [...new Set(list.map((e) => (e.kind === 'sent' ? e.meta.to?.[0] : e.meta.fromName || e.meta.from)).filter(Boolean))];
     const allNews = list.every((e) => e.meta.newsletter);
     if (!allNews && (list.length >= 2 || sent.length)) {
-      out.push(story('mail', 'thread', subj || 'senza-oggetto', list, (sent.length ? 4 : 3) + list.length * 0.45, {
+      out.push(story('mail', 'thread', subj || 'senza-oggetto' /* kept as is: it is part of story ids already in the database */, list, (sent.length ? 4 : 3) + list.length * 0.45, {
         topic: list[0].title, people, sentCount: sent.length,
       }));
     } else rest.push(...list);
   }
   if (rest.length) {
     out.push(story('mail', 'inbox', 'all', rest, 1.4 + log2(rest.length) * 0.9, {
-      topic: 'posta in arrivo',
+      topic: tr({ en: 'incoming mail', it: 'posta in arrivo' }),
       newsletters: rest.filter((e) => e.meta.newsletter).length,
       unread: rest.filter((e) => e.meta.unread).length,
     }));
@@ -160,7 +161,7 @@ function terminalStories(evs) {
   const hosts = serious.filter((e) => e.meta.family === 'ssh').map((e) => e.title.split(/\s+/).pop());
   const weight = serious.length ? 2 + log2(serious.length + 1) * 1.3 + commits.length * 0.6 : 0.5;
   return [story('terminal', 'session', 'all', evs, weight, {
-    topic: fam[0]?.family || 'terminale', families: fam.slice(0, 8), commits, hosts: [...new Set(hosts)],
+    topic: fam[0]?.family || tr({ en: 'terminal', it: 'terminale' }), families: fam.slice(0, 8), commits, hosts: [...new Set(hosts)],
     serious: serious.length,
   })];
 }
@@ -194,81 +195,102 @@ export function buildStories(events) {
 
 function moment(ms) {
   const h = new Date(ms).getHours();
-  if (h < 6) return 'notte';
-  if (h < 12) return 'mattina';
-  if (h < 14) return 'mezzogiorno';
-  if (h < 19) return 'pomeriggio';
-  return 'sera';
+  const [night, morning, noon, afternoon, evening] = tr({
+    en: ['night', 'morning', 'midday', 'afternoon', 'evening'],
+    it: ['notte', 'mattina', 'mezzogiorno', 'pomeriggio', 'sera'],
+  });
+  if (h < 6) return night;
+  if (h < 12) return morning;
+  if (h < 14) return noon;
+  if (h < 19) return afternoon;
+  return evening;
 }
 
-/** Descrizione testuale della storia per il redattore (LLM). */
+/** The story described in words, for the writer (the LLM). */
 export function factSheet(s) {
+  const en = lang() === 'en';
+  const q = (x) => (en ? `“${x}”` : `«${x}»`);
+  const T = (e, i) => (en ? e : i);
   const L = [];
   const t = (e) => hhmm(e.ts);
-  L.push(`Sezione: ${s.section}`);
-  L.push(`Intervallo: ${hhmm(s.first)}–${hhmm(s.last)} (momento della giornata: ${moment(s.first)})`);
+  L.push(T(`Section: ${s.section}`, `Sezione: ${s.section}`));
+  L.push(T(`Time span: ${hhmm(s.first)}–${hhmm(s.last)} (time of day: ${moment(s.first)})`, `Intervallo: ${hhmm(s.first)}–${hhmm(s.last)} (momento della giornata: ${moment(s.first)})`));
   switch (s.kind) {
     case 'searches':
-      L.push(`Ricerche fatte sul web (${s.events.length}):`);
-      s.events.slice(0, 30).forEach((e) => L.push(`- ${t(e)} [${e.detail}] «${e.title}»`));
+      L.push(T(`Web searches (${s.events.length}):`, `Ricerche fatte sul web (${s.events.length}):`));
+      s.events.slice(0, 30).forEach((e) => L.push(`- ${t(e)} [${e.detail}] ${q(e.title)}`));
       break;
     case 'site':
-      L.push(`Sito: ${s.topic} — ${s.events.length} visite, ${s.pages.length} pagine diverse.`);
-      [...s.pages].sort((a, b) => a.ts - b.ts).slice(0, 25).forEach((e) => L.push(`- ${t(e)} «${e.clean}»${e.generic ? ' (pagina generica)' : ''}`));
+      L.push(T(`Site: ${s.topic} — ${s.events.length} visits, ${s.pages.length} different pages.`, `Sito: ${s.topic} — ${s.events.length} visite, ${s.pages.length} pagine diverse.`));
+      [...s.pages].sort((a, b) => a.ts - b.ts).slice(0, 25).forEach((e) => L.push(`- ${t(e)} ${q(e.clean)}${e.generic ? T(' (generic page)', ' (pagina generica)') : ''}`));
       break;
     case 'roundup':
-      L.push(`Visite brevi su siti diversi (${s.events.length}):`);
-      uniqBy(s.events, (e) => e.title).slice(0, 20).forEach((e) => L.push(`- ${t(e)} ${e.meta.host}: «${e.title}»`));
+      L.push(T(`Short visits to different sites (${s.events.length}):`, `Visite brevi su siti diversi (${s.events.length}):`));
+      uniqBy(s.events, (e) => e.title).slice(0, 20).forEach((e) => L.push(`- ${t(e)} ${e.meta.host}: ${q(e.title)}`));
       break;
     case 'thread':
-      L.push(`Conversazione email «${s.topic}» — ${s.events.length} messaggi, ${s.sentCount} inviati dal proprietario.`);
-      s.events.forEach((e) => L.push(`- ${t(e)} ${e.kind === 'sent' ? `INVIATA a ${e.meta.to?.join(', ') || '?'}` : `RICEVUTA da ${e.meta.fromName || e.meta.from}`}: «${e.title}»${e.meta.summary ? ` — ${e.meta.summary}` : ''}`));
+      L.push(T(`Email conversation ${q(s.topic)} — ${s.events.length} messages, ${s.sentCount} sent by the owner.`, `Conversazione email ${q(s.topic)} — ${s.events.length} messaggi, ${s.sentCount} inviati dal proprietario.`));
+      s.events.forEach((e) => L.push(`- ${t(e)} ${e.kind === 'sent'
+        ? T(`SENT to ${e.meta.to?.join(', ') || '?'}`, `INVIATA a ${e.meta.to?.join(', ') || '?'}`)
+        : T(`RECEIVED from ${e.meta.fromName || e.meta.from}`, `RICEVUTA da ${e.meta.fromName || e.meta.from}`)}: ${q(e.title)}${e.meta.summary ? ` — ${e.meta.summary}` : ''}`));
       break;
     case 'webmail':
-      L.push(`Posta letta su ${s.service} nel browser: ${s.reads.length} email aperte, casella controllata ${s.inboxChecks} volte.`);
-      if (s.unreadEnd != null) L.push(`Messaggi non letti in casella: ${s.unreadStart === s.unreadEnd ? s.unreadEnd : `da ${s.unreadStart} a ${s.unreadEnd}`}.`);
-      s.reads.slice(0, 25).forEach((e) => L.push(`- ${t(e)} aperta l'email «${e.title}»`));
-      L.push('(Del mittente e del testo non sappiamo nulla: conosciamo solo gli oggetti.)');
+      L.push(T(`Mail read in ${s.service} in the browser: ${s.reads.length} emails opened, inbox checked ${s.inboxChecks} times.`, `Posta letta su ${s.service} nel browser: ${s.reads.length} email aperte, casella controllata ${s.inboxChecks} volte.`));
+      if (s.unreadEnd != null) {
+        const v = s.unreadStart === s.unreadEnd ? s.unreadEnd : T(`from ${s.unreadStart} to ${s.unreadEnd}`, `da ${s.unreadStart} a ${s.unreadEnd}`);
+        L.push(T(`Unread messages in the inbox: ${v}.`, `Messaggi non letti in casella: ${v}.`));
+      }
+      s.reads.slice(0, 25).forEach((e) => L.push(T(`- ${t(e)} opened the email ${q(e.title)}`, `- ${t(e)} aperta l'email ${q(e.title)}`)));
+      L.push(T('(We know nothing about senders or text: only the subjects.)', '(Del mittente e del testo non sappiamo nulla: conosciamo solo gli oggetti.)'));
       break;
     case 'inbox':
-      L.push(`Posta in arrivo: ${s.events.length} messaggi (${s.newsletters} newsletter/notifiche, ${s.unread} ancora da leggere).`);
-      s.events.slice(0, 25).forEach((e) => L.push(`- ${t(e)} da ${e.meta.fromName || e.meta.from}${e.meta.newsletter ? ' (newsletter)' : ''}: «${e.title}»`));
+      L.push(T(`Incoming mail: ${s.events.length} messages (${s.newsletters} newsletters/notifications, ${s.unread} still unread).`, `Posta in arrivo: ${s.events.length} messaggi (${s.newsletters} newsletter/notifiche, ${s.unread} ancora da leggere).`));
+      s.events.slice(0, 25).forEach((e) => L.push(`- ${t(e)} ${T('from', 'da')} ${e.meta.fromName || e.meta.from}${e.meta.newsletter ? ' (newsletter)' : ''}: ${q(e.title)}`));
       break;
     case 'session':
-      L.push(`Comandi nel terminale: ${s.events.length} totali, ${s.serious} non banali.`);
-      if (s.families.length) L.push(`Famiglie di comandi: ${s.families.map((f) => `${f.family} ×${f.count}`).join(', ')}`);
-      if (s.commits.length) L.push(`Messaggi di commit git: ${s.commits.map((c) => `«${c}»`).join('; ')}`);
-      if (s.hosts.length) L.push(`Connessioni ssh verso: ${s.hosts.join(', ')}`);
-      L.push('Alcuni comandi:');
+      L.push(T(`Terminal commands: ${s.events.length} in all, ${s.serious} non-trivial.`, `Comandi nel terminale: ${s.events.length} totali, ${s.serious} non banali.`));
+      if (s.families.length) L.push(`${T('Command families', 'Famiglie di comandi')}: ${s.families.map((f) => `${f.family} ×${f.count}`).join(', ')}`);
+      if (s.commits.length) L.push(`${T('Git commit messages', 'Messaggi di commit git')}: ${s.commits.map(q).join('; ')}`);
+      if (s.hosts.length) L.push(`${T('ssh connections to', 'Connessioni ssh verso')}: ${s.hosts.join(', ')}`);
+      L.push(T('Some commands:', 'Alcuni comandi:'));
       s.events.filter((e) => !TRIVIAL.has(e.meta.family)).slice(-25).forEach((e) => L.push(`- ${e.meta.timed ? t(e) : '~'} $ ${e.title.slice(0, 160)}`));
       break;
     case 'note': {
       const last = s.events.at(-1);
-      L.push(`Nota «${last.title}»${last.meta.folder ? ` nella cartella «${last.meta.folder}»` : ''}: ${s.events.some((e) => e.kind === 'created') ? 'creata' : 'modificata'} (${s.events.length} salvataggi).`);
-      if (last.meta.locked) L.push('La nota è protetta da password: contenuto non disponibile.');
-      if (last.meta.snippet) L.push(`Estratto: «${last.meta.snippet}»`);
+      const created = s.events.some((e) => e.kind === 'created');
+      L.push(T(
+        `Note ${q(last.title)}${last.meta.folder ? ` in the folder ${q(last.meta.folder)}` : ''}: ${created ? 'created' : 'edited'} (${s.events.length} saves).`,
+        `Nota ${q(last.title)}${last.meta.folder ? ` nella cartella ${q(last.meta.folder)}` : ''}: ${created ? 'creata' : 'modificata'} (${s.events.length} salvataggi).`,
+      ));
+      if (last.meta.locked) L.push(T('The note is password-protected: contents not available.', 'La nota è protetta da password: contenuto non disponibile.'));
+      if (last.meta.snippet) L.push(`${T('Excerpt', 'Estratto')}: ${q(last.meta.snippet)}`);
       break;
     }
     case 'entry': {
       const e = s.events.at(-1);
-      L.push(`Nuova voce nel diario personale (app Journal) alle ${t(e)}.${e.title ? ` Titolo: «${e.title}».` : ''}${e.meta.words ? ` Circa ${e.meta.words} parole.` : ''}`);
-      L.push(e.meta.text ? `Testo: «${e.meta.text}»` : 'Il contenuto è riservato: non citarlo e non inventarlo, rispetta la riservatezza.');
+      L.push(T(
+        `New entry in the personal diary (Journal app) at ${t(e)}.${e.title ? ` Title: ${q(e.title)}.` : ''}${e.meta.words ? ` About ${e.meta.words} words.` : ''}`,
+        `Nuova voce nel diario personale (app Journal) alle ${t(e)}.${e.title ? ` Titolo: ${q(e.title)}.` : ''}${e.meta.words ? ` Circa ${e.meta.words} parole.` : ''}`,
+      ));
+      L.push(e.meta.text
+        ? `${T('Text', 'Testo')}: ${q(e.meta.text)}`
+        : T('The contents are private: don\'t quote or invent them, respect the privacy.', 'Il contenuto è riservato: non citarlo e non inventarlo, rispetta la riservatezza.'));
       break;
     }
     case 'episode': {
       const e = s.events.at(-1);
       const m = e.meta;
-      L.push(`Podcast «${m.show || '?'}»${m.author ? ` (${m.author})` : ''}, episodio «${e.title}».`);
-      if (m.duration) L.push(`Durata ${Math.round(m.duration / 60)} min; ascoltato fino al minuto ${Math.round((m.playhead || 0) / 60)}.`);
-      if (m.description) L.push(`Descrizione dell'episodio: ${m.description}`);
+      L.push(`${T('Podcast', 'Podcast')} ${q(m.show || '?')}${m.author ? ` (${m.author})` : ''}, ${T('episode', 'episodio')} ${q(e.title)}.`);
+      if (m.duration) L.push(T(`Length ${Math.round(m.duration / 60)} min; listened up to minute ${Math.round((m.playhead || 0) / 60)}.`, `Durata ${Math.round(m.duration / 60)} min; ascoltato fino al minuto ${Math.round((m.playhead || 0) / 60)}.`));
+      if (m.description) L.push(`${T('Episode description', 'Descrizione dell\'episodio')}: ${m.description}`);
       break;
     }
     case 'book': {
       const e = s.events[0];
       const opened = s.events.filter((x) => x.kind === 'opened').at(-1);
-      L.push(`Libro «${e.title}»${e.meta.author ? ` di ${e.meta.author}` : ''}.`);
-      if (opened?.meta.progress != null) L.push(`Avanzamento lettura: ${Math.round(opened.meta.progress * 100)}%.`);
-      s.events.filter((x) => x.kind === 'highlight').forEach((h) => L.push(`- Evidenziato alle ${t(h)}: «${h.meta.text}»${h.meta.note ? ` (nota: ${h.meta.note})` : ''}`));
+      L.push(`${T('Book', 'Libro')} ${q(e.title)}${e.meta.author ? ` ${T('by', 'di')} ${e.meta.author}` : ''}.`);
+      if (opened?.meta.progress != null) L.push(`${T('Reading progress', 'Avanzamento lettura')}: ${Math.round(opened.meta.progress * 100)}%.`);
+      s.events.filter((x) => x.kind === 'highlight').forEach((h) => L.push(`- ${T('Highlighted at', 'Evidenziato alle')} ${t(h)}: ${q(h.meta.text)}${h.meta.note ? ` (${T('note', 'nota')}: ${h.meta.note})` : ''}`));
       break;
     }
   }

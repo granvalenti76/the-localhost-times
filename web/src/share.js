@@ -2,7 +2,7 @@
  * The front page as an image (1200×630 PNG), drawn on a canvas with the paper's own fonts.
  * The cartoon is taken from the page itself, already drawn as SVG.
  */
-import { tr, locale } from './i18n.js';
+import { tr, locale, quote } from './i18n.js';
 import { hhmm, edHour } from './lib.js';
 
 const W = 1200;
@@ -98,7 +98,7 @@ export async function drawShareImage(p) {
   ctx.fillText('The Localhost Times', W / 2, 92);
   ctx.font = `italic 15px ${F.display}`;
   ctx.fillStyle = MUTED;
-  ctx.fillText('«All the news that never left the machine»', W / 2, 118);
+  ctx.fillText(quote('All the news that never left the machine'), W / 2, 118);
 
   // dateline between rules
   ctx.fillStyle = INK;
@@ -159,7 +159,7 @@ export async function drawShareImage(p) {
       ctx.fillStyle = INK;
       ctx.textAlign = 'center';
       ctx.font = `italic 17px ${F.display}`;
-      const lines = wrap(ctx, `«${p.cartoon}»`, boxW - 40, 2);
+      const lines = wrap(ctx, quote(p.cartoon), boxW - 40, 2);
       lines.forEach((l, i) => ctx.fillText(l, x0 + boxW / 2, 490 + i * 22));
     }
   }

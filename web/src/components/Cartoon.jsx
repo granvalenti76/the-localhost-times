@@ -1,15 +1,17 @@
 import React from 'react';
+import { tr, quote } from '../i18n.js';
 
 /**
- * La vignetta dell'ora: un disegno a tratto (originale) e una battuta.
- * Una piccola libreria di scene con lo stesso personaggio, l'omino con gli occhiali.
- * La scena la sceglie il redattore (o, se è spento, la tipografia) in base alla notizia.
+ * The cartoon of the hour: an (original) line drawing and a caption.
+ * A small library of scenes with the same character, the little man with glasses.
+ * The writer picks the scene (or, when it is offline, the typesetting) from the news.
+ * The catalogue the model reads is in server/newsroom/scenes.js.
  */
 const S = { stroke: 'currentColor', strokeWidth: 1.6, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
 const T = { ...S, strokeWidth: 1 };
 const F = { fill: 'currentColor', stroke: 'none' };
 
-// ───────── il personaggio ─────────
+// ───────── the character ─────────
 
 function Head({ x, y, mood = 'smile' }) {
   const mouth = {
@@ -37,7 +39,7 @@ function Head({ x, y, mood = 'smile' }) {
   );
 }
 
-/** Seduto alla scrivania, braccia verso la tastiera. */
+/** Seated at the desk, arms towards the keyboard. */
 function Seated({ mood, headphones, arms = 'type' }) {
   return (
     <g>
@@ -69,7 +71,7 @@ function Seated({ mood, headphones, arms = 'type' }) {
   );
 }
 
-/** In piedi, con le braccia in varie pose. */
+/** Standing, arms in various poses. */
 function Standing({ x, mood = 'smile', arms = 'down' }) {
   const A = {
     down: `M${x} 78 L ${x - 14} 104 M${x} 78 L ${x + 14} 104`,
@@ -86,7 +88,7 @@ function Standing({ x, mood = 'smile', arms = 'down' }) {
   );
 }
 
-// ───────── gli oggetti ─────────
+// ───────── the props ─────────
 
 function Desk({ children, mug = true, laptop = true }) {
   return (
@@ -117,7 +119,7 @@ function Mug({ x, y = 116, steam = true }) {
 
 const Floor = () => <path d="M10 160 H 250" {...T} />;
 
-// ───────── le scene ─────────
+// ───────── the scenes ─────────
 
 export const SCENES = {
   desk: () => (<g><Desk /><Seated /></g>),
@@ -333,7 +335,7 @@ export const SCENES = {
   ),
 };
 
-// compatibilità con le edizioni già stampate
+// compatibility with editions printed earlier
 const ALIASES = { mail: 'mailpile', browse: 'tabs' };
 
 export default function Cartoon({ cartoon }) {
@@ -341,10 +343,10 @@ export default function Cartoon({ cartoon }) {
   const Scene = SCENES[ALIASES[cartoon.scene] || cartoon.scene] || SCENES.desk;
   return (
     <figure className="cartoon">
-      <svg viewBox="0 0 260 170" role="img" aria-label="Vignetta disegnata a tratto">
+      <svg viewBox="0 0 260 170" role="img" aria-label={tr({ en: 'Line-drawn cartoon', it: 'Vignetta disegnata a tratto' })}>
         <Scene />
       </svg>
-      <figcaption>«{cartoon.caption}»</figcaption>
+      <figcaption>{quote(cartoon.caption)}</figcaption>
     </figure>
   );
 }

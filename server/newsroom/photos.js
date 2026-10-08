@@ -1,11 +1,12 @@
 /**
- * Le foto: per le pagine web pubbliche prendiamo l'immagine di anteprima
- * (og:image, la stessa che compare quando condividi un link) o la miniatura di YouTube.
- * Le immagini vengono scaricate in data/media e servite dal giornale: niente hotlink.
+ * Photos: for public web pages we take the preview image
+ * (og:image, the one shown when you share a link) or the YouTube thumbnail.
+ * Images are downloaded to data/media and served by the paper: no hotlinking.
  *
- * Privacy: non tocchiamo pagine private o dietro login (posta, social, chat, reti locali,
- * URL con token), né i domini bloccati in config.json.
+ * Privacy: we never touch private or logged-in pages (mail, social, chat, local networks,
+ * URLs with tokens), nor the domains blocked in config.json.
  */
+import { tr } from '../i18n.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { hash, isBlockedHost } from '../util.js';
@@ -26,7 +27,7 @@ const SKIP_HOSTS = [
 const SECRET_QUERY = /[?&](token|key|auth|session|sid|code|password|pwd|signature|sig|access_token|otp)=/i;
 const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1)|\.local$|\.lan$|\.internal$/i;
 const IMG_TYPES = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif' };
-// la "sezione" di una pagina: /granvalenti76/TurboCode/pulse → /granvalenti76/TurboCode
+// the "section" of a page: /granvalenti76/TurboCode/pulse → /granvalenti76/TurboCode
 function section(url) {
   try {
     const u = new URL(url);
@@ -35,9 +36,9 @@ function section(url) {
 }
 
 /**
- * Logo o immagine di default del sito? Sì se il nome lo dice, o se la stessa immagine
- * compare anche in un'altra sezione del sito (pagine dello stesso repository o dello stesso
- * articolo possono condividerla legittimamente).
+ * The site's logo or default image? Yes if the name says so, or if the same image
+ * also appears in another section of the site (pages of the same repository or the same
+ * article may legitimately share it).
  */
 function looksLikeLogo(store, img, pageUrl) {
   if (LOGO_HINT.test(img)) return true;
@@ -93,7 +94,7 @@ async function readLimited(res, max) {
   return Buffer.concat(chunks);
 }
 
-/** Estrae og:image / twitter:image / image_src dall'HTML. */
+/** Extracts og:image / twitter:image / image_src from the HTML. */
 export function parseOgImage(html, base) {
   const head = html.slice(0, html.search(/<\/head>/i) > 0 ? html.search(/<\/head>/i) : 300_000);
   const found = {};
@@ -124,8 +125,8 @@ async function imageCandidates(pageUrl, trace = () => {}) {
     return [`https://i.ytimg.com/vi/${yt}/maxresdefault.jpg`, `https://i.ytimg.com/vi/${yt}/hqdefault.jpg`];
   }
   const r = await fetchT(pageUrl, { headers: { Accept: 'text/html,application/xhtml+xml' } });
-  if (!r.ok) { trace(`la pagina risponde HTTP ${r.status}`); return []; }
-  if (!/html/i.test(r.headers.get('content-type') || '')) { trace('la pagina non è HTML'); return []; }
+  if (!r.ok) { trace(tr({ en: `the page answers HTTP ${r.status}`, it: `la pagina risponde HTTP ${r.status}` })); return []; }
+  if (!/html/i.test(r.headers.get('content-type') || '')) { trace(tr({ en: 'the page is not HTML', it: 'la pagina non è HTML' })); return []; }
   const buf = await readLimited(r, MAX_HTML);
   if (!buf) return [];
   const img = parseOgImage(buf.toString('utf8'), r.url || pageUrl);
@@ -141,30 +142,30 @@ async function download(imageUrl, mediaDir, trace = () => {}) {
   const len = Number(r.headers.get('content-length') || 0);
   if (len > MAX_IMG) return null;
   const buf = await readLimited(r, MAX_IMG);
-  if (!buf || buf.length < 4000) { trace('immagine troppo piccola o troppo grande'); return null; } // icona o pixel
+  if (!buf || buf.length < 4000) { trace('immagine troppo piccola o troppo grande'); return null; } // icon or tracking pixel
   fs.mkdirSync(mediaDir, { recursive: true });
   const file = `${hash(imageUrl)}.${ext}`;
   fs.writeFileSync(path.join(mediaDir, file), buf);
   return file;
 }
 
-/** Trova (e mette in cache) la foto di una pagina. Ritorna il nome del file o null. */
+/** Finds (and caches) a page's photo. Returns the file name or null. */
 export async function photoForPage(pageUrl, { store, config, trace = () => {}, force = false }) {
   if (!photoAllowed(pageUrl, config.privacy.blockedDomains)) { trace('pagina esclusa (privata o dietro login)'); return null; }
   const mediaDir = path.join(config.dataDir, 'media');
   const cached = store.getPhoto(pageUrl);
   if (cached && !force) {
-    if (cached.ok && cached.file && fs.existsSync(path.join(mediaDir, cached.file))) { trace(`già in archivio: ${cached.file}`); return cached.file; }
+    if (cached.ok && cached.file && fs.existsSync(path.join(mediaDir, cached.file))) { trace(tr({ en: `already archived: ${cached.file}`, it: `già in archivio: ${cached.file}` })); return cached.file; }
     if (!cached.ok && Date.now() - cached.at < RETRY_FAILED_AFTER) { trace('fallita di recente, riprovo domani'); return null; }
   }
   const host = new URL(pageUrl).hostname.replace(/^www\./, '');
   try {
     const imgs = await imageCandidates(pageUrl, trace);
-    if (!imgs.length) trace('la pagina non dichiara un\'immagine di anteprima');
+    if (!imgs.length) trace(tr({ en: 'the page declares no preview image', it: 'la pagina non dichiara un\'immagine di anteprima' }));
     for (const img of imgs) {
-      // stessa immagine per pagine diverse dello stesso sito → è il logo, non una foto
+      // same image for different pages of the same site → it's the logo, not a photo
       if (looksLikeLogo(store, img, pageUrl)) {
-        trace(`scartata, sembra il logo del sito: ${img}`);
+        trace(tr({ en: `discarded, looks like the site logo: ${img}`, it: `scartata, sembra il logo del sito: ${img}` }));
         store.savePhoto({ pageUrl, imageUrl: img, host, ok: false });
         return null;
       }
@@ -175,18 +176,18 @@ export async function photoForPage(pageUrl, { store, config, trace = () => {}, f
         return file;
       }
     }
-  } catch (e) { trace(`errore di rete: ${e.name === 'AbortError' ? 'timeout' : (e.cause?.code || e.message)}`); }
+  } catch (e) { trace(`${tr({ en: 'network error', it: 'errore di rete' })}: ${e.name === 'AbortError' ? 'timeout' : (e.cause?.code || e.message)}`); }
   store.savePhoto({ pageUrl, host, ok: false });
   return null;
 }
 
-/** Pagine candidate per illustrare una storia, dalla più promettente. */
+/** Candidate pages to illustrate a story, most promising first. */
 export function candidatePages(story) {
   if (!['site', 'roundup'].includes(story.kind)) return [];
   const seen = new Set();
   const out = [];
   const visits = story.events.filter((e) => e.url && e.kind === 'visit');
-  // YouTube prima (miniatura garantita), poi le pagine con titolo informativo, le più visitate
+  // YouTube first (guaranteed thumbnail), then pages with an informative title, most visited
   const count = new Map();
   for (const e of visits) count.set(e.url, (count.get(e.url) || 0) + 1);
   const ranked = [...visits].sort((a, b) =>
@@ -195,7 +196,7 @@ export function candidatePages(story) {
     if (seen.has(e.url)) continue;
     seen.add(e.url);
     if (isGeneric(e.title || '', siteOf(e.meta?.host || ''))) continue;
-    if (!youtubeId(e.url) && new URL(e.url).pathname.length <= 1) continue; // home page: niente foto
+    if (!youtubeId(e.url) && new URL(e.url).pathname.length <= 1) continue; // home page: no photo
     out.push(e);
     if (out.length === 3) break;
   }

@@ -45,7 +45,7 @@ export function rssFeed(store, { base, section = null, limit = 60 }) {
       const ev = JSON.parse(r.payload);
       items.push({
         title: ev.editorial.headline,
-        link: `${base}/#/sera/${ev.day}`,
+        link: `${base}/#/evening/${ev.day}`,
         guid: ev.id,
         date: ev.createdAt,
         category: tr({ en: 'Evening edition', it: 'Edizione della sera' }),

@@ -53,7 +53,7 @@ export function createNotifier(config, log = console.log) {
       send({
         subtitle: tr({ en: `The ${at} edition is waiting in the newsroom`, it: `L'edizione delle ${at} aspetta in Redazione` }),
         message: lead,
-        url: `#/redazione/${encodeURIComponent(ed.id)}`,
+        url: `#/newsroom/${encodeURIComponent(ed.id)}`,
       });
     } else {
       send({ subtitle: tr({ en: `The ${at} edition`, it: `Edizione delle ${at}` }), message: lead, url: `#/e/${encodeURIComponent(ed.id)}` });
@@ -65,7 +65,7 @@ export function createNotifier(config, log = console.log) {
     send({
       subtitle: tr({ en: 'The evening edition is out', it: 'È uscita l\'edizione della sera' }),
       message: ev.editorial?.headline || '',
-      url: ev.status === 'draft' ? `#/redazione/sera-${ev.day}` : `#/sera/${ev.day}`,
+      url: ev.status === 'draft' ? `#/newsroom/sera-${ev.day}` : `#/evening/${ev.day}`,
     });
   }
 

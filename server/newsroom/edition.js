@@ -10,6 +10,7 @@ import { illustrate } from './photos.js';
 import { findSeries, seriesInfo, seriesFacts } from './series.js';
 import { lettersForEdition } from './letters.js';
 import { editionId, hhmm, mapLimit, isSelfUrl, hourStart } from '../util.js';
+import { tr } from '../i18n.js';
 
 const HOUR = 3600e3;
 const PHOTO_SLOTS = 6;
@@ -30,11 +31,14 @@ function validArticle(a) {
     && Array.isArray(a.body) && a.body.length && a.body.every((p) => typeof p === 'string');
 }
 
-// Titoli senza punto finale (i giornali non lo mettono), ma lasciamo ? ! e …
+// Headlines without a final full stop (papers don't use one), but keep ? ! and …
+/** The automatic typesetting writes with this name (older editions say 'tipografia'). */
+export const isTypeset = (w) => !w || w === 'typesetting' || w === 'tipografia';
+
 const cleanHeadline = (h) => String(h).trim().replace(/(?<!\.)\.$/, '').trim();
 
 function fromLLM(j, story, model) {
-  if (!validArticle(j)) throw new Error('JSON incompleto');
+  if (!validArticle(j)) throw new Error(tr({ en: 'incomplete JSON', it: 'JSON incompleto' }));
   return {
     kicker: String(j.kicker || story.section).slice(0, 40),
     headline: cleanHeadline(j.headline),
@@ -44,8 +48,8 @@ function fromLLM(j, story, model) {
   };
 }
 
-// Generosi: i modelli locali a volte ragionano prima di rispondere, e una risposta troncata è persa
-const maxTokensFor = (size) => (size.name === 'breve' ? 1800 : size.name === 'articolo' ? 2400 : 3200);
+// Generous: local models sometimes reason before answering, and a truncated answer is lost
+const maxTokensFor = (size) => (size.id === 'brief' ? 1800 : size.id === 'article' ? 2400 : 3200);
 
 async function writeArticle(story, rank, ctx) {
   const { llm, config, hourLabel, log, line } = ctx;
@@ -57,7 +61,7 @@ async function writeArticle(story, rank, ctx) {
       const raw = await chat(llm, config, articlePrompt(story, facts, hourLabel, size, line), maxTokensFor(size));
       text = fromLLM(parseJson(raw), story, llm.model);
     } catch (e) {
-      log(`[redazione] ${story.id}: il redattore ha fallito (${e.message}), passa la tipografia`);
+      log(tr({ en: `[newsroom] ${story.id}: the writer failed (${e.message}), automatic typesetting takes over`, it: `[redazione] ${story.id}: il redattore ha fallito (${e.message}), passa la tipografia` }));
     }
   }
   text ||= fallbackArticle(story);
@@ -69,7 +73,7 @@ async function writeArticle(story, rank, ctx) {
     slug: SECTIONS[story.source].slug,
     kind: story.kind,
     weight: Math.round(story.weight * 100) / 100,
-    size: size.name,
+    size: size.id,
     first: story.first,
     last: story.last,
     ...text,
@@ -99,7 +103,7 @@ export function computeStats(events, start, end = start + HOUR) {
   };
 }
 
-/** Le storie dell'ora, pesate secondo la linea editoriale (sezioni nascoste escluse). */
+/** The hour's stories, weighted by the editorial line (hidden sections excluded). */
 function weightedStories(events, line) {
   return buildStories(events)
     .map((s) => ({ ...s, weight: s.weight * (line.sectionWeights[s.source] ?? 1) }))
@@ -109,29 +113,29 @@ function weightedStories(events, line) {
 
 const cleanQuote = (s) => String(s).trim().replace(/^[«"“']+|[»"”']+$/g, '').trim();
 
-/** Il Punto di prima pagina e la vignetta: battuta e disegno, scelti insieme. */
+/** The front-page Punto and the cartoon: caption and drawing, chosen together. */
 async function writeSummary(articles, total, ctx, stats) {
   const { llm, config, hourLabel, log, line, hour } = ctx;
   let summary = null;
   let caption = null;
   let scene = null;
-  if (llm && articles.some((a) => a.writer !== 'tipografia')) {
+  if (llm && articles.some((a) => !isTypeset(a.writer))) {
     try {
       const j = parseJson(await chat(llm, config, summaryPrompt(articles, total, hourLabel, line), 1800));
       if (typeof j.summary === 'string' && j.summary.trim()) summary = j.summary.trim();
       if (typeof j.cartoon === 'string' && j.cartoon.trim()) caption = cleanQuote(j.cartoon).slice(0, 160);
       scene = validScene(j.scene);
-      if (j.scene && !scene) log(`[redazione] vignetta: scena «${j.scene}» non in catalogo, decide la tipografia`);
+      if (j.scene && !scene) log(tr({ en: `[newsroom] cartoon: scene “${j.scene}” is not in the catalogue, automatic typesetting picks one`, it: `[redazione] vignetta: scena «${j.scene}» non in catalogo, decide la tipografia` }));
     } catch (e) {
-      log(`[redazione] punto di prima pagina: ${e.message}`);
+      log(tr({ en: `[newsroom] front-page brief: ${e.message}`, it: `[redazione] punto di prima pagina: ${e.message}` }));
     }
   }
-  // senza battuta del redattore, disegno e battuta li sceglie la tipografia (coerenti tra loro)
+  // with no caption from the writer, the typesetting picks drawing and caption (consistent with each other)
   if (!caption) scene = null;
   scene ||= autoScene(articles, stats, { hour });
   return {
     summary: summary || fallbackSummary(articles, total),
-    cartoon: { caption: caption || sceneCaption(scene, `${articles[0]?.id}${stats?.total || 0}`), scene, by: caption ? 'redattore' : 'tipografia' },
+    cartoon: { caption: caption || sceneCaption(scene, `${articles[0]?.id}${stats?.total || 0}`), scene, by: caption ? 'writer' : 'typesetting' },
   };
 }
 
@@ -143,21 +147,21 @@ async function writeMarketComment(market, ctx) {
       const j = parseJson(await chat(llm, config, marketPrompt(market, hourLabel, line), 1500));
       if (typeof j.comment === 'string' && j.comment.trim()) return j.comment.trim();
     } catch (e) {
-      log(`[redazione] commento di borsa: ${e.message}`);
+      log(tr({ en: `[newsroom] market comment: ${e.message}`, it: `[redazione] commento di borsa: ${e.message}` }));
     }
   }
   return fallbackMarketComment(market);
 }
 
 export const cleanEvents = (events, config) =>
-  // le visite al giornale stesso non sono notizie (ripulisce anche gli eventi raccolti prima)
+  // visits to the paper itself are not news (also cleans up events collected earlier)
   events.filter((e) => !(e.source === 'safari' && isSelfUrl(e.url, config.port)));
 
 /**
- * Stampa l'edizione dell'ora che comincia in `start`.
- * Le ore precedenti troppo tranquille (sotto `minEvents`) confluiscono in questa, fino a
- * `maxMergeHours` ore in tutto. Ritorna null se non c'è (ancora) abbastanza da raccontare;
- * con `force` stampa comunque (pulsante «Stampa ora»).
+ * Prints the edition for the hour starting at `start`.
+ * Preceding hours that were too quiet (below `minEvents`) are merged into this one, up to
+ * `maxMergeHours` hours in total. Returns null if there is not (yet) enough to report;
+ * with `force` it prints anyway (the "Print now" button).
  */
 export async function printEdition({ store, config, start, final = true, force = false, log = console.log }) {
   const hour = start;
@@ -167,20 +171,20 @@ export async function printEdition({ store, config, start, final = true, force =
   const existing = store.getEdition(id);
   let windowStart = hour;
   if (existing?.start) {
-    windowStart = existing.start; // ristampa: stessa copertura di prima
+    windowStart = existing.start; // reprint: same coverage as before
   } else {
-    // si riparte dalla fine dell'edizione precedente, ma al massimo `maxMerge` ore indietro
+    // start from the end of the previous edition, but at most `maxMerge` hours back
     const prevEnd = store.lastEditionEnd(end, id);
     const earliest = hour - (maxMerge - 1) * HOUR;
     windowStart = Math.min(hour, prevEnd != null && prevEnd > earliest ? prevEnd : earliest);
   }
   const events = cleanEvents(store.eventsBetween(windowStart, end), config);
   if (!events.length) return null;
-  // la copertura parte dalla prima ora con segnali (niente «dalle 01:00» se prima era tutto vuoto)
+  // coverage starts from the first hour with signals (no "since 01:00" if everything before was empty)
   if (!existing) windowStart = Math.max(windowStart, hourStart(events[0].ts));
   const hoursCovered = Math.round((end - windowStart) / HOUR);
   if (!force && !existing && events.length < (config.edition.minEvents || 0) && hoursCovered < maxMerge) {
-    log(`[redazione] ${id}: solo ${events.length} segnali, confluiscono nella prossima edizione`);
+    log(tr({ en: `[newsroom] ${id}: only ${events.length} signals, merged into the next edition`, it: `[redazione] ${id}: solo ${events.length} segnali, confluiscono nella prossima edizione` }));
     return null;
   }
 
@@ -189,22 +193,25 @@ export async function printEdition({ store, config, start, final = true, force =
   const max = config.edition.maxArticles;
   const main = stories.slice(0, max);
   const rest = stories.slice(max);
-  // le storie che continuano: puntate precedenti negli ultimi 7 giorni
+  // continuing stories: previous instalments in the last 7 days
   const series = findSeries(store, main, { before: windowStart, excludeId: id });
   for (const s of main) s.series = seriesInfo(series.get(s.id));
   const hourLabel = windowStart < hour ? `${hhmm(windowStart)}–${hhmm(end)}` : hhmm(hour);
 
   const llm = await connectLLM(config);
   const ctx = { llm, config, hourLabel, log, line, store, hour: windowStart };
-  log(`[redazione] edizione ${id}${windowStart < hour ? ` (dalle ${hhmm(windowStart)})` : ''}: ${events.length} eventi, ${stories.length} storie, redattore ${llm ? llm.model : 'offline → tipografia'}, tono ${line.tone}`);
+  log(tr({
+    en: `[newsroom] edition ${id}${windowStart < hour ? ` (since ${hhmm(windowStart)})` : ''}: ${events.length} events, ${stories.length} stories, writer ${llm ? llm.model : 'offline → automatic typesetting'}, tone ${line.tone}`,
+    it: `[redazione] edizione ${id}${windowStart < hour ? ` (dalle ${hhmm(windowStart)})` : ''}: ${events.length} eventi, ${stories.length} storie, redattore ${llm ? llm.model : 'offline → tipografia'}, tono ${line.tone}`,
+  }));
 
   const articles = await mapLimit(main, llm ? config.llm.concurrency : 8, (s, i) => writeArticle(s, i, ctx));
   const briefs = rest.map((s) => ({ section: s.section, slug: SECTIONS[s.source].slug, ts: s.last, text: fallbackBrief(s) }));
 
-  // Foto: in parallelo con il Punto e la Borsa
+  // Photos: in parallel with the Punto and the Borsa
   const photosJob = line.photos && !config.demo
     ? mapLimit(main.slice(0, PHOTO_SLOTS), 3, async (s, i) => {
-      try { articles[i].image = await illustrate(s, { store, config }); } catch { /* niente foto */ }
+      try { articles[i].image = await illustrate(s, { store, config }); } catch { /* no photo */ }
     })
     : Promise.resolve();
 
@@ -214,7 +221,7 @@ export async function printEdition({ store, config, start, final = true, force =
   const [{ summary, cartoon }, comment, newLetters] = await Promise.all([
     writeSummary(articles, events.length, ctx, stats),
     writeMarketComment(market, ctx),
-    // ristampa: restano le lettere già uscite; altrimenti si risponde a quelle in attesa
+    // reprint: letters already published stay; otherwise answer the pending ones
     prevLetters.length || !llm ? Promise.resolve(prevLetters) : lettersForEdition(store, config, id, log),
     photosJob,
   ]);
@@ -230,7 +237,7 @@ export async function printEdition({ store, config, start, final = true, force =
     edited: false,
     number: existing?.number ?? store.editionNumber(windowStart),
     createdAt: Date.now(),
-    writer: llm ? llm.model : 'tipografia',
+    writer: llm ? llm.model : 'typesetting',
     tone: line.tone,
     summary,
     cartoon,
@@ -242,14 +249,14 @@ export async function printEdition({ store, config, start, final = true, force =
     stats,
     sections: SECTION_ORDER.filter((s) => events.some((e) => e.source === s)).map((s) => SECTIONS[s]),
   };
-  // una bozza già pubblicata resta pubblicata quando viene ristampata
+  // a draft already published stays published when reprinted
   const prev = store.editionMeta(edition.id);
   if (prev?.status === 'published') edition.status = 'published';
   store.saveEdition(edition);
   return edition;
 }
 
-// ───────────────────────── Il tavolo della redazione ─────────────────────────
+// ───────────────────────── The newsroom desk ─────────────────────────
 
 export class DeskError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -257,14 +264,14 @@ export class DeskError extends Error {
 
 function load(store, id) {
   const ed = store.getEdition(id);
-  if (!ed) throw new DeskError('Edizione non trovata', 404);
+  if (!ed) throw new DeskError(tr({ en: 'Edition not found', it: 'Edizione non trovata' }), 404);
   ed.spiked ||= [];
   return ed;
 }
 
 function findArticle(ed, aid) {
   const i = ed.articles.findIndex((a) => a.id === aid);
-  if (i < 0) throw new DeskError('Articolo non trovato', 404);
+  if (i < 0) throw new DeskError(tr({ en: 'Article not found', it: 'Articolo non trovato' }), 404);
   return i;
 }
 
@@ -283,11 +290,11 @@ export function editArticle(store, id, aid, patch) {
   if (typeof patch.dek === 'string') a.dek = patch.dek.trim();
   if (Array.isArray(patch.body)) a.body = patch.body.map((p) => String(p).trim()).filter(Boolean);
   if (patch.removeImage) a.image = null;
-  a.writer = a.writer?.endsWith('+ direttore') ? a.writer : `${a.writer || 'tipografia'} + direttore`;
+  a.writer = /\+ (editor|direttore)$/.test(a.writer || '') ? a.writer : `${a.writer || 'typesetting'} + editor`;
   return touch(store, ed);
 }
 
-/** Il direttore cambia il disegno o la battuta della vignetta. */
+/** The editor changes the cartoon's drawing or caption. */
 export function editCartoon(store, id, patch = {}) {
   const ed = load(store, id);
   ed.cartoon = applyCartoon(ed.cartoon, patch);
@@ -298,15 +305,15 @@ export function applyCartoon(cartoon, patch) {
   const next = { ...(cartoon || { caption: '', scene: 'desk' }) };
   if (patch.scene != null) {
     const scene = validScene(patch.scene);
-    if (!scene) throw new DeskError('Disegno non in catalogo', 400);
+    if (!scene) throw new DeskError(tr({ en: 'Drawing not in the catalogue', it: 'Disegno non in catalogo' }), 400);
     next.scene = scene;
   }
   if (typeof patch.caption === 'string') {
     const c = cleanQuote(patch.caption).slice(0, 160);
-    if (!c) throw new DeskError('La vignetta ha bisogno di una battuta', 400);
+    if (!c) throw new DeskError(tr({ en: 'A cartoon needs a caption', it: 'La vignetta ha bisogno di una battuta' }), 400);
     next.caption = c;
   }
-  next.by = 'direttore';
+  next.by = 'editor';
   return next;
 }
 
@@ -320,7 +327,7 @@ export function spikeArticle(store, id, aid) {
 export function restoreArticle(store, id, aid) {
   const ed = load(store, id);
   const i = ed.spiked.findIndex((a) => a.id === aid);
-  if (i < 0) throw new DeskError('Articolo non trovato nel cestino', 404);
+  if (i < 0) throw new DeskError(tr({ en: 'Article not found in the spike', it: 'Articolo non trovato nel cestino' }), 404);
   const [a] = ed.spiked.splice(i, 1);
   ed.articles.push(a);
   return touch(store, ed);
@@ -345,7 +352,7 @@ export function publishEdition(store, id) {
 
 async function ctxFor(store, config, ed, log) {
   const llm = await connectLLM(config);
-  if (!llm) throw new DeskError('Il redattore non risponde: impossibile riscrivere ora.', 503);
+  if (!llm) throw new DeskError(tr({ en: 'The writer is not answering: cannot rewrite now.', it: 'Il redattore non risponde: impossibile riscrivere ora.' }), 503);
   return { llm, config, hourLabel: hhmm(ed.hour ?? ed.start), log, line: getLine(store), store };
 }
 
@@ -355,7 +362,7 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   const prev = ed.articles[i];
   const ctx = await ctxFor(store, config, ed, log);
   const story = buildStories(cleanEvents(store.eventsBetween(ed.start, ed.end), config)).find((s) => s.id === aid);
-  if (!story) throw new DeskError('Non trovo più i fatti di questo articolo.', 409);
+  if (!story) throw new DeskError(tr({ en: 'The facts behind this article are no longer available.', it: 'Non trovo più i fatti di questo articolo.' }), 409);
   const size = sizeOf(story, i, ctx.line);
   story.series = prev.series || null;
   const raw = await chat(ctx.llm, config, rewritePrompt(story, factSheet(story) + seriesFacts(story.series, Date.now()), ctx.hourLabel, size, ctx.line, prev, instruction), maxTokensFor(size));
@@ -363,9 +370,9 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   try {
     text = fromLLM(parseJson(raw), story, ctx.llm.model);
   } catch (e) {
-    throw new DeskError(`Il redattore ha risposto male: ${e.message}`, 502);
+    throw new DeskError(tr({ en: `The writer gave a bad answer: ${e.message}`, it: `Il redattore ha risposto male: ${e.message}` }), 502);
   }
-  // l'edizione potrebbe essere cambiata nel frattempo
+  // the edition may have changed in the meantime
   const fresh = load(store, id);
   const k = findArticle(fresh, aid);
   fresh.articles[k] = { ...fresh.articles[k], ...text, rewrittenWith: instruction || null };

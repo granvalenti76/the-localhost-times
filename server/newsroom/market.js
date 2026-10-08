@@ -1,7 +1,8 @@
 /**
- * La Borsa dei siti: ogni sito è un titolo quotato, le visite sono il prezzo.
- * Variazione sull'ora precedente e andamento delle ultime 12 ore.
+ * The site stock exchange: each site is a listed stock, visits are the price.
+ * Change from the previous hour and trend over the last 12 hours.
  */
+import { tr } from '../i18n.js';
 import { siteOf, registrable } from './cluster.js';
 import { isSelfUrl } from '../util.js';
 
@@ -30,7 +31,7 @@ export function computeMarket(store, start, { limit = 8, port = 4321 } = {}) {
     .filter((e) => e.source === 'safari' && e.kind === 'visit' && !isSelfUrl(e.url, port));
   if (!visits.length) return null;
 
-  const series = new Map(); // site → [12 conteggi]
+  const series = new Map(); // site → [12 counts]
   const index = Array(SPAN).fill(0);
   for (const e of visits) {
     const h = Math.min(SPAN - 1, Math.max(0, Math.floor((e.ts - from) / HOUR)));
@@ -53,14 +54,14 @@ export function computeMarket(store, start, { limit = 8, port = 4321 } = {}) {
   }));
 
   const listed = all.filter((r) => r.close > 0).sort((a, b) => b.close - a.close).slice(0, limit);
-  // titoli in caduta libera: forti l'ora prima, assenti ora
+  // stocks in free fall: strong the hour before, absent now
   const fallen = all
     .filter((r) => r.close === 0 && r.prev >= 5)
     .sort((a, b) => b.prev - a.prev)
     .slice(0, 2)
     .map((r) => ({ ...r, change: -1 }));
 
-  // ticker unici
+  // unique tickers
   const seen = new Map();
   for (const r of [...listed, ...fallen]) {
     const n = seen.get(r.ticker) || 0;
@@ -80,9 +81,13 @@ export function fallbackMarketComment(m) {
   const down = m.rows.filter((r) => r.change != null && r.change < 0).sort((a, b) => a.change - b.change)[0];
   const fresh = m.rows.find((r) => r.change == null);
   const lead = m.rows[0];
-  const parts = [`Seduta guidata da ${lead.ticker} con ${lead.close} scambi.`];
-  if (up && up !== lead) parts.push(`Corre ${up.ticker} (${pct(up.change)}).`);
-  if (down) parts.push(down.change === -1 ? `${down.ticker} sospeso: nessuno scambio.` : `Prese di beneficio su ${down.ticker} (${pct(down.change)}).`);
-  else if (fresh && fresh !== lead) parts.push(`Debutto per ${fresh.ticker}.`);
+  const en = tr({ en: true, it: false });
+  const parts = [en ? `Session led by ${lead.ticker} with ${lead.close} trades.` : `Seduta guidata da ${lead.ticker} con ${lead.close} scambi.`];
+  if (up && up !== lead) parts.push(en ? `${up.ticker} rallies (${pct(up.change)}).` : `Corre ${up.ticker} (${pct(up.change)}).`);
+  if (down) {
+    parts.push(down.change === -1
+      ? (en ? `${down.ticker} halted: no trades.` : `${down.ticker} sospeso: nessuno scambio.`)
+      : (en ? `Profit-taking on ${down.ticker} (${pct(down.change)}).` : `Prese di beneficio su ${down.ticker} (${pct(down.change)}).`));
+  } else if (fresh && fresh !== lead) parts.push(en ? `Debut for ${fresh.ticker}.` : `Debutto per ${fresh.ticker}.`);
   return parts.join(' ');
 }

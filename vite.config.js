@@ -7,11 +7,13 @@ const injectLang = {
   name: 'localhost-times-lang',
   apply: 'serve',
   transformIndexHtml(html) {
-    const { language } = loadConfig();
     return html.replace('<html lang="en">', `<html lang="${language}">`)
       .replace('</head>', `<script>window.__LT__=${JSON.stringify({ lang: language })}</script></head>`);
   },
 };
+
+const { port, language } = loadConfig();
+const api = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   root: 'web',
@@ -19,6 +21,6 @@ export default defineConfig({
   build: { outDir: 'dist', emptyOutDir: true },
   server: {
     port: 5173,
-    proxy: { '/api': 'http://localhost:4321', '/media': 'http://localhost:4321', '/feed': 'http://localhost:4321' },
+    proxy: { '/api': api, '/media': api, '/feed': api },
   },
 });

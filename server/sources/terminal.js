@@ -1,3 +1,4 @@
+import { tr } from '../i18n.js';
 import fs from 'node:fs';
 import { home, fileState, hash, PermissionError } from '../util.js';
 
@@ -6,7 +7,7 @@ const FILES = [
   { shell: 'bash', file: home('.bash_history') },
 ];
 
-// zsh salva i caratteri non-ASCII "metafied": 0x83 seguito dal byte XOR 32
+// zsh stores non-ASCII characters "metafied": 0x83 followed by the byte XOR 32
 function unmetafy(buf) {
   const out = Buffer.alloc(buf.length);
   let j = 0;
@@ -69,7 +70,7 @@ const tailEq = (entries, idx, tail) =>
 
 export default {
   id: 'terminal',
-  label: 'Terminale',
+  get label() { return tr({ en: 'Terminal', it: 'Terminale' }); },
   locate() {
     const states = FILES.map((f) => fileState(f.file));
     if (states.includes('ok')) return { file: FILES[states.indexOf('ok')].file, state: 'ok' };
@@ -98,7 +99,7 @@ export default {
       if (timed) {
         fresh = entries.filter((e) => e.ts != null && e.ts > since);
       } else if (prev?.tail?.length) {
-        // nessun timestamp: ci ancoriamo agli ultimi comandi già visti
+        // no timestamp: anchor to the last commands already seen
         let anchor = -1;
         for (let i = entries.length - 1; i >= prev.tail.length - 1; i--) {
           if (tailEq(entries, i, prev.tail)) { anchor = i; break; }
@@ -112,7 +113,7 @@ export default {
         if (!cmd) return;
         const ts = e.ts ?? now;
         events.push({
-          // con timestamp l'id è stabile tra una raccolta e l'altra; senza, è unico per raccolta
+          // with a timestamp the id is stable across collections; without, it's unique per collection
           id: `terminal:${shell}:${hash(e.ts != null ? `${ts}:${cmd}` : `${ts}:${k}:${cmd}`)}`,
           source: 'terminal',
           kind: 'command',

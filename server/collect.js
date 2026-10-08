@@ -1,3 +1,4 @@
+import { tr } from './i18n.js';
 import { SOURCES } from './sources/index.js';
 import { PermissionError } from './util.js';
 
@@ -30,7 +31,7 @@ export async function collectAll(store, config, log = console.log) {
     } catch (e) {
       const denied = e instanceof PermissionError;
       sourceStatus[src.id] = { ...base, state: denied ? 'denied' : 'error', error: e.message };
-      if (!denied) log(`[${src.id}] errore: ${e.message}`);
+      if (!denied) log(`[${src.id}] ${tr({ en: 'error', it: 'errore' })}: ${e.message}`);
     }
   }
   return total;

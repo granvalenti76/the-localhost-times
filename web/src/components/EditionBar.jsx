@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { href, shiftDay, dayKey, dayFromKey, shortDate, edHour } from '../lib.js';
 import ExportMenu from './ExportMenu.jsx';
+import { tr } from '../i18n.js';
 
 export default function EditionBar({ day, list, current, onPrint, printing, evening, exportable }) {
   const byHour = new Map(list.map((e) => [new Date(edHour(e)).getHours(), e]));
-  // ore assorbite da un'edizione successiva: le segnamo come "unite"
+  // hours absorbed by a later edition: marked as "merged"
   const merged = new Set();
   for (const e of list) {
     for (let t = e.start; t < edHour(e); t += 3600e3) merged.add(new Date(t).getHours());
@@ -23,18 +24,18 @@ export default function EditionBar({ day, list, current, onPrint, printing, even
   return (
     <div className="edbar">
       <div className="edbar-day">
-        <a href={href.day(shiftDay(day, -1))} aria-label="Giorno precedente">‹</a>
-        <span>{day === today ? 'Oggi' : shortDate(dayFromKey(day))}</span>
-        {day < today ? <a href={href.day(shiftDay(day, 1))} aria-label="Giorno successivo">›</a> : <span className="ghost">›</span>}
+        <a href={href.day(shiftDay(day, -1))} aria-label={tr({ en: 'Previous day', it: 'Giorno precedente' })}>‹</a>
+        <span>{day === today ? tr({ en: 'Today', it: 'Oggi' }) : shortDate(dayFromKey(day))}</span>
+        {day < today ? <a href={href.day(shiftDay(day, 1))} aria-label={tr({ en: 'Next day', it: 'Giorno successivo' })}>›</a> : <span className="ghost">›</span>}
       </div>
-      <ol className="edbar-hours" ref={strip} aria-label="Edizioni del giorno">
+      <ol className="edbar-hours" ref={strip} aria-label={tr({ en: 'The day\'s editions', it: 'Edizioni del giorno' })}>
         {Array.from({ length: 24 }, (_, h) => {
           const e = byHour.get(h);
           const future = day === today && h > nowH;
           const label = `${String(h).padStart(2, '0')}`;
           return (
             <li key={h} className={`${e ? 'has' : ''} ${e?.id === current ? 'cur' : ''} ${future ? 'future' : ''} ${!e && merged.has(h) ? 'merged' : ''}`}
-              title={!e && merged.has(h) ? 'Ora tranquilla: le sue notizie sono nell\'edizione successiva' : undefined}>
+              title={!e && merged.has(h) ? tr({ en: 'A quiet hour: its news is in the next edition', it: 'Ora tranquilla: le sue notizie sono nell\'edizione successiva' }) : undefined}>
               {e ? (
                 <a href={href.edition(e.id)} title={e.lead || ''}>
                   <span className="h">{label}</span>
@@ -51,11 +52,11 @@ export default function EditionBar({ day, list, current, onPrint, printing, even
         })}
       </ol>
       {evening && (
-        <a className={`edbar-evening ${current === evening.id ? 'cur' : ''}`} href={href.evening(day)}>Sera</a>
+        <a className={`edbar-evening ${current === evening.id ? 'cur' : ''}`} href={href.evening(day)}>{tr({ en: 'Evening', it: 'Sera' })}</a>
       )}
       {exportable && <ExportMenu {...exportable} />}
       <button className="btn btn-small" onClick={onPrint} disabled={printing}>
-        {printing ? 'In stampa…' : 'Stampa ora'}
+        {printing ? tr({ en: 'Printing…', it: 'In stampa…' }) : tr({ en: 'Print now', it: 'Stampa ora' })}
       </button>
     </div>
   );

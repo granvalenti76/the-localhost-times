@@ -1,4 +1,5 @@
 import React from 'react';
+import { tr } from '../i18n.js';
 
 function Spark({ data, up }) {
   const W = 64, H = 18;
@@ -14,9 +15,15 @@ function Spark({ data, up }) {
   );
 }
 
-const fmt = (c) => (c == null ? 'nuovo' : `${c > 0 ? '+' : ''}${Math.round(c * 100)}%`);
+const NEW = () => tr({ en: 'new', it: 'nuovo' });
+const fmt = (c) => (c == null ? NEW() : `${c > 0 ? '+' : ''}${Math.round(c * 100)}%`);
 
-export default function Market({ market, title = 'Borsa dei siti', indexName = 'Indice Localhost', note = 'Visite nell\'ora, variazione sull\'ora precedente, andamento delle ultime 12 ore.' }) {
+export default function Market({
+  market,
+  title = tr({ en: 'The website market', it: 'Borsa dei siti' }),
+  indexName = tr({ en: 'Localhost index', it: 'Indice Localhost' }),
+  note = tr({ en: 'Visits in the hour, change on the previous hour, trend over the last 12 hours.', it: 'Visite nell\'ora, variazione sull\'ora precedente, andamento delle ultime 12 ore.' }),
+}) {
   if (!market?.rows?.length) return null;
   const idx = market.index;
   return (
@@ -26,12 +33,12 @@ export default function Market({ market, title = 'Borsa dei siti', indexName = '
         <span className="mkt-name">{indexName}</span>
         <span className="mkt-close">{idx.close}</span>
         <span className={`mkt-chg ${!idx.change ? '' : idx.change > 0 ? 'up' : 'down'}`}>
-          {idx.change == null ? '—' : idx.change === 0 ? '= invariato' : `${idx.change > 0 ? '▲' : '▼'} ${fmt(idx.change)}`}
+          {idx.change == null ? '—' : idx.change === 0 ? `= ${tr({ en: 'unchanged', it: 'invariato' })}` : `${idx.change > 0 ? '▲' : '▼'} ${fmt(idx.change)}`}
         </span>
       </div>
       <table className="mkt">
         <thead>
-          <tr><th>Titolo</th><th aria-label="Andamento 12 ore" /><th>Visite</th><th>Var.</th></tr>
+          <tr><th>{tr({ en: 'Stock', it: 'Titolo' })}</th><th aria-label={tr({ en: '12-hour trend', it: 'Andamento 12 ore' })} /><th>{tr({ en: 'Visits', it: 'Visite' })}</th><th>{tr({ en: 'Chg.', it: 'Var.' })}</th></tr>
         </thead>
         <tbody>
           {market.rows.map((r) => {
@@ -46,7 +53,7 @@ export default function Market({ market, title = 'Borsa dei siti', indexName = '
                 <td><Spark data={r.spark} up={up} /></td>
                 <td className="num">{r.close || '—'}</td>
                 <td className={`num chg ${r.change == null ? 'new' : flat ? 'flat' : up ? 'up' : 'down'}`}>
-                  {r.close === 0 ? 'sospeso' : r.change == null ? 'nuovo' : flat ? '=' : `${up ? '▲' : '▼'}${Math.abs(Math.round(r.change * 100))}%`}
+                  {r.close === 0 ? tr({ en: 'halted', it: 'sospeso' }) : r.change == null ? NEW() : flat ? '=' : `${up ? '▲' : '▼'}${Math.abs(Math.round(r.change * 100))}%`}
                 </td>
               </tr>
             );

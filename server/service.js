@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { loadConfig, ROOT } from './config.js';
 import { tr } from './i18n.js';
 
@@ -123,6 +124,10 @@ Permessi — una volta, a mano:
 
 async function install() {
   if (process.platform !== 'darwin') throw new Error(tr({ en: 'The service is for macOS only.', it: 'Il servizio è solo per macOS.' }));
+  const [maj, min] = process.versions.node.split('.').map(Number);
+  if (maj < 22 || (maj === 22 && min < 13) || (maj === 23 && min < 4)) {
+    throw new Error(tr({ en: `Node.js ${process.versions.node} is too old: install Node 22.13 or later (brew install node).`, it: `Node.js ${process.versions.node} è troppo vecchio: installa Node 22.13 o successivo (brew install node).` }));
+  }
   const st = serviceState();
   if (!st.loaded && (await ping())) {
     throw new Error(tr({
@@ -138,9 +143,19 @@ async function install() {
   const pathEnv = [...new Set([path.dirname(process.execPath), '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin'])].join(':');
   fs.writeFileSync(plistPath, plist({ node: stableNode(), root: ROOT, log: logFile, pathEnv }));
 
-  if (st.loaded) launchctl(['bootout', target()], { quiet: true });
-  launchctl(['bootstrap', `gui/${uid()}`, plistPath]);
-  launchctl(['enable', target()], { quiet: true });
+  // start a fresh log (launchd keeps the file open while the service runs)
+  try { if (fs.statSync(logFile).size > 1e6) fs.renameSync(logFile, `${logFile}.1`); } catch { /* no log yet */ }
+  if (st.loaded) {
+    launchctl(['bootout', target()], { quiet: true });
+    await new Promise((r) => setTimeout(r, 1000)); // launchd needs a moment before the label can be loaded again
+  }
+  launchctl(['enable', target()], { quiet: true }); // a previously disabled agent would refuse to load
+  try {
+    launchctl(['bootstrap', `gui/${uid()}`, plistPath]);
+  } catch {
+    await new Promise((r) => setTimeout(r, 2000));
+    launchctl(['bootstrap', `gui/${uid()}`, plistPath]); // "Bootstrap failed: 5" usually goes away on retry
+  }
   console.log(tr({ en: `› Agent installed: ${plistPath}`, it: `› Servizio installato: ${plistPath}` }));
 
   let up = null;
@@ -162,8 +177,9 @@ async function install() {
 function uninstall() {
   const st = serviceState();
   if (st.loaded) launchctl(['bootout', target()], { quiet: true });
-  if (fs.existsSync(plistPath)) fs.unlinkSync(plistPath);
-  console.log(st.loaded || fs.existsSync(plistPath)
+  const had = fs.existsSync(plistPath);
+  if (had) fs.unlinkSync(plistPath);
+  console.log(st.loaded || had
     ? tr({ en: '✓ Service stopped and removed. Your editions are still in data/.', it: '✓ Servizio fermato e rimosso. Le edizioni restano in data/.' })
     : tr({ en: 'The service was not installed.', it: 'Il servizio non era installato.' }));
 }
@@ -197,7 +213,11 @@ function logs() {
 
 const cmd = process.argv[2];
 const run = { install, uninstall, status, logs }[cmd];
-if (import.meta.url === `file://${process.argv[1]}`) {
+// run only as a script (not when imported by the tests); realpath copes with spaces and symlinks
+const isMain = (() => {
+  try { return fs.realpathSync(process.argv[1] || '') === fs.realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
+})();
+if (isMain) {
   if (!run) {
     console.log('Usage: node server/service.js install | uninstall | status | logs');
     process.exit(1);

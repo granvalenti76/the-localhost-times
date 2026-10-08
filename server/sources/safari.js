@@ -1,3 +1,4 @@
+import { tr } from '../i18n.js';
 import { home, fileState, withSnapshot, columns, cdToMs, msToCd, hostOf, isBlockedHost, isSelfUrl } from '../util.js';
 
 const FILE = home('Library/Safari/History.db');
@@ -27,8 +28,8 @@ export function detectSearch(url) {
 }
 
 /**
- * Webmail nel browser (Gmail): il titolo della pagina contiene l'oggetto dell'email aperta
- * o il numero di messaggi non letti. Diventano notizie per la Corrispondenza.
+ * Webmail in the browser (Gmail): the page title contains the subject of the open email
+ * or the number of unread messages. They become news for the Correspondence section.
  *   "Oggetto - nome@gmail.com - Gmail"
  *   "Posta in arrivo (12.940) - nome@gmail.com - Gmail"
  */
@@ -41,7 +42,7 @@ export function parseWebmail(host, title) {
   const [, head, account] = m;
   const inbox = /^(posta in arrivo|inbox)\s*\(([\d.,\s]+)\)/i.exec(head);
   if (inbox) {
-    return { kind: 'inbox', title: 'Posta in arrivo', account, service: 'Gmail', unreadCount: Number(inbox[2].replace(/[^\d]/g, '')) };
+    return { kind: 'inbox', title: tr({ en: 'Inbox', it: 'Posta in arrivo' }), account, service: 'Gmail', unreadCount: Number(inbox[2].replace(/[^\d]/g, '')) };
   }
   if (GMAIL_FOLDERS.test(head)) return { kind: 'skip' };
   return { kind: 'read', title: head.trim(), account, service: 'Gmail' };
@@ -56,7 +57,7 @@ export default {
     const blocked = config.privacy.blockedDomains;
     return withSnapshot(FILE, (db) => {
       const cols = columns(db, 'history_visits');
-      // origin = 0 → visita fatta su QUESTO Mac (1 = sincronizzata da iCloud da altri dispositivi)
+      // origin = 0 → visit made on THIS Mac (1 = synced via iCloud from other devices)
       const originFilter = cols.includes('origin') ? 'AND (v.origin IS NULL OR v.origin = 0)' : '';
       const redirectFilter = cols.includes('redirect_destination') ? 'AND v.redirect_destination IS NULL' : '';
       const rows = db
