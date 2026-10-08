@@ -24,6 +24,14 @@ const DEFAULTS = {
   sources: {
     safari: true, mail: true, terminal: true, notes: true,
     journal: true, podcasts: true, books: true, files: true,
+    apps: true, power: true, photos: true,
+  },
+  apps: {
+    sampleSeconds: 60,   // how often the app in front is noted (one tiny command each time)
+    exclude: [],         // apps never recorded, e.g. ["Messages", "WhatsApp"]
+  },
+  photos: {
+    library: '',         // another Photos library (empty = ~/Pictures/Photos Library.photoslibrary)
   },
   files: {
     folders: [],         // folders to watch (empty = Desktop, Documents, Downloads, Work, Developer, Projects, Code…)

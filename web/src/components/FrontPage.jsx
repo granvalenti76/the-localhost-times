@@ -1,6 +1,7 @@
 import React from 'react';
 import { href, hhmm, SECTIONS, episodeLabel, readingTime } from '../lib.js';
 import Para from './Para.jsx';
+import { TimeBox, MacLine } from './TimeBox.jsx';
 import { SpotlightBand, SpotlightBox } from './Spotlight.jsx';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
@@ -130,9 +131,11 @@ export default function FrontPage({ edition }) {
           <SpotlightBox edition={edition} />
           <InvestigationBox />
           <LettersBox letters={edition.letters} />
+          <TimeBox time={edition.time} />
           <Market market={edition.market} />
           <section className="box">
             <h3 className="box-title">{tr({ en: 'By the numbers', it: 'In numeri' })}</h3>
+            <MacLine mac={edition.mac} />
             <Activity stats={edition.stats} start={edition.start} />
             <Numbers stats={edition.stats} />
           </section>

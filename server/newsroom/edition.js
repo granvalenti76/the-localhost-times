@@ -13,6 +13,7 @@ import { illustrate } from './photos.js';
 import { findSeries, seriesInfo, seriesFacts } from './series.js';
 import { lettersForEdition } from './letters.js';
 import { pendingScoop } from './spotlight/desk.js';
+import { computeTime, computeMac, isAmbient } from './time.js';
 import { editionId, hhmm, mapLimit, isSelfUrl, hourStart } from '../util.js';
 import { tr } from '../i18n.js';
 
@@ -214,13 +215,15 @@ export async function printEdition({ store, config, start, final = true, force =
   const hour = start;
   const { id, end, maxMerge, existing, windowStart: from } = editionWindow(store, config, hour);
   let windowStart = from;
+  // everything in the window; the "signals" are what happened, not the time and power measurements
   const events = cleanEvents(store.eventsBetween(windowStart, end), config);
-  if (!events.length) return null;
+  const news = events.filter((e) => !isAmbient(e));
+  if (!news.length && !(force && events.length)) return null;
   // coverage starts from the first hour with signals (no "since 01:00" if everything before was empty)
-  if (!existing) windowStart = Math.max(windowStart, hourStart(events[0].ts));
+  if (!existing && news.length) windowStart = Math.max(windowStart, hourStart(news[0].ts));
   const hoursCovered = Math.round((end - windowStart) / HOUR);
-  if (!force && !existing && events.length < (config.edition.minEvents || 0) && hoursCovered < maxMerge) {
-    log(tr({ en: `[newsroom] ${id}: only ${events.length} signals, merged into the next edition`, it: `[redazione] ${id}: solo ${events.length} segnali, confluiscono nella prossima edizione` }));
+  if (!force && !existing && news.length < (config.edition.minEvents || 0) && hoursCovered < maxMerge) {
+    log(tr({ en: `[newsroom] ${id}: only ${news.length} signals, merged into the next edition`, it: `[redazione] ${id}: solo ${news.length} segnali, confluiscono nella prossima edizione` }));
     carrySteer(store, id, editionId(hour + HOUR)); // the editor's steering follows the news
     return null;
   }
@@ -240,8 +243,8 @@ export async function printEdition({ store, config, start, final = true, force =
   const llm = await connectLLM(config);
   const ctx = { llm, config, hourLabel, log, line, store, hour: windowStart };
   log(tr({
-    en: `[newsroom] edition ${id}${windowStart < hour ? ` (since ${hhmm(windowStart)})` : ''}: ${events.length} events, ${stories.length} stories, writer ${llm ? llm.model : 'offline → automatic typesetting'}, tone ${line.tone}`,
-    it: `[redazione] edizione ${id}${windowStart < hour ? ` (dalle ${hhmm(windowStart)})` : ''}: ${events.length} eventi, ${stories.length} storie, redattore ${llm ? llm.model : 'offline → tipografia'}, tono ${line.tone}`,
+    en: `[newsroom] edition ${id}${windowStart < hour ? ` (since ${hhmm(windowStart)})` : ''}: ${news.length} events, ${stories.length} stories, writer ${llm ? llm.model : 'offline → automatic typesetting'}, tone ${line.tone}`,
+    it: `[redazione] edizione ${id}${windowStart < hour ? ` (dalle ${hhmm(windowStart)})` : ''}: ${news.length} eventi, ${stories.length} storie, redattore ${llm ? llm.model : 'offline → tipografia'}, tono ${line.tone}`,
   }));
 
   const articles = await mapLimit(main, llm ? config.llm.concurrency : 8, (s, i) => writeArticle(s, i, ctx));
@@ -255,10 +258,12 @@ export async function printEdition({ store, config, start, final = true, force =
     : Promise.resolve();
 
   const market = computeMarket(store, hour, { port: config.port });
-  const stats = computeStats(events, windowStart, end);
+  const stats = computeStats(news, windowStart, end);
+  const time = computeTime(events, windowStart, end);
+  const mac = computeMac(store, windowStart, end);
   const prevLetters = existing?.letters || [];
   const [{ summary, summaryBy, cartoon }, comment, newLetters] = await Promise.all([
-    writeSummary(articles, events.length, ctx, stats),
+    writeSummary(articles, news.length, ctx, stats),
     writeMarketComment(market, ctx),
     // reprint: letters already published stay; otherwise answer the pending ones
     prevLetters.length || !llm ? Promise.resolve(prevLetters) : lettersForEdition(store, config, id, log),
@@ -292,7 +297,9 @@ export async function printEdition({ store, config, start, final = true, force =
     letters: newLetters,
     spotlight: existing?.spotlight || pendingScoop(store, id),
     stats,
-    sections: SECTION_ORDER.filter((s) => events.some((e) => e.source === s)).map((s) => SECTIONS[s]),
+    time,
+    mac,
+    sections: SECTION_ORDER.filter((s) => articles.some((a) => a.source === s) || news.some((e) => e.source === s)).map((s) => SECTIONS[s]),
   };
   // a draft already published stays published when reprinted
   const prev = store.editionMeta(edition.id);

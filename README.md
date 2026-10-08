@@ -156,6 +156,9 @@ Your editions, settings and `config.json` are kept. New features that need new s
 | Podcasts | Radio | Episodes played, and how far |
 | Books | Culture | Books opened, progress, highlighted passages |
 | Files | Local | Folders you worked in (via Spotlight) and downloads with the site they came from. **Not** file names (unless you enable them) or contents. |
+| Apps | Time | The app in front, noted once a minute (`lsappinfo`), and when you're away from the keyboard. **Only app names**: never window titles or what's on screen. |
+| The Mac | (front page) | When the Mac wakes, sleeps and runs on battery (`pmset -g log`). |
+| Photos | The Photographer | How many photos, videos and screenshots, and when (Photos library and the Mac's screenshots). **Never** the pictures, places, people or file names. |
 
 Every hour:
 
@@ -215,7 +218,7 @@ The paper is written in **English or Italian** (`"language": "en"` or `"it"`).
 ## Privacy
 
 - **Local by design.** The paper is served on `127.0.0.1`, so other devices on your network can't open it. Your editions live in `data/` in the project folder.
-- **Read-only.** App databases are read from a temporary **copy**, never opened directly, never modified.
+- **Read-only, and light.** App databases are opened read-only and never modified: small ones through a temporary copy, big ones (Mail's index can pass 500 MB) in place. A database that hasn't changed since the last look isn't read at all.
 - **What leaves the machine:** only the stories' facts, sent to the model address you configured. If the model runs on this Mac, nothing leaves at all. Photos are fetched from the public web pages you visited, unless you turn them off in the Newsroom.
 - **What is never read:** the body of your emails (unless you enable `mailIncludeSummary`), the text of Journal entries (unless `journalIncludeText`), locked notes, iCloud history from other devices, the contents of your files. File names stay out too unless you set `files.includeNames`; build folders (`node_modules`, `dist`, `.git`…) and hidden files are ignored.
 - **Spotlight** connects signals the paper already has, and only on your Mac. It never opens a lead on delicate subjects (health, money troubles, love, faith, politics, the law, a job search), asks for your comment before every scoop, and lets you stop any lead. Turn it off with `"spotlight": { "enabled": false }`.
@@ -248,6 +251,9 @@ The paper is written in **English or Italian** (`"language": "en"` or `"it"`).
 | `edition.maxMergeHours` | `3` | …up to this many hours |
 | `edition.eveningHour` | `21` | When the evening edition comes out (`null` = never) |
 | `notifications.enabled` | `true` | macOS notification for every edition |
+| `apps.sampleSeconds` | `60` | How often the app in front is noted |
+| `apps.exclude` | `[]` | Apps never recorded, e.g. `["Messages"]` |
+| `photos.library` | `""` | Another Photos library (empty = the system one) |
 | `spotlight.enabled` | `true` | The Spotlight investigations desk |
 | `spotlight.replyMinutes` | `60` | Your right of reply before a scoop is printed (`0` = no wait) |
 | `spotlight.goal` | `70` | How strong (0–100) a lead must be before the editor weighs it; higher means fewer, surer scoops |

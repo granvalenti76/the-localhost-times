@@ -7,6 +7,7 @@ import { createNewsroom } from './newsroom/scheduler.js';
 import { sourceStatus } from './collect.js';
 import { llmStatus, connectLLM } from './newsroom/llm.js';
 import { SOURCES } from './sources/index.js';
+import { startSampler } from './sources/apps.js';
 import { seedDemo } from './demo.js';
 import { dayKey } from './util.js';
 import { getLine, saveLine, TONES, LENGTHS, WEIGHTS } from './newsroom/line.js';
@@ -306,6 +307,7 @@ const server = app.listen(config.port, config.host, (err) => {
     it: `The Localhost Times è in edicola su http://localhost:${config.port}${config.demo ? '  (modalità demo)' : ''}`,
   }));
   log(`${tr({ en: 'Writer', it: 'Redattore' })}: ${config.llm.baseUrl === 'auto' ? tr({ en: 'looking for a local model (Ollama, LM Studio, llama.cpp…)', it: 'cerco un modello locale (Ollama, LM Studio, llama.cpp…)' }) : config.llm.baseUrl || tr({ en: 'none', it: 'nessuno' })}`);
+  startSampler(config, log); // the app in front, every minute (macOS only)
   newsroom.start().catch((e) => log('[start]', e));
 });
 server.on('error', listenFailed);

@@ -79,6 +79,8 @@ const HINTS_EN = {
   book: 'Reading a book: you may quote the highlighted passages.',
   folder: 'Work in a folder of the Mac (often a software project): what was being worked on, judging by the folders and file types. Local news, plain words.',
   folders: 'A few files saved in different folders: a short local brief.',
+  timesheet: 'How the hour was split between apps, measured minute by minute: the shape of the hour (focus or fragments), with the minutes. Only app names are known: don\'t guess what was on screen.',
+  shots: 'The photographer: photos, videos and screenshots of the hour, counted. Never imagine what is in the pictures, where, or who: only how many, what kind, when.',
   downloads: 'What arrived in the Downloads folder, and from which sites.',
 };
 
@@ -96,6 +98,8 @@ const HINTS_IT = {
   book: 'Lettura di un libro: puoi citare i passi evidenziati.',
   folder: 'Lavoro in una cartella del Mac (spesso un progetto software): su cosa si lavorava, a giudicare da cartelle e tipi di file. Cronaca locale, parole semplici.',
   folders: 'Qualche file salvato in cartelle diverse: una breve di cronaca locale.',
+  timesheet: 'Come si è divisa l\'ora tra le app, misurata minuto per minuto: la forma dell\'ora (concentrazione o frammenti), con i minuti. Si conoscono solo i nomi delle app: non indovinare cosa ci fosse sullo schermo.',
+  shots: 'Il fotografo: foto, video e screenshot dell\'ora, contati. Non immaginare mai cosa c\'è nelle immagini, dove o chi: solo quante, di che tipo, quando.',
   downloads: 'Cosa è arrivato nella cartella Download, e da quali siti.',
 };
 
@@ -267,6 +271,14 @@ export function eveningPrompt({ top, timeline, stats, market, line, writer = nul
     : `${r.ticker} (${r.site}) ${r.close} visite${r.change == null ? ', nuovo rispetto a ieri' : `, ${pct(r.change)} su ieri`}`)).join('; ');
   const extra = (line ? '\n' + linePrompt(line) : '') + personaPrompt(writer, 'editorial');
   const busiest = `${String(stats.busiestHour).padStart(2, '0')}:00`;
+  const tm = stats.time;
+  const timeLine = tm ? (en
+    ? `\nTIME AT THE MAC: ${Math.round(tm.active / 6) / 10} hours in use, ${Math.round(tm.away / 6) / 10} away; by app: ${tm.apps.slice(0, 6).map((x) => `${x.name} ${x.minutes} min`).join(', ')}; ${tm.switches} switches between apps; longest stretch ${tm.longest ? `${tm.longest.app} ${tm.longest.minutes} min` : '—'}.`
+    : `\nTEMPO AL MAC: ${String(Math.round(tm.active / 6) / 10).replace('.', ',')} ore di uso, ${String(Math.round(tm.away / 6) / 10).replace('.', ',')} lontano; per app: ${tm.apps.slice(0, 6).map((x) => `${x.name} ${x.minutes} min`).join(', ')}; ${tm.switches} cambi di app; tratto più lungo ${tm.longest ? `${tm.longest.app} ${tm.longest.minutes} min` : '—'}.`) : '';
+  const mc = stats.mac;
+  const macLine = mc ? (en
+    ? `\nTHE MAC: ${mc.wakes} wake-ups, ${mc.sleeps} sleeps (${mc.lid} with the lid closed)${mc.lowest != null ? `, battery down to ${mc.lowest}%` : ''}.`
+    : `\nIL MAC: ${mc.wakes} risvegli, ${mc.sleeps} riposi (${mc.lid} a coperchio chiuso)${mc.lowest != null ? `, batteria scesa fino al ${mc.lowest}%` : ''}.`) : '';
   return [
     {
       role: 'system',
@@ -302,7 +314,7 @@ ${sceneMenu()}`,
     {
       role: 'user',
       content: tr({
-        en: `THE DAY: ${stats.total} signals (${src}). Busiest hour: ${busiest}.
+        en: `THE DAY: ${stats.total} signals (${src}). Busiest hour: ${busiest}.${timeLine}${macLine}
 
 THE DAY'S NEWS:
 ${topLines}
@@ -313,7 +325,7 @@ ${tl}
 WEBSITE STOCK MARKET (close): ${mk || 'no listings'}
 
 Write the evening editorial.`,
-        it: `GIORNATA: ${stats.total} segnali (${src}). Ora più movimentata: ${busiest}.
+        it: `GIORNATA: ${stats.total} segnali (${src}). Ora più movimentata: ${busiest}.${timeLine}${macLine}
 
 LE NOTIZIE DEL GIORNO:
 ${topLines}

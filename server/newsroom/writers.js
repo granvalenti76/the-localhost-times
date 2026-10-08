@@ -31,6 +31,7 @@ export const WRITER_IDS = ['web', 'tech', 'local', 'culture', 'columnist', 'spot
 export const DEFAULT_DESKS = {
   safari: 'web', terminal: 'tech', files: 'local', mail: 'local',
   notes: 'culture', journal: 'columnist', podcasts: 'culture', books: 'culture',
+  apps: 'tech', photos: 'culture',
   brief: 'columnist', // the Brief and the evening editorial
   spotlight: 'spotlight', // the Spotlight desk's scoops
 };

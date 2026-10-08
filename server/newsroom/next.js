@@ -3,6 +3,7 @@
  * and the editor's steering for that edition only (lead with a story, leave one out, a one-off
  * instruction to the writers). The steering is used when the edition is printed, then cleared.
  */
+import { isAmbient } from './time.js';
 import { tr, lang } from '../i18n.js';
 import { buildStories } from './cluster.js';
 import { getLine } from './line.js';
@@ -95,12 +96,13 @@ export function preview(store, config, { now = Date.now(), lastCollect = null, n
   const ranked = applySteer(all, steer);
   const buried = all.filter((s) => steer.bury.includes(s.id));
   const max = config.edition.maxArticles;
+  const news = events.filter((e) => !isAmbient(e)); // time and power are measurements, not signals
   const bySource = {};
-  for (const e of events) bySource[e.source] = (bySource[e.source] || 0) + 1;
+  for (const e of news) bySource[e.source] = (bySource[e.source] || 0) + 1;
   const sites = {};
   for (const e of events) if (e.meta?.host) sites[siteOf(e.meta.host)] = (sites[siteOf(e.meta.host)] || 0) + 1;
   const covered = Math.max(1, Math.round((end - Math.max(windowStart, events[0] ? hourStart(events[0].ts) : hour)) / HOUR));
-  const willMerge = events.length < (config.edition.minEvents || 0) && covered < maxMerge;
+  const willMerge = news.length < (config.edition.minEvents || 0) && covered < maxMerge;
   const brief = (s, i) => ({
     id: s.id,
     rank: i + 1,
@@ -122,7 +124,7 @@ export function preview(store, config, { now = Date.now(), lastCollect = null, n
     printsAt: nextPress || end + 30e3,
     minutesLeft: Math.max(0, Math.round(((nextPress || end + 30e3) - now) / 60e3)),
     lastCollect,
-    total: events.length,
+    total: news.length,
     bySource,
     topSites: Object.entries(sites).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([site, n]) => ({ site, n })),
     willMerge,

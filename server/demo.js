@@ -178,6 +178,36 @@ export function demoEvents(hours = 9, now = Date.now()) {
       add('podcasts', 'listened', at(), title, show, { episodeId: show, show, duration: dur, playhead: Math.floor(dur * (0.3 + rnd() * 0.7)), description: desc });
     }
 
+    // Time: the app in front, stretch by stretch (lunch is spent away from the Mac)
+    {
+      const APPS = ['Xcode', 'Xcode', 'Safari', 'Safari', 'Terminal', 'Mail', 'Slack', 'Notes', 'Visual Studio Code'];
+      let t = H;
+      const stop = H + limit;
+      while (t < stop - 60e3) {
+        const away = hourOfDay === 13 ? true : rnd() < 0.08;
+        const mins = away ? 5 + Math.floor(rnd() * 20) : pick([1, 1, 2, 3, 4, 6, 9, 14, 22, 35]);
+        const end = Math.min(stop, t + mins * 60e3);
+        const app = away ? null : pick(APPS);
+        events.push({ id: `apps:demo:${t}`, source: 'apps', kind: away ? 'away' : 'focus', ts: t, title: away ? (L({ en: 'Away from the Mac', it: 'Lontano dal Mac' })) : app, detail: null, url: null, meta: { app, seconds: Math.round((end - t) / 1000), end } });
+        t = end;
+      }
+    }
+
+    // The Mac: awake in the morning, asleep over lunch
+    if (h === 0) add('power', 'wake', H + 2 * 60e3, L({ en: 'Woke up', it: 'Risveglio' }), 'lid', { reason: 'lid', power: 'battery', charge: 92 });
+    if (hourOfDay === 13) {
+      add('power', 'sleep', H + 4 * 60e3, L({ en: 'Went to sleep', it: 'A riposo' }), 'lid', { reason: 'lid', power: 'battery', charge: 58 });
+      add('power', 'wake', H + 52 * 60e3, L({ en: 'Woke up', it: 'Risveglio' }), 'lid', { reason: 'lid', power: 'ac', charge: 57 });
+    }
+
+    // The photographer: a burst at lunch, a screenshot now and then
+    if (hourOfDay === 13) {
+      for (let i = 0; i < 6; i++) add('photos', 'photo', H + 20 * 60e3 + i * 15e3, L({ en: 'Photo', it: 'Foto' }), null, { subtype: i === 0 ? 'live' : null, favorite: i === 2 });
+      add('photos', 'video', H + 24 * 60e3, 'Video', null, { subtype: null, seconds: 18 });
+    } else if (!quiet && rnd() < 0.35) {
+      add('photos', 'screenshot', at(), L({ en: 'Screenshot on the Mac', it: 'Screenshot sul Mac' }), null, { subtype: 'screenshot', mac: true });
+    }
+
     // Books
     if (rnd() < 0.3) {
       const [title, author, id, hls] = pick(BOOKS);

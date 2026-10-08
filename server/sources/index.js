@@ -6,5 +6,8 @@ import journal from './journal.js';
 import podcasts from './podcasts.js';
 import books from './books.js';
 import files from './files.js';
+import apps from './apps.js';
+import power from './power.js';
+import photos from './photos.js';
 
-export const SOURCES = [safari, mail, terminal, notes, journal, podcasts, books, files];
+export const SOURCES = [safari, mail, terminal, notes, journal, podcasts, books, files, apps, power, photos];

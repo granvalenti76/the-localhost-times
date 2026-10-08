@@ -12,6 +12,7 @@ import { siteOf } from './cluster.js';
 import { ticker } from './market.js';
 import { SECTION_ORDER } from './sections.js';
 import { dayRange } from '../util.js';
+import { computeTime, computeMac, isAmbient } from './time.js';
 import { tr } from '../i18n.js';
 import { columnist, byline } from './writers.js';
 import { autoScene, validScene } from './scenes.js';
@@ -100,7 +101,8 @@ export async function printEvening({ store, config, day, until = Date.now(), log
   const end = Math.min(b, until);
   const editions = store.editionsForDay(day, { full: true });
   if (!editions.length) return null;
-  const events = cleanEvents(store.eventsBetween(a, end), config);
+  const all = cleanEvents(store.eventsBetween(a, end), config);
+  const events = all.filter((e) => !isAmbient(e));
   const line = getLine(store);
 
   const top = topStories(editions);
@@ -112,7 +114,7 @@ export async function printEvening({ store, config, day, until = Date.now(), log
     lead: e.articles[0]?.headline ?? null,
     section: e.articles[0]?.section ?? null,
   }));
-  const stats = dayStats(events, a);
+  const stats = { ...dayStats(events, a), time: computeTime(all, a, end), mac: computeMac(store, a, end) };
   const market = dayMarket(store, config, a, end);
 
   const llm = await connectLLM(config);

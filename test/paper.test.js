@@ -17,7 +17,7 @@ for (const l of ['en', 'it']) {
     setLang(l);
     const stories = buildStories(demoEvents(9));
     const kinds = new Set(stories.map((s) => s.kind));
-    for (const k of ['searches', 'site', 'thread', 'inbox', 'session', 'note', 'entry', 'episode', 'book', 'folder', 'downloads']) assert.ok(kinds.has(k), `demo lacks ${k}`);
+    for (const k of ['searches', 'site', 'thread', 'inbox', 'session', 'note', 'entry', 'episode', 'book', 'folder', 'downloads', 'timesheet', 'shots']) assert.ok(kinds.has(k), `demo lacks ${k}`);
     for (const s of stories) {
       const a = fallbackArticle(s);
       assert.ok(a.headline?.trim(), `${s.id}: no headline`);

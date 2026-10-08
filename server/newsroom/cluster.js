@@ -1,6 +1,7 @@
 /**
  * From the raw stream of events to "stories": groups of events worth an article.
  */
+import { computeTime } from './time.js';
 import { SECTIONS } from './sections.js';
 import { hhmm } from '../util.js';
 import { tr, lang } from '../i18n.js';
@@ -218,9 +219,55 @@ function filesStories(evs) {
   return out;
 }
 
+/** Time: one story for the hour, how it was split between apps. */
+function appsStories(evs) {
+  const focus = evs.filter((e) => e.kind === 'focus' && e.meta?.app);
+  if (!focus.length) return [];
+  const start = Math.min(...evs.map((e) => e.ts));
+  const end = Math.max(...evs.map((e) => e.meta?.end ?? e.ts));
+  const t = computeTime(evs, start, end);
+  if (!t || t.active < 10) return []; // ten minutes at least, or it isn't a story
+  const seq = focus.sort((a, b) => a.ts - b.ts);
+  return [story('apps', 'timesheet', 'hour', seq, 1.6 + Math.min(1.5, t.switches / 25) + (t.longest?.minutes >= 40 ? 1 : 0) + Math.min(1, t.active / 60), {
+    topic: t.apps[0]?.name,
+    time: t,
+  })];
+}
+
+/** The photographer: what was shot in the hour, counted. */
+function photosStories(evs) {
+  const count = (fn) => evs.filter(fn).length;
+  const photos = count((e) => e.kind === 'photo');
+  const videos = count((e) => e.kind === 'video');
+  const shots = count((e) => e.kind === 'screenshot');
+  const imported = count((e) => e.kind === 'imported');
+  if (!photos && !videos && !shots && !imported) return [];
+  // a burst: five or more pictures within two minutes
+  const pics = evs.filter((e) => e.kind === 'photo').sort((a, b) => a.ts - b.ts);
+  let burst = 0;
+  for (let i = 0, j = 0; i < pics.length; i++) {
+    while (pics[i].ts - pics[j].ts > 120e3) j++;
+    burst = Math.max(burst, i - j + 1);
+  }
+  return [story('photos', 'shots', 'hour', [...evs].sort((a, b) => a.ts - b.ts), 1.2 + log2(photos + videos + 1) * 1.1 + log2(shots + 1) * 0.6 + (burst >= 5 ? 0.8 : 0), {
+    topic: tr({ en: 'photos', it: 'foto' }),
+    counts: {
+      photos, videos, shots, imported,
+      macShots: count((e) => e.kind === 'screenshot' && e.meta?.mac),
+      live: count((e) => e.meta?.subtype === 'live'),
+      panorama: count((e) => e.meta?.subtype === 'panorama'),
+      slomo: count((e) => e.meta?.subtype === 'slomo'),
+      favorites: count((e) => e.meta?.favorite),
+      videoSeconds: evs.filter((e) => e.kind === 'video').reduce((t, e) => t + (e.meta?.seconds || 0), 0),
+      burst: burst >= 5 ? burst : 0,
+    },
+  })];
+}
+
 const BUILDERS = {
   safari: safariStories, mail: mailStories, terminal: terminalStories, notes: notesStories,
   journal: journalStories, podcasts: podcastStories, books: bookStories, files: filesStories,
+  apps: appsStories, photos: photosStories,
 };
 
 export function buildStories(events) {
@@ -342,6 +389,37 @@ export function factSheet(s) {
       L.push(T(`Downloads: ${s.events.length} files.`, `Download: ${s.events.length} file.`));
       s.events.slice(0, 20).forEach((e) => L.push(`- ${t(e)} ${q(e.title)}${e.meta.site ? ` ${T('from', 'da')} ${e.meta.site}` : ''}${e.meta.size ? ` (${Math.max(1, Math.round(e.meta.size / 1e6))} MB)` : ''}`));
       break;
+    case 'timesheet': {
+      const tm = s.time;
+      const mm = (n) => T(`${n} min`, `${n} min`);
+      L.push(T(
+        `Time at the Mac, by app in front (sampled every minute): ${mm(tm.active)} in use${tm.away ? `, ${mm(tm.away)} away (no keyboard or trackpad)` : ''}.`,
+        `Tempo al Mac, per app in primo piano (campionato ogni minuto): ${mm(tm.active)} di uso${tm.away ? `, ${mm(tm.away)} lontano (né tastiera né trackpad)` : ''}.`,
+      ));
+      L.push(`${T('Minutes per app', 'Minuti per app')}: ${tm.apps.map((a) => `${a.name} ${a.minutes}`).join(', ')}${tm.others ? `, ${T('others', 'altre')} ${tm.others}` : ''}`);
+      L.push(T(`Switches between apps: ${tm.switches}.`, `Cambi di app: ${tm.switches}.`));
+      if (tm.longest) L.push(T(`Longest uninterrupted stretch: ${tm.longest.app}, ${tm.longest.minutes} min (${hhmm(tm.longest.from)}–${hhmm(tm.longest.to)}).`, `Tratto più lungo senza interruzioni: ${tm.longest.app}, ${tm.longest.minutes} min (${hhmm(tm.longest.from)}–${hhmm(tm.longest.to)}).`));
+      L.push(T('Sequence (time, app, minutes):', 'Sequenza (ora, app, minuti):'));
+      s.events.slice(0, 30).forEach((e) => L.push(`- ${t(e)} ${e.meta.app} ${Math.max(1, Math.round((e.meta.seconds || 0) / 60))}`));
+      L.push(T('Only app names are known: not what was on screen.', 'Si conoscono solo i nomi delle app: non cosa c\'era sullo schermo.'));
+      break;
+    }
+    case 'shots': {
+      const c = s.counts;
+      const parts = [
+        c.photos ? T(`${c.photos} photos`, `${c.photos} foto`) : null,
+        c.videos ? T(`${c.videos} videos (${Math.round(c.videoSeconds)} seconds in all)`, `${c.videos} video (${Math.round(c.videoSeconds)} secondi in tutto)`) : null,
+        c.shots ? T(`${c.shots} screenshots (${c.macShots} on the Mac)`, `${c.shots} screenshot (${c.macShots} sul Mac)`) : null,
+        c.imported ? T(`${c.imported} older pictures imported`, `${c.imported} immagini vecchie importate`) : null,
+      ].filter(Boolean);
+      L.push(`${T('Pictures', 'Immagini')}: ${parts.join(', ')}.`);
+      const extra = [c.live && T(`${c.live} Live Photos`, `${c.live} Live Photo`), c.panorama && T(`${c.panorama} panoramas`, `${c.panorama} panoramiche`), c.slomo && T(`${c.slomo} slow motion`, `${c.slomo} al rallentatore`), c.favorites && T(`${c.favorites} marked as favourite`, c.favorites === 1 ? '1 segnata come preferita' : `${c.favorites} segnate come preferite`), c.burst && T(`a burst of ${c.burst} photos within two minutes`, `una raffica di ${c.burst} foto in due minuti`)].filter(Boolean);
+      if (extra.length) L.push(extra.join('; ') + '.');
+      L.push(T('Times:', 'Orari:'));
+      s.events.slice(0, 20).forEach((e) => L.push(`- ${t(e)} ${e.title}${e.meta?.subtype && !['screenshot'].includes(e.meta.subtype) ? ` (${e.meta.subtype})` : ''}${e.meta?.favorite ? ' ★' : ''}`));
+      L.push(T('The pictures themselves, the places and the people are never seen: only what kind of shot and when.', 'Le immagini, i luoghi e le persone non si vedono mai: solo il tipo di scatto e l\'ora.'));
+      break;
+    }
     case 'book': {
       const e = s.events[0];
       const opened = s.events.filter((x) => x.kind === 'opened').at(-1);

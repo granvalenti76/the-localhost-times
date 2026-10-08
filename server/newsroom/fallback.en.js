@@ -268,6 +268,53 @@ const W = {
     };
   },
 
+  timesheet(s, P) {
+    const t = s.time;
+    const top = t.apps[0];
+    const second = t.apps[1];
+    return {
+      kicker: 'Time',
+      headline: t.longest && t.longest.minutes >= 40
+        ? `${t.longest.minutes} minutes of ${t.longest.app} without a break`
+        : t.switches >= 25
+          ? P([`${t.switches} switches between apps in an hour`, `An hour in pieces: ${t.switches} app switches`])
+          : `${top.name} leads the hour${second ? `, ${second.name} follows` : ''}`,
+      dek: `${t.active} minutes at the Mac${t.away ? `, ${t.away} away` : ''}; ${list(t.apps.slice(0, 3).map((a) => `${a.name} ${a.minutes} min`))}.`,
+      body: [
+        `The app in front, minute by minute: ${list(t.apps.slice(0, 5).map((a) => `${a.name} (${a.minutes} min)`))}${t.others ? `, and ${t.others} minutes elsewhere` : ''}.`,
+        t.longest ? `The longest stretch without switching: ${t.longest.app}, ${t.longest.minutes} minutes, ${hhmm(t.longest.from)}–${hhmm(t.longest.to)}. ${t.switches ? `In all, ${plural(t.switches, 'switch', 'switches')} from one app to another.` : 'Not a single switch.'}` : '',
+        P(['What was on screen, the paper doesn\'t know: only the names of the apps.', 'The paper counts the minutes, not what filled them.']),
+      ].filter(Boolean),
+    };
+  },
+
+  shots(s, P) {
+    const c = s.counts;
+    const what = list([
+      c.photos && plural(c.photos, 'photo', 'photos'),
+      c.videos && plural(c.videos, 'video', 'videos'),
+      c.shots && plural(c.shots, 'screenshot', 'screenshots'),
+    ].filter(Boolean));
+    return {
+      kicker: 'The Photographer',
+      headline: c.burst
+        ? `A burst of ${c.burst} photos in two minutes`
+        : c.photos + c.videos === 0 && c.shots
+          ? P([`${cap(plural(c.shots, 'screenshot', 'screenshots'))}: the hour, kept as evidence`, `The camera stays still: ${plural(c.shots, 'screenshot', 'screenshots')}`])
+          : c.imported && !c.photos && !c.videos
+            ? `${plural(c.imported, 'old picture', 'old pictures')} arrive in Photos`
+            : P([`${cap(what || plural(c.imported, 'picture', 'pictures'))} in the hour`, `The photographer at work: ${what}`]),
+      dek: `${cap(span(s))}${c.favorites ? `; ${c.favorites} already marked as favourite` : ''}.`,
+      body: [
+        what ? `Shot in the hour: ${what}${c.macShots ? ` (${c.macShots} of the screenshots on the Mac)` : ''}.` : '',
+        [c.live && `${plural(c.live, 'Live Photo', 'Live Photos')}`, c.panorama && plural(c.panorama, 'panorama', 'panoramas'), c.slomo && 'some slow motion'].filter(Boolean).length
+          ? `Among them: ${list([c.live && plural(c.live, 'Live Photo', 'Live Photos'), c.panorama && plural(c.panorama, 'panorama', 'panoramas'), c.slomo && 'some slow motion'].filter(Boolean))}.` : '',
+        c.imported ? `Also: ${plural(c.imported, 'older picture', 'older pictures')} imported into the library.` : '',
+        P(['What is in the pictures stays in the pictures: the paper only counts them.', 'Where and who, the paper never looks at.']),
+      ].filter(Boolean),
+    };
+  },
+
   book(s) {
     const e = s.events[0];
     const hl = s.events.filter((x) => x.kind === 'highlight');

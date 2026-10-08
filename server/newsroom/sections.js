@@ -12,6 +12,8 @@ const NAMES = {
     podcasts: { slug: 'radio',          name: 'Radio',          tag: 'Podcasts' },
     books:    { slug: 'culture',        name: 'Culture',        tag: 'Books' },
     files:    { slug: 'local',          name: 'Local',          tag: 'Files' },
+    apps:     { slug: 'time',           name: 'Time',           tag: 'Apps' },
+    photos:   { slug: 'photography',    name: 'The Photographer', tag: 'Photos' },
   },
   it: {
     safari:   { slug: 'esteri',         name: 'Esteri',         tag: 'Dal web' },
@@ -22,10 +24,12 @@ const NAMES = {
     podcasts: { slug: 'radio',          name: 'Radio',          tag: 'Podcast' },
     books:    { slug: 'cultura',        name: 'Cultura',        tag: 'Libri' },
     files:    { slug: 'cronaca',        name: 'Cronaca locale', tag: 'File' },
+    apps:     { slug: 'tempo',          name: 'Tempo',          tag: 'App' },
+    photos:   { slug: 'fotografo',      name: 'Il fotografo',   tag: 'Foto' },
   },
 };
 
-export const SECTION_ORDER = ['safari', 'mail', 'terminal', 'files', 'notes', 'journal', 'podcasts', 'books'];
+export const SECTION_ORDER = ['safari', 'mail', 'terminal', 'files', 'apps', 'notes', 'journal', 'podcasts', 'books', 'photos'];
 
 export const SECTIONS = Object.fromEntries(SECTION_ORDER.map((id) => [id, {
   id,

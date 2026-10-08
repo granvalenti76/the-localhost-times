@@ -267,6 +267,54 @@ const W = {
     };
   },
 
+  timesheet(s, P) {
+    const t = s.time;
+    const top = t.apps[0];
+    const second = t.apps[1];
+    return {
+      kicker: 'Tempo',
+      headline: t.longest && t.longest.minutes >= 40
+        ? `${t.longest.minutes} minuti di ${t.longest.app} senza staccare`
+        : t.switches >= 25
+          ? P([`${t.switches} cambi di app in un'ora`, `Un'ora a pezzi: ${t.switches} cambi di app`])
+          : `${top.name} guida l'ora${second ? `, ${second.name} insegue` : ''}`,
+      dek: `${t.active} minuti al Mac${t.away ? `, ${t.away} lontano` : ''}; ${list(t.apps.slice(0, 3).map((a) => `${a.name} ${a.minutes} min`))}.`,
+      body: [
+        `L'app in primo piano, minuto per minuto: ${list(t.apps.slice(0, 5).map((a) => `${a.name} (${a.minutes} min)`))}${t.others ? `, e ${t.others} minuti altrove` : ''}.`,
+        t.longest ? `Il tratto più lungo senza cambiare: ${t.longest.app}, ${t.longest.minutes} minuti, ${hhmm(t.longest.from)}–${hhmm(t.longest.to)}. ${t.switches ? `In tutto, ${t.switches === 1 ? 'un cambio' : `${t.switches} cambi`} da un'app all'altra.` : 'Nemmeno un cambio.'}` : '',
+        P(['Cosa ci fosse sullo schermo il giornale non lo sa: solo i nomi delle app.', 'Il giornale conta i minuti, non quello che li ha riempiti.']),
+      ].filter(Boolean),
+    };
+  },
+
+  shots(s, P) {
+    const c = s.counts;
+    const n = (x, one, many) => `${x} ${x === 1 ? one : many}`;
+    const what = list([
+      c.photos && n(c.photos, 'foto', 'foto'),
+      c.videos && n(c.videos, 'video', 'video'),
+      c.shots && n(c.shots, 'screenshot', 'screenshot'),
+    ].filter(Boolean));
+    return {
+      kicker: 'Il fotografo',
+      headline: c.burst
+        ? `Una raffica di ${c.burst} foto in due minuti`
+        : c.photos + c.videos === 0 && c.shots
+          ? P([`${n(c.shots, 'screenshot', 'screenshot')}: l'ora conservata come prova`, `La macchina fotografica resta ferma: ${n(c.shots, 'screenshot', 'screenshot')}`])
+          : c.imported && !c.photos && !c.videos
+            ? `${n(c.imported, 'vecchia immagine arriva', 'vecchie immagini arrivano')} in Foto`
+            : P([`${what || n(c.imported, 'immagine', 'immagini')} nell'ora`, `Il fotografo al lavoro: ${what}`]),
+      dek: `${cap(span(s))}${c.favorites ? `; ${c.favorites === 1 ? 'una già segnata come preferita' : `${c.favorites} già segnate come preferite`}` : ''}.`,
+      body: [
+        what ? `Scattato nell'ora: ${what}${c.macShots ? ` (${c.macShots} degli screenshot sul Mac)` : ''}.` : '',
+        [c.live, c.panorama, c.slomo].some(Boolean)
+          ? `Fra queste: ${list([c.live && n(c.live, 'Live Photo', 'Live Photo'), c.panorama && n(c.panorama, 'panoramica', 'panoramiche'), c.slomo && 'qualche ripresa al rallentatore'].filter(Boolean))}.` : '',
+        c.imported ? `Inoltre: ${n(c.imported, 'immagine più vecchia importata', 'immagini più vecchie importate')} nella libreria.` : '',
+        P(['Quello che c\'è nelle immagini resta nelle immagini: il giornale si limita a contarle.', 'Dove e chi, il giornale non lo guarda mai.']),
+      ].filter(Boolean),
+    };
+  },
+
   book(s) {
     const e = s.events[0];
     const hl = s.events.filter((x) => x.kind === 'highlight');

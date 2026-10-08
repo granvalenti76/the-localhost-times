@@ -78,6 +78,8 @@ const SECTION_NAMES = {
     { id: 'podcasts', slug: 'radio', name: 'Radio', tag: 'Podcasts' },
     { id: 'books', slug: 'culture', name: 'Culture', tag: 'Books' },
     { id: 'files', slug: 'local', name: 'Local', tag: 'Files' },
+    { id: 'apps', slug: 'time', name: 'Time', tag: 'Apps' },
+    { id: 'photos', slug: 'photography', name: 'The Photographer', tag: 'Photos' },
   ],
   it: [
     { id: 'safari', slug: 'esteri', name: 'Esteri', tag: 'Dal web' },
@@ -88,6 +90,8 @@ const SECTION_NAMES = {
     { id: 'podcasts', slug: 'radio', name: 'Radio', tag: 'Podcast' },
     { id: 'books', slug: 'cultura', name: 'Cultura', tag: 'Libri' },
     { id: 'files', slug: 'cronaca', name: 'Cronaca locale', tag: 'File' },
+    { id: 'apps', slug: 'tempo', name: 'Tempo', tag: 'App' },
+    { id: 'photos', slug: 'fotografo', name: 'Il fotografo', tag: 'Foto' },
   ],
 };
 export const SECTIONS = tr(SECTION_NAMES);

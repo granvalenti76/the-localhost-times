@@ -22,7 +22,17 @@
     "journal": true,
     "podcasts": true,
     "books": true,
-    "files": true
+    "files": true,
+    "apps": true,
+    "power": true,
+    "photos": true
+  },
+  "apps": {
+    "sampleSeconds": 60,
+    "exclude": []
+  },
+  "photos": {
+    "library": ""
   },
   "files": {
     "folders": [],

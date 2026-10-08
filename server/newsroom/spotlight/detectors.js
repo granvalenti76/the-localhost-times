@@ -142,6 +142,7 @@ function entityOf(e) {
   if (e.source === 'files' && (m.project || m.folder)) return { key: `project:${norm(m.project || m.folder)}`, label: m.project || m.folder, type: 'project' };
   if (e.source === 'terminal' && m.project) return { key: `project:${norm(m.project)}`, label: m.project, type: 'project' };
   if (e.source === 'notes' && m.folder) return { key: `folder:${norm(m.folder)}`, label: m.folder, type: 'folder' };
+  if (e.source === 'apps' && e.kind === 'focus' && m.app && (m.seconds || 0) >= 60) return { key: `app:${norm(m.app)}`, label: m.app, type: 'app' };
   return null;
 }
 
@@ -161,7 +162,7 @@ export function windows(events, now) {
 /** One rare subject in different apps within a few days. */
 export function detectCross(w) {
   const { recent, before, baseDays } = w;
-  const usable = (e) => e.source !== 'journal' && e.source !== 'terminal' && e.kind !== 'inbox' && !(e.source === 'mail' && e.meta?.newsletter);
+  const usable = (e) => !['journal', 'terminal', 'apps', 'power', 'photos'].includes(e.source) && e.kind !== 'inbox' && !(e.source === 'mail' && e.meta?.newsletter);
   const index = new Map(); // term → { surface, events: [] }
   for (const e of recent) {
     if (!usable(e)) continue;
@@ -474,11 +475,13 @@ export function detectHabits(w) {
     });
   }
   // how the time is split: an app whose share doubled or halved
-  if (recent.length >= 150 && before.length >= 300) {
+  // (time and power are measurements, not activities: they stay out of the shares)
+  const act = (evs) => evs.filter((e) => e.source !== 'apps' && e.source !== 'power');
+  if (act(recent).length >= 150 && act(before).length >= 300) {
     const share = (evs) => { const c = {}; for (const e of evs) c[e.source] = (c[e.source] || 0) + 1; return Object.fromEntries(Object.entries(c).map(([k, v]) => [k, v / evs.length])); };
-    const sNow = share(recent);
-    const sThen = share(before);
-    for (const src of Object.keys(SECTIONS)) {
+    const sNow = share(act(recent));
+    const sThen = share(act(before));
+    for (const src of Object.keys(SECTIONS).filter((x) => x !== 'apps')) {
       const a = sThen[src] || 0;
       const b = sNow[src] || 0;
       if (a < 0.05 && b < 0.05) continue;
@@ -499,7 +502,7 @@ export function detectHabits(w) {
         facts: [
           tr({ en: `Share of all signals, ${baseDays} days before: ${pct(a)}`, it: `Quota di tutti i segnali, nei ${baseDays} giorni prima: ${pct(a)}` }),
           tr({ en: `Share in the last ${RECENT_DAYS} days: ${pct(b)}`, it: `Quota negli ultimi ${RECENT_DAYS} giorni: ${pct(b)}` }),
-          tr({ en: `Signals now: ${recent.filter((e) => e.source === src).length} of ${recent.length}`, it: `Segnali ora: ${recent.filter((e) => e.source === src).length} su ${recent.length}` }),
+          tr({ en: `Signals now: ${recent.filter((e) => e.source === src).length} of ${act(recent).length}`, it: `Segnali ora: ${recent.filter((e) => e.source === src).length} su ${act(recent).length}` }),
         ],
         strength: Math.min(1, 0.35 + Math.min(0.4, Math.abs(Math.log2(ratio || 4)) / 4)),
         sources: [src],

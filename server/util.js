@@ -80,6 +80,27 @@ export function newest(files) {
  * This way we never touch the original files or fight with the apps' locks.
  */
 export function snapshot(file) {
+  // Big databases (Mail's index can pass 500 MB) are not copied every five minutes: they are
+  // opened read-only in place. SQLite in WAL mode (what Apple's apps use) lets a reader in while
+  // the app writes, and a read-only connection can't change anything. Small ones are still copied.
+  let size = 0;
+  try { size = fs.statSync(file).size; } catch (e) { if (isDenied(e)) throw new PermissionError(file); }
+  if (size >= DIRECT_MIN) {
+    try {
+      const db = new DatabaseSync(file, { readOnly: true });
+      try {
+        db.exec('PRAGMA busy_timeout = 3000');
+        db.prepare('SELECT count(*) FROM sqlite_master').get();
+        return { db, direct: true, close() { try { db.close(); } catch { /* ignore */ } } };
+      } catch (e) {
+        try { db.close(); } catch { /* ignore */ }
+        throw e;
+      }
+    } catch (e) {
+      if (isDenied(e)) throw new PermissionError(file);
+      // anything else (an unusual journal mode, a lock): fall back to the copy
+    }
+  }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dailymac-'));
   const base = path.join(dir, 'db.sqlite');
   try {
@@ -95,11 +116,36 @@ export function snapshot(file) {
   const db = new DatabaseSync(base);
   return {
     db,
+    direct: false,
     close() {
       try { db.close(); } catch { /* ignore */ }
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
+}
+
+/** Databases at least this big are read in place instead of copied. */
+export const DIRECT_MIN = Number(process.env.LOCALHOST_TIMES_DIRECT_MIN) || 16 * 1024 * 1024;
+
+/**
+ * A fingerprint of a database and its WAL: if it hasn't changed since the last collection,
+ * there's nothing new to read. null when it can't be told (not a file, no access).
+ */
+export function fingerprint(files) {
+  const parts = [];
+  for (const f of files) {
+    for (const x of [f, `${f}-wal`]) {
+      try {
+        const st = fs.statSync(x);
+        if (x === f && !st.isFile()) return null;
+        parts.push(`${st.size}:${Math.round(st.mtimeMs)}`);
+      } catch (e) {
+        if (x === f) return null;
+        parts.push('-');
+      }
+    }
+  }
+  return parts.length ? parts.join('|') : null;
 }
 
 export function withSnapshot(file, fn) {

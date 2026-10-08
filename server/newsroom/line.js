@@ -59,7 +59,7 @@ export const DEFAULT_LINE = {
   autoPublish: true,
   photos: true,
   notes: '',
-  sectionWeights: { safari: 1, mail: 1, terminal: 1, files: 1, notes: 1, journal: 1, podcasts: 1, books: 1 },
+  sectionWeights: { safari: 1, mail: 1, terminal: 1, files: 1, apps: 1, notes: 1, journal: 1, podcasts: 1, books: 1, photos: 1 },
   desks: { ...DEFAULT_DESKS }, // who writes each section ('' = unsigned)
   staff: {},                   // the editor's edits to the bylines: { web: { name, role, style } }
 };
