@@ -9,6 +9,8 @@ import { buildStories, factSheet } from './cluster.js';
 import { cleanEvents, DeskError, rewriteArticle, moveArticle, spikeArticle } from './edition.js';
 import { rewriteEditorial } from './evening.js';
 import { hhmm, dayKey } from '../util.js';
+import { preview, previewText, steer, toolsHelp, dayText } from './next.js';
+import { search } from './archive.js';
 import { tr, lang } from '../i18n.js';
 
 const EVENING = /^sera-(\d{4}-\d{2}-\d{2})$/;
@@ -126,6 +128,8 @@ export function parseReply(raw) {
 
 function validActions(actions, ctx) {
   const ids = new Set(ctx.articles.map((a) => a.id));
+  const nextStories = ctx.next?.stories || [];
+  const nextIds = new Set([...nextStories.map((x) => x.id), ...(ctx.next?.buried || []).map((x) => x.id)]);
   const out = [];
   for (const x of actions.slice(0, 3)) {
     if (!x || typeof x !== 'object') continue;
@@ -139,6 +143,13 @@ function validActions(actions, ctx) {
       out.push({ type: 'tone', tone: toneId(x.tone) });
     } else if (t === 'editorial' && ctx.kind === 'evening') {
       out.push({ type: 'editorial', instruction: String(x.instruction || '').trim().slice(0, 300) });
+    } else if ((t === 'lead_next' || t === 'drop_next') && nextIds.has(x.story)) {
+      const st = nextStories.find((y) => y.id === x.story);
+      out.push({ type: t, story: x.story, topic: st?.topic || x.story });
+    } else if (t === 'next_note' && String(x.text || '').trim()) {
+      out.push({ type: 'next_note', text: String(x.text).trim().slice(0, 300) });
+    } else if (t === 'print_now') {
+      out.push({ type: 'print_now' });
     }
   }
   // human-readable labels for the UI
@@ -153,6 +164,10 @@ function validActions(actions, ctx) {
         note: `Add to the editor's notes: ${q(x.text)}`,
         tone: `Change the tone to ${q(TONES[x.tone]?.label)}`,
         editorial: `Rewrite the editorial${x.instruction ? `: ${x.instruction}` : ''}`,
+        lead_next: `Next edition: lead with ${q(x.topic)}`,
+        drop_next: `Next edition: leave out ${q(x.topic)}`,
+        next_note: `Next edition only: ${q(x.text)}`,
+        print_now: 'Print the current hour\'s edition now',
       }
       : {
         rewrite: `Riscrivi ${title}: ${x.instruction}`,
@@ -161,6 +176,10 @@ function validActions(actions, ctx) {
         note: `Aggiungi alle note del direttore: ${q(x.text)}`,
         tone: `Cambia il tono in ${q(TONES[x.tone]?.label)}`,
         editorial: `Riscrivi l'editoriale${x.instruction ? `: ${x.instruction}` : ''}`,
+        lead_next: `Prossima edizione: apertura su ${q(x.topic)}`,
+        drop_next: `Prossima edizione: lascia fuori ${q(x.topic)}`,
+        next_note: `Solo per la prossima edizione: ${q(x.text)}`,
+        print_now: 'Stampa subito l\'edizione dell\'ora in corso',
       })[x.type];
     return { ...x, label, status: 'proposed' };
   });
@@ -170,7 +189,46 @@ function validActions(actions, ctx) {
  * Each meeting is a session: the managing editor only remembers messages from the current session.
  * Earlier sessions stay in the thread, viewable from the UI.
  */
-export async function discuss({ store, config, threadId, text, articleId, session, log = console.log }) {
+/** A tool call in a reply: {"tool": "...", ...}, and no "reply". */
+function toolCall(raw) {
+  const text = String(raw || '').replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```(json)?/g, '').trim();
+  const a = text.indexOf('{');
+  const b = text.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  const j = tryJson(text.slice(a, b + 1));
+  return j && typeof j.tool === 'string' && typeof j.reply !== 'string' ? j : null;
+}
+
+/** Run one of the managing editor's tools; the result goes back to the model as text. */
+function runTool(call, { store, config, runtime, ctx }) {
+  const en = lang() === 'en';
+  switch (call.tool) {
+    case 'next_edition': {
+      const p = preview(store, config, { lastCollect: runtime?.lastCollect, nextPress: runtime?.nextEdition });
+      ctx.next = p; // the actions on the next edition are checked against these stories
+      return previewText(p);
+    }
+    case 'story': {
+      const id = String(call.id || call.story || '');
+      const pool = [...buildStories(cleanEvents(store.eventsBetween(Date.now() - 4 * 3600e3, Date.now()), config))];
+      if (ctx.edition) pool.push(...buildStories(cleanEvents(store.eventsBetween(ctx.edition.start, ctx.edition.end), config)));
+      const st = pool.find((x) => x.id === id);
+      return st ? factSheet(st) : (en ? `No story with id “${id}”.` : `Nessuna storia con id «${id}».`);
+    }
+    case 'today':
+      return dayText(store);
+    case 'search': {
+      const days = Math.max(1, Math.min(90, Number(call.days) || 7));
+      const r = search(store, { q: String(call.query || ''), any: true, from: Date.now() - days * 864e5, limit: 15 });
+      if (!r.total) return en ? 'Nothing found.' : 'Nessun risultato.';
+      return `${r.total} ${en ? 'matches' : 'risultati'}:\n${r.results.map((x) => `- ${dayKey(x.ts)} ${hhmm(x.ts)} [${x.section || x.kind}] ${x.title}`).join('\n')}`;
+    }
+    default:
+      return en ? `Unknown tool “${call.tool}”.` : `Strumento sconosciuto «${call.tool}».`;
+  }
+}
+
+export async function discuss({ store, config, threadId, text, articleId, session, runtime = null, log = console.log }) {
   const msg = String(text || '').trim().slice(0, 2000);
   if (!msg) throw new DeskError(tr({ en: 'Empty message', it: 'Messaggio vuoto' }));
   const ctx = context(store, config, threadId, articleId);
@@ -181,26 +239,43 @@ export async function discuss({ store, config, threadId, text, articleId, sessio
   const line = getLine(store);
   const sid = Number(session) || 0;
   const history = sid ? thread.messages.filter((m) => m.session === sid) : thread.messages;
-  const prompt = meetingPrompt({ ...ctx, line, history, text: msg });
+  const prompt = meetingPrompt({ ...ctx, line, history, text: msg, tools: toolsHelp() });
   let raw;
+  const used = [];
   try {
-    raw = await chat(llm, config, prompt, 2000);
+    // the managing editor may look things up (at most 3 tools) before answering
+    for (let round = 0; round < 4; round++) {
+      raw = await chat(llm, config, prompt, 2000);
+      const call = toolCall(raw);
+      if (!call) break;
+      if (round === 3) { raw = ''; break; }
+      const result = runTool(call, { store, config, runtime, ctx });
+      used.push({ tool: call.tool, ...(call.id ? { id: String(call.id) } : {}), ...(call.query ? { query: String(call.query) } : {}) });
+      prompt.push({ role: 'assistant', content: JSON.stringify(call) });
+      prompt.push({
+        role: 'user',
+        content: `${tr({ en: 'TOOL RESULT', it: 'RISULTATO DELLO STRUMENTO' })} (${call.tool}):\n${result}\n\n${round === 2
+          ? tr({ en: 'Now answer the editor, with JSON {"reply": ..., "actions": [...]}. No more tools.', it: 'Ora rispondi al direttore, con JSON {"reply": ..., "actions": [...]}. Niente altri strumenti.' })
+          : tr({ en: 'Answer the editor with JSON {"reply": ..., "actions": [...]}, or call another tool.', it: 'Rispondi al direttore con JSON {"reply": ..., "actions": [...]}, oppure usa un altro strumento.' })}`,
+      });
+    }
   } catch (e) {
     log(`[${tr({ en: 'meeting', it: 'riunione' })}] ${e.message}`);
     throw new DeskError(tr({ en: `The managing editor did not answer: ${e.message}`, it: `Il caporedattore non ha risposto: ${e.message}` }), 502);
   }
+  if (!ctx.next && /lead_next|drop_next/.test(raw)) ctx.next = preview(store, config, { lastCollect: runtime?.lastCollect, nextPress: runtime?.nextEdition });
   const { reply, actions } = parseReply(raw);
   const now = Date.now();
   // re-read: an action may have been applied in the meantime
   const fresh = store.getThread(threadId);
   fresh.messages.push({ role: 'director', text: msg, articleId: articleId || null, ts: now, session: sid || undefined });
-  fresh.messages.push({ role: 'editor', text: reply || '…', actions: validActions(actions, ctx), ts: Date.now(), model: llm.model, session: sid || undefined });
+  fresh.messages.push({ role: 'editor', text: reply || '…', actions: validActions(actions, ctx), tools: used.length ? used : undefined, ts: Date.now(), model: llm.model, session: sid || undefined });
   store.saveThread(fresh);
   return fresh;
 }
 
 
-export async function applyAction({ store, config, threadId, msgIndex, actionIndex, log = console.log }) {
+export async function applyAction({ store, config, threadId, msgIndex, actionIndex, printNow = null, log = console.log }) {
   const thread = store.getThread(threadId);
   const action = thread.messages[msgIndex]?.actions?.[actionIndex];
   if (!action) throw new DeskError(tr({ en: 'Action not found', it: 'Azione non trovata' }), 404);
@@ -220,6 +295,16 @@ export async function applyAction({ store, config, threadId, msgIndex, actionInd
       }
       case 'tone': result.line = saveLine(store, { tone: action.tone }); break;
       case 'editorial': result.evening = await rewriteEditorial(store, config, EVENING.exec(threadId)[1], action.instruction, log); break;
+      case 'lead_next': result.steer = steer(store, config, { op: 'boost', story: action.story }); break;
+      case 'drop_next': result.steer = steer(store, config, { op: 'bury', story: action.story }); break;
+      case 'next_note': result.steer = steer(store, config, { op: 'note', text: action.text }); break;
+      case 'print_now': {
+        if (!printNow) throw new DeskError(tr({ en: 'Printing is not available here.', it: 'La stampa non è disponibile qui.' }), 503);
+        const ed = await printNow();
+        if (!ed) throw new DeskError(tr({ en: 'Nothing worth telling has happened yet this hour.', it: 'Nell\'ora corrente non è ancora successo nulla da raccontare.' }), 409);
+        result.printed = ed;
+        break;
+      }
       default: throw new DeskError(tr({ en: 'Unknown action', it: 'Azione sconosciuta' }));
     }
   } catch (e) {

@@ -4,13 +4,18 @@ import { tr } from '../i18n.js';
 
 const STARTERS = tr({
   en: {
-    edition: ['What would you lead with?', 'Which piece is the weakest?', 'Does the tone of this edition work?', 'Is anything missing?'],
-    evening: ['Does the editorial capture the day?', 'What really mattered today?', 'What rule would you give the newsroom for tomorrow?'],
+    edition: ['What is coming in the next edition?', 'What would you lead with?', 'Which piece is the weakest?', 'Does the tone of this edition work?', 'Is anything missing?'],
+    evening: ['What is coming in the next edition?', 'Does the editorial capture the day?', 'What really mattered today?', 'What rule would you give the newsroom for tomorrow?'],
   },
   it: {
-    edition: ['Cosa metteresti in apertura?', 'Qual è il pezzo più debole?', 'Il tono di questa edizione ti convince?', 'Manca qualcosa?'],
-    evening: ['L\'editoriale coglie la giornata?', 'Cosa è stato davvero importante oggi?', 'Che regola daresti alla redazione per domani?'],
+    edition: ['Cosa esce nella prossima edizione?', 'Cosa metteresti in apertura?', 'Qual è il pezzo più debole?', 'Il tono di questa edizione ti convince?', 'Manca qualcosa?'],
+    evening: ['Cosa esce nella prossima edizione?', 'L\'editoriale coglie la giornata?', 'Cosa è stato davvero importante oggi?', 'Che regola daresti alla redazione per domani?'],
   },
+});
+
+const TOOL = tr({
+  en: { next_edition: '⌕ checked the next edition', story: '⌕ read the facts', today: '⌕ checked the day', search: '⌕ searched the archive' },
+  it: { next_edition: '⌕ ha guardato la prossima edizione', story: '⌕ ha letto i fatti', today: '⌕ ha guardato la giornata', search: '⌕ ha cercato in archivio' },
 });
 
 /**
@@ -94,6 +99,7 @@ export default function Meeting({ threadId, kind = 'edition', focus, onClearFocu
     <div key={m.idx} className={`msg msg-${m.role} ${m.pending ? 'pending' : ''}`}>
       <div className="msg-who">{m.role === 'director' ? tr({ en: 'The editor', it: 'Il direttore' }) : tr({ en: 'The managing editor', it: 'Il caporedattore' })}</div>
       {m.articleId && m.role === 'director' && <div className="msg-about">{tr({ en: 'on the article', it: 'sull\'articolo' })} {m.articleId.split(':').pop()}</div>}
+      {m.tools?.length > 0 && <div className="msg-tools">{m.tools.map((t, i) => <span key={i}>{TOOL[t.tool] || t.tool}{t.query ? `: ${t.query}` : ''}</span>)}</div>}
       <p className="msg-text">{m.text}</p>
       {m.actions?.length > 0 && (
         <ul className="msg-actions">

@@ -294,19 +294,31 @@ Scrivi l'editoriale della sera.`,
 
 const TONE_IDS = 'dry|ironic|satirical|british|tabloid';
 
-export function meetingPrompt({ kind, label, items, line, focus, history, text, overview }) {
+export function meetingPrompt({ kind, label, items, line, focus, history, text, overview, tools = '' }) {
   const en = tr({ en: true, it: false });
   const tone = `- {"type":"tone","tone":"${TONE_IDS}"}  ${en ? 'change the paper\'s tone' : 'cambiare il tono del giornale'}`;
   const note = `- {"type":"note","text":"..."}  ${en ? 'add a permanent rule to the editor\'s notes (applies to the next editions)' : 'aggiungere una regola permanente alle note del direttore (vale per le prossime edizioni)'}`;
+  // steering the edition that hasn't been printed yet (story ids come from the next_edition tool)
+  const next = [
+    `- {"type":"lead_next","story":"<id>"}  ${en ? 'make a story the lead of the NEXT edition' : 'mettere una storia in apertura nella PROSSIMA edizione'}`,
+    `- {"type":"drop_next","story":"<id>"}  ${en ? 'leave a story out of the next edition' : 'lasciare fuori una storia dalla prossima edizione'}`,
+    `- {"type":"next_note","text":"..."}  ${en ? 'a one-off instruction for the writers of the next edition only' : 'un\'indicazione solo per i redattori della prossima edizione'}`,
+    `- {"type":"print_now"}  ${en ? 'print the current hour\'s edition right away' : 'stampare subito l\'edizione dell\'ora in corso'}`,
+  ];
   const actions = kind === 'evening'
-    ? [`- {"type":"editorial","instruction":"..."}  ${en ? 'rewrite the evening editorial' : 'riscrivere l\'editoriale della sera'}`, note, tone].join('\n')
+    ? [`- {"type":"editorial","instruction":"..."}  ${en ? 'rewrite the evening editorial' : 'riscrivere l\'editoriale della sera'}`, note, tone, ...next].join('\n')
     : [
-      `- {"type":"rewrite","article":"<id>","instruction":"..."}  ${en ? 'rewrite an article with an instruction' : 'riscrivere un articolo con un\'indicazione'}`,
-      `- {"type":"lead","article":"<id>"}  ${en ? 'make it the lead story' : 'metterlo in apertura'}`,
-      `- {"type":"spike","article":"<id>"}  ${en ? 'drop it from the edition' : 'toglierlo dall\'edizione'}`,
+      `- {"type":"rewrite","article":"<id>","instruction":"..."}  ${en ? 'rewrite an article of this edition with an instruction' : 'riscrivere un articolo di questa edizione con un\'indicazione'}`,
+      `- {"type":"lead","article":"<id>"}  ${en ? 'make it the lead story of this edition' : 'metterlo in apertura in questa edizione'}`,
+      `- {"type":"spike","article":"<id>"}  ${en ? 'drop it from this edition' : 'toglierlo da questa edizione'}`,
       note,
       tone,
+      ...next,
     ].join('\n');
+  const toolBlock = tools ? tr({
+    en: `\n\nBefore answering you can look things up with these tools. To use one, reply ONLY with its JSON (one tool per reply, at most 3 in a row); you will get the result, then you answer normally:\n${tools}\nUse next_edition whenever the editor asks about the coming hour, what is still to be processed, what to expect or how to steer: never guess those numbers.`,
+    it: `\n\nPrima di rispondere puoi consultare questi strumenti. Per usarne uno rispondi SOLO con il suo JSON (uno per risposta, al massimo 3 di fila); riceverai il risultato, poi rispondi normalmente:\n${tools}\nUsa next_edition ogni volta che il direttore chiede dell'ora in corso, di cosa resta da elaborare, di cosa aspettarsi o di come orientare l'edizione: non indovinare quei numeri.`,
+  }) : '';
   const notes = line.notes?.trim();
   const msgs = [
     {
@@ -319,7 +331,7 @@ You can propose concrete actions, which the editor approves with one click:
 ${actions}
 Propose actions only when they are really needed, 3 at most, and only with the ids listed.
 The editor applies the actions with a button next to your reply: don't ask for confirmation in words ("shall we?"), just propose them. If the editor tells you to do something, propose the matching action right away.
-Write "actions" as plain JSON, without backslashes: [{"type":"lead","article":"..."}].
+Write "actions" as plain JSON, without backslashes: [{"type":"lead","article":"..."}].${toolBlock}
 
 Reply ONLY with JSON: {"reply": "...", "actions": [ ... ]}`,
         it: `Sei il caporedattore del «The Localhost Times», il quotidiano che racconta ciò che succede sul MacBook del direttore. Sei in riunione di redazione con il direttore (il proprietario del Mac) e discutete ${label}.
@@ -329,7 +341,7 @@ Puoi proporre azioni concrete, che il direttore approva con un clic:
 ${actions}
 Proponi azioni solo quando servono davvero, al massimo 3, e solo con gli id elencati.
 Le azioni le applica il direttore con un pulsante accanto alla tua risposta: non chiedere conferma a parole («approviamo?»), proponile e basta. Se il direttore ti dice di fare qualcosa, proponi subito l'azione corrispondente.
-Scrivi «actions» come JSON normale, senza barre rovesciate: [{"type":"lead","article":"..."}].
+Scrivi «actions» come JSON normale, senza barre rovesciate: [{"type":"lead","article":"..."}].${toolBlock}
 
 Rispondi SOLO con JSON: {"reply": "...", "actions": [ ... ]}`,
       }),

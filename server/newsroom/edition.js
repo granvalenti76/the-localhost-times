@@ -3,6 +3,7 @@ import { SECTIONS, SECTION_ORDER } from './sections.js';
 import { fallbackArticle, fallbackBrief, fallbackSummary } from './fallback.js';
 import { autoScene, validScene, sceneCaption } from './scenes.js';
 import { factCheck, numbersCheck } from './factcheck.js';
+import { getSteer, applySteer, steerLine, clearSteer, carrySteer } from './next.js';
 import { connectLLM, chat, parseJson } from './llm.js';
 import { articlePrompt, rewritePrompt, summaryPrompt, marketPrompt, sizeOf } from './prompts.js';
 import { getLine } from './line.js';
@@ -160,13 +161,10 @@ export const cleanEvents = (events, config) =>
   events.filter((e) => !(e.source === 'safari' && isSelfUrl(e.url, config.port)));
 
 /**
- * Prints the edition for the hour starting at `start`.
- * Preceding hours that were too quiet (below `minEvents`) are merged into this one, up to
- * `maxMergeHours` hours in total. Returns null if there is not (yet) enough to report;
- * with `force` it prints anyway (the "Print now" button).
+ * The time window an edition covers: from the end of the previous edition (quiet hours merge in),
+ * at most `maxMergeHours` back; a reprint keeps the coverage it had.
  */
-export async function printEdition({ store, config, start, final = true, force = false, log = console.log }) {
-  const hour = start;
+export function editionWindow(store, config, hour) {
   const end = hour + HOUR;
   const id = editionId(hour);
   const maxMerge = Math.max(1, config.edition.maxMergeHours || 1);
@@ -175,11 +173,23 @@ export async function printEdition({ store, config, start, final = true, force =
   if (existing?.start) {
     windowStart = existing.start; // reprint: same coverage as before
   } else {
-    // start from the end of the previous edition, but at most `maxMerge` hours back
     const prevEnd = store.lastEditionEnd(end, id);
     const earliest = hour - (maxMerge - 1) * HOUR;
     windowStart = Math.min(hour, prevEnd != null && prevEnd > earliest ? prevEnd : earliest);
   }
+  return { id, end, maxMerge, existing, windowStart };
+}
+
+/**
+ * Prints the edition for the hour starting at `start`.
+ * Preceding hours that were too quiet (below `minEvents`) are merged into this one, up to
+ * `maxMergeHours` hours in total. Returns null if there is not (yet) enough to report;
+ * with `force` it prints anyway (the "Print now" button).
+ */
+export async function printEdition({ store, config, start, final = true, force = false, log = console.log }) {
+  const hour = start;
+  const { id, end, maxMerge, existing, windowStart: from } = editionWindow(store, config, hour);
+  let windowStart = from;
   const events = cleanEvents(store.eventsBetween(windowStart, end), config);
   if (!events.length) return null;
   // coverage starts from the first hour with signals (no "since 01:00" if everything before was empty)
@@ -187,11 +197,14 @@ export async function printEdition({ store, config, start, final = true, force =
   const hoursCovered = Math.round((end - windowStart) / HOUR);
   if (!force && !existing && events.length < (config.edition.minEvents || 0) && hoursCovered < maxMerge) {
     log(tr({ en: `[newsroom] ${id}: only ${events.length} signals, merged into the next edition`, it: `[redazione] ${id}: solo ${events.length} segnali, confluiscono nella prossima edizione` }));
+    carrySteer(store, id, editionId(hour + HOUR)); // the editor's steering follows the news
     return null;
   }
 
-  const line = getLine(store);
-  const stories = weightedStories(events, line);
+  // the editor's steering for this edition: lead with, leave out, one-off instructions
+  const steer = getSteer(store, id);
+  const line = steerLine(getLine(store), steer);
+  const stories = applySteer(weightedStories(events, line), steer);
   const max = config.edition.maxArticles;
   const main = stories.slice(0, max);
   const rest = stories.slice(max);
@@ -243,6 +256,7 @@ export async function printEdition({ store, config, start, final = true, force =
     createdAt: Date.now(),
     writer: llm ? llm.model : 'typesetting',
     tone: line.tone,
+    steered: steer.boost.length || steer.bury.length || steer.notes.length ? { boost: steer.boost, bury: steer.bury, notes: steer.notes } : null,
     summary,
     cartoon,
     factcheck,
@@ -258,6 +272,7 @@ export async function printEdition({ store, config, start, final = true, force =
   const prev = store.editionMeta(edition.id);
   if (prev?.status === 'published') edition.status = 'published';
   store.saveEdition(edition);
+  if (final) clearSteer(store, id);
   return edition;
 }
 

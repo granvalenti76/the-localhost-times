@@ -20,6 +20,7 @@ import { createNotifier } from './notify.js';
 import { tr, lang, locale } from './i18n.js';
 import { rssFeed } from './feed.js';
 import { search, ask } from './newsroom/archive.js';
+import { preview, steer } from './newsroom/next.js';
 import { createInvestigation, suggestions, interruptedInvestigations } from './newsroom/investigations.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
@@ -169,9 +170,9 @@ app.post('/api/letters/:id/answer', wrap(async (req, res) => res.json(await answ
 // ── Editorial meeting ──
 app.get('/api/threads/:id', wrap((req, res) => res.json(getThreadRepaired(store, config, req.params.id))));
 app.post('/api/threads/:id', wrap(async (req, res) =>
-  res.json(await discuss({ store, config, threadId: req.params.id, text: req.body?.text, articleId: req.body?.articleId, session: req.body?.session, log }))));
+  res.json(await discuss({ store, config, threadId: req.params.id, text: req.body?.text, articleId: req.body?.articleId, session: req.body?.session, runtime: newsroom.state, log }))));
 app.post('/api/threads/:id/apply', wrap(async (req, res) =>
-  res.json(await applyAction({ store, config, threadId: req.params.id, msgIndex: Number(req.body?.msg), actionIndex: Number(req.body?.action), log }))));
+  res.json(await applyAction({ store, config, threadId: req.params.id, msgIndex: Number(req.body?.msg), actionIndex: Number(req.body?.action), printNow: () => newsroom.printNow(), log }))));
 
 app.post('/api/collect', wrap(async (req, res) => {
   const n = await newsroom.collect();
@@ -180,6 +181,13 @@ app.post('/api/collect', wrap(async (req, res) => {
 
 // Photos downloaded by the newsroom
 app.use('/media', express.static(path.join(config.dataDir, 'media'), { maxAge: '30d', immutable: true }));
+
+// ── The next edition: preview and steering ──
+app.get('/api/next', (req, res) => res.json(preview(store, config, { lastCollect: newsroom.state.lastCollect, nextPress: newsroom.state.nextEdition })));
+app.post('/api/next/steer', wrap((req, res) => {
+  steer(store, config, req.body || {});
+  res.json(preview(store, config, { lastCollect: newsroom.state.lastCollect, nextPress: newsroom.state.nextEdition }));
+}));
 
 // ── The archive ──
 const num = (v) => (v == null || v === '' ? null : Number(v));

@@ -177,7 +177,8 @@ In **the Newsroom** you are the editor-in-chief:
 
 - **Drafts.** Reorder, edit, rewrite with an instruction, or spike any article.
 - **The editorial line.** Set the tone (dry, ironic, satirical, understatement, tabloid), the article length and how much room each section gets, and give permanent rules to the writers. Turn off automatic publishing to approve every edition before it goes out.
-- **The editorial meeting.** Discuss an edition with the managing editor (the model). It proposes concrete actions, and you apply them with one click.
+- **The editorial meeting.** Discuss an edition with the managing editor (the model). It proposes concrete actions, and you apply them with one click. It can also look things up while you talk: the next edition before it's printed (signals collected so far, stories forming, minutes left), the facts behind a story, the day so far, the archive.
+- **The next edition.** See what the coming edition will contain while the hour is still running, and steer it: pick its lead, leave a story out, give the writers a one-off instruction, or print it right away. Your choices apply to that edition only. The managing editor can propose the same moves in the meeting.
 
 **Export** (in the timeline bar) prints the front page to PDF in A4 or A3 broadsheet, saves it as a 1200×630 image, or gives you the RSS feed (`/feed.xml`, or `/feed/<section>.xml` for one section).
 

@@ -3,6 +3,7 @@ import { api, href, hhmm, dayKey, longDate, SECTIONS, writerLabel, edHour, edSin
 import Meeting from './Meeting.jsx';
 import DeskCartoon from './DeskCartoon.jsx';
 import FactCheck from './FactCheck.jsx';
+import NextEdition from './NextEdition.jsx';
 import { tr } from '../i18n.js';
 
 const T = tr({
@@ -31,7 +32,7 @@ const T = tr({
     editionOf: (h) => `The ${h} edition`, writing: 'Writing…', regenBrief: 'Regenerate the Brief',
     reprintTitle: 'Rewrites the whole edition with the current editorial line.', reprintingLong: 'Reprinting… (a few minutes)',
     confirm: 'Sure? You lose the manual edits', reprint: 'Reprint', brief: 'The Brief', spiked: 'Spiked', restore: 'Restore',
-    panels: 'Newsroom panels', meeting: 'Meeting', line: 'Editorial line', openEdition: 'Open an edition to discuss it.',
+    panels: 'Newsroom panels', meeting: 'Meeting', line: 'Editorial line', nextTab: 'Next edition', openEdition: 'Open an edition to discuss it.',
   },
   it: {
     quick: ['Più corto', 'Più ironico', 'Più serio', 'Titolo migliore', 'Solo i fatti'],
@@ -58,7 +59,7 @@ const T = tr({
     editionOf: (h) => `Edizione delle ${h}`, writing: 'Scrivo…', regenBrief: 'Rigenera il Punto',
     reprintTitle: 'Riscrive tutta l\'edizione con la linea editoriale attuale.', reprintingLong: 'Ristampo… (qualche minuto)',
     confirm: 'Confermi? Perdi le modifiche a mano', reprint: 'Ristampa', brief: 'Il punto', spiked: 'Cestino', restore: 'Ripristina',
-    panels: 'Pannelli della redazione', meeting: 'Riunione', line: 'Linea editoriale', openEdition: 'Apri un\'edizione per discuterne.',
+    panels: 'Pannelli della redazione', meeting: 'Riunione', line: 'Linea editoriale', nextTab: 'Prossima', openEdition: 'Apri un\'edizione per discuterne.',
   },
 });
 // tone names, also for ids stored by older editions
@@ -519,6 +520,7 @@ export default function Newsroom({ editionId, onPublished }) {
         <aside className="desk-side">
           <div className="side-tabs" role="tablist" aria-label={T.panels}>
             <button role="tab" aria-selected={tab === 'meeting'} className={tab === 'meeting' ? 'on' : ''} onClick={() => setTab('meeting')}>{T.meeting}</button>
+            <button role="tab" aria-selected={tab === 'next'} className={tab === 'next' ? 'on' : ''} onClick={() => setTab('next')}>{T.nextTab}</button>
             <button role="tab" aria-selected={tab === 'line'} className={tab === 'line' ? 'on' : ''} onClick={() => setTab('line')}>{T.line}</button>
           </div>
           {tab === 'meeting' ? (
@@ -532,6 +534,8 @@ export default function Newsroom({ editionId, onPublished }) {
                 model={statusInfo?.llm?.model}
               />
             ) : <p className="hint-small">{T.openEdition}</p>
+          ) : tab === 'next' ? (
+            <NextEdition setError={setError} onPrinted={() => refreshList()} />
           ) : (
             <LinePanel key={lineKey} />
           )}
