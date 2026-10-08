@@ -1,15 +1,16 @@
 {
   "port": 4321,
   "llm": {
-    "baseUrl": "http://192.168.1.20:8080/v1",
+    "baseUrl": "http://192.168.1.120:8080/v1",
     "model": "",
     "apiKey": "",
     "timeoutMs": 180000,
     "concurrency": 2,
-    "temperature": 0.7
+    "temperature": 0.7,
+    "thinking": false
   },
   "collectEveryMinutes": 5,
-  "backfillHours": 12,
+  "backfillHours": 1,
   "sources": {
     "safari": true,
     "mail": true,
@@ -28,6 +29,9 @@
     "journalIncludeText": false
   },
   "edition": {
-    "maxArticles": 9
+    "maxArticles": 9,
+    "minEvents": 8,
+    "maxMergeHours": 3,
+    "eveningHour": 21
   }
 }

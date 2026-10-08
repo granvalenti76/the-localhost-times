@@ -1,5 +1,6 @@
 import React from 'react';
-import { href, hhmm, writerLabel } from '../lib.js';
+import { href, hhmm, writerLabel, edHour } from '../lib.js';
+import Photo from './Photo.jsx';
 
 const KIND = {
   visit: 'visita', search: 'ricerca', received: 'ricevuta', sent: 'inviata', command: '$',
@@ -10,7 +11,10 @@ export default function ArticlePage({ edition, article: a }) {
   const others = edition.articles.filter((x) => x.id !== a.id).slice(0, 4);
   return (
     <div className="story-wrap">
-      <a className="back" href={href.edition(edition.id)}>← Prima pagina delle {hhmm(edition.start)}</a>
+      <div className="story-top">
+        <a className="back" href={href.edition(edition.id)}>← Prima pagina delle {hhmm(edHour(edition))}</a>
+        <a className="back" href={href.desk(edition.id)}>Apri in redazione</a>
+      </div>
       <article className="story">
         <div className="kicker">
           <a className="sec" href={href.section(edition.id.slice(0, 10), a.slug)}>{a.section}</a>
@@ -19,10 +23,11 @@ export default function ArticlePage({ edition, article: a }) {
         <h1 className="hl-story">{a.headline}</h1>
         {a.dek && <p className="dek dek-story">{a.dek}</p>}
         <div className="byline">
-          Di <strong>Redazione Daily Mac</strong>
+          Di <strong>Redazione Localhost Times</strong>
           <span> · {writerLabel(a.writer)}</span>
           <span> · {hhmm(a.first)}{a.last - a.first > 60e3 ? `–${hhmm(a.last)}` : ''}</span>
         </div>
+        <Photo image={a.image} size="lg" />
         <div className="story-body">
           {a.body.map((p, i) => <p key={i} className={i === 0 && p.length > 160 ? 'dropcap' : ''}>{p}</p>)}
         </div>
@@ -34,7 +39,7 @@ export default function ArticlePage({ edition, article: a }) {
               <li key={i}>
                 <time>{hhmm(s.ts)}</time>
                 <span className="k">{KIND[s.kind] || s.kind}</span>
-                <span className="t">{s.title}</span>
+                <span className="t">{s.url ? <a href={s.url} target="_blank" rel="noreferrer noopener">{s.title}</a> : s.title}</span>
                 {(s.host || s.detail) && <span className="h">{s.host || s.detail}</span>}
               </li>
             ))}

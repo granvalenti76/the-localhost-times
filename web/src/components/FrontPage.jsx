@@ -1,5 +1,8 @@
 import React from 'react';
 import { href, hhmm, SECTIONS } from '../lib.js';
+import Photo from './Photo.jsx';
+import Market from './Market.jsx';
+import Cartoon from './Cartoon.jsx';
 
 function Kicker({ a }) {
   return (
@@ -73,16 +76,29 @@ export default function FrontPage({ edition }) {
               <h2 className="hl-xl"><a href={link(lead)}>{lead.headline}</a></h2>
               {lead.dek && <p className="dek dek-lg">{lead.dek}</p>}
               <Meta a={lead} />
-              <div className={`lead-body ${longLead ? 'two' : ''}`}>
-                {leadParas.map((p, i) => <p key={i} className={i === 0 && p.length > 160 ? 'dropcap' : ''}>{p}</p>)}
-              </div>
-              <a className="more" href={link(lead)}>Continua a leggere →</a>
+              {lead.image ? (
+                <div className="lead-split">
+                  <Photo image={lead.image} size="md" />
+                  <div className="lead-body">
+                    {leadParas.map((p, i) => <p key={i} className={i === 0 && p.length > 120 ? 'dropcap' : ''}>{p}</p>)}
+                    <a className="more" href={link(lead)}>Continua a leggere →</a>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className={`lead-body ${longLead ? 'two' : ''}`}>
+                    {leadParas.map((p, i) => <p key={i} className={i === 0 && p.length > 160 ? 'dropcap' : ''}>{p}</p>)}
+                  </div>
+                  <a className="more" href={link(lead)}>Continua a leggere →</a>
+                </>
+              )}
             </article>
           )}
           {second.length > 0 && (
             <div className="front-second">
               {second.map((a) => (
                 <article key={a.id} className="card card-md">
+                  <Photo image={a.image} size="md" caption={false} />
                   <Kicker a={a} />
                   <h2 className="hl-lg"><a href={link(a)}>{a.headline}</a></h2>
                   {a.dek && <p className="dek">{a.dek}</p>}
@@ -94,10 +110,12 @@ export default function FrontPage({ edition }) {
           )}
         </div>
         <aside className="rail">
+          <Cartoon cartoon={edition.cartoon} />
           <section className="box punto">
             <h3 className="box-title">Il punto</h3>
             <p>{edition.summary}</p>
           </section>
+          <Market market={edition.market} />
           <section className="box">
             <h3 className="box-title">In numeri</h3>
             <Activity stats={edition.stats} start={edition.start} />
@@ -109,7 +127,8 @@ export default function FrontPage({ edition }) {
       {third.length > 0 && (
         <section className="front-grid">
           {third.map((a) => (
-            <article key={a.id} className="card">
+            <article key={a.id} className={`card ${a.image ? 'has-photo' : ''}`}>
+              <Photo image={a.image} size="sm" caption={false} />
               <Kicker a={a} />
               <h2 className="hl-md"><a href={link(a)}>{a.headline}</a></h2>
               {a.dek && <p className="dek dek-sm">{a.dek}</p>}

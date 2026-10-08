@@ -1,5 +1,5 @@
 import React from 'react';
-import { hhmm } from '../lib.js';
+import { hhmm, modelName } from '../lib.js';
 
 const STATE = {
   ok: ['in linea', 'ok'],
@@ -22,7 +22,7 @@ export default function Colophon({ status, onCheck }) {
           <h3 className="box-title">La redazione</h3>
           <p className="colo-line">
             <span className={`led ${llm.state === 'online' ? 'ok' : 'off'}`} />
-            Redattore {llm.state === 'online' ? <>in servizio · <strong>{llm.model}</strong></> : <>non raggiungibile · scrive la tipografia automatica</>}
+            Redattore {llm.state === 'online' ? <>in servizio · <strong>{modelName(llm.model)}</strong></> : <>non raggiungibile · scrive la tipografia automatica</>}
           </p>
           <p className="colo-small">{llm.baseUrl} {llm.error ? `· ${llm.error}` : ''} <button className="linkish" onClick={onCheck}>riprova</button></p>
           {status.newsroom?.nextEdition && <p className="colo-small">Prossima edizione alle {hhmm(status.newsroom.nextEdition)}</p>}
@@ -50,7 +50,7 @@ export default function Colophon({ status, onCheck }) {
           )}
         </section>
       </div>
-      <p className="colo-end">The Daily Mac è stampato su questo Mac. Nessuna notizia lascia la redazione, se non verso il tuo redattore.</p>
+      <p className="colo-end">The Localhost Times è stampato su questo Mac. Nessuna notizia lascia la redazione, se non verso il tuo redattore.</p>
     </footer>
   );
 }

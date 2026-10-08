@@ -1,8 +1,8 @@
-# The Daily Mac
+# The Localhost Times
 
-*«Tutte le notizie che il tuo Mac ha visto»*
+*«All the news that never left the machine»*
 
-Un quotidiano in stile New York Times che racconta ciò che è successo sul tuo MacBook.
+Un quotidiano locale, tra New York Times e New Yorker, che racconta ciò che è successo sul tuo MacBook.
 Ogni ora la redazione raccoglie i segnali (Safari, Mail, Terminale, Note, Journal, Podcast, Libri),
 li raggruppa in storie e un modello linguistico locale le scrive come articoli.
 Il giornale è la testata, le fonti sono le sezioni, gli eventi diventano articoli.
@@ -24,7 +24,7 @@ Tutto resta sul Mac: database in `data/`, i dati delle app sono letti da una **c
 
 - macOS, **Node.js 22.13+** (`brew install node`)
 - Il redattore: un server OpenAI-compatibile (llama.cpp, LM Studio, Ollama…),
-  di default `http://192.168.1.20:8080/v1`. Se è spento, scrive la **tipografia automatica**
+  di default `http://192.168.1.120:8080/v1`. Se è spento, scrive la **tipografia automatica**
   (articoli a modelli fissi): il giornale esce comunque.
 
 ## Avvio
@@ -71,7 +71,9 @@ fonti (SQLite delle app) ──► raccolta ogni 5 min ──► data/dailymac.s
 - `server/newsroom/fallback.js` — la tipografia automatica
 - `web/` — la prima pagina, gli articoli, le sezioni, la linea del tempo delle edizioni
 
-Al primo avvio recupera gli arretrati delle ultime 12 ore. Il pulsante **Stampa ora**
+Le ore tranquille (meno di `minEvents` segnali) confluiscono nell'edizione successiva, fino a tre ore. Alle 21 esce l'**edizione della sera**: editoriale, notizie del giorno, ora per ora, Borsa di chiusura. In **Redazione** puoi tenere la **riunione** con il caporedattore (il modello): discuti un'edizione o un articolo, lui propone azioni e tu le applichi con un clic.
+
+All'avvio recupera solo l'ultima edizione persa (`backfillHours` in config.json per cambiarlo). Il pulsante **Stampa ora**
 stampa subito l'edizione dell'ora in corso, che verrà ristampata in versione definitiva allo scoccare dell'ora.
 
 ## Configurazione

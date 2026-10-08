@@ -113,6 +113,15 @@ export function hostOf(url) {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return null; }
 }
 
+/** Le pagine del giornale stesso (localhost / 127.0.0.1 sulla porta del giornale). */
+export function isSelfUrl(url, port) {
+  try {
+    const u = new URL(url);
+    if (!['localhost', '127.0.0.1', '[::1]', '::1'].includes(u.hostname)) return false;
+    return String(u.port || (u.protocol === 'https:' ? 443 : 80)) === String(port);
+  } catch { return false; }
+}
+
 export function isBlockedHost(host, blocked = []) {
   return blocked.some((d) => host === d || host.endsWith('.' + d));
 }

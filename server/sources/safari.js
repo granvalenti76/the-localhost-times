@@ -1,4 +1,4 @@
-import { home, fileState, withSnapshot, columns, cdToMs, msToCd, hostOf, isBlockedHost } from '../util.js';
+import { home, fileState, withSnapshot, columns, cdToMs, msToCd, hostOf, isBlockedHost, isSelfUrl } from '../util.js';
 
 const FILE = home('Library/Safari/History.db');
 
@@ -26,6 +26,27 @@ export function detectSearch(url) {
   return null;
 }
 
+/**
+ * Webmail nel browser (Gmail): il titolo della pagina contiene l'oggetto dell'email aperta
+ * o il numero di messaggi non letti. Diventano notizie per la Corrispondenza.
+ *   "Oggetto - nome@gmail.com - Gmail"
+ *   "Posta in arrivo (12.940) - nome@gmail.com - Gmail"
+ */
+const GMAIL_FOLDERS = /^(posta in arrivo|inbox|inviata|inviati|sent( mail)?|bozze|drafts|speciali|starred|importanti|important|tutti i messaggi|all mail|spam|cestino|trash|bin|posticipati|snoozed|programmati|scheduled|risultati di ricerca|search results|social|promozioni|promotions|aggiornamenti|updates|forum|forums|etichette|label|categorie)\b/i;
+
+export function parseWebmail(host, title) {
+  if (host !== 'mail.google.com') return null;
+  const m = /^(.*) - (\S+@\S+) - Gmail$/.exec(title || '');
+  if (!m) return { kind: 'skip' };
+  const [, head, account] = m;
+  const inbox = /^(posta in arrivo|inbox)\s*\(([\d.,\s]+)\)/i.exec(head);
+  if (inbox) {
+    return { kind: 'inbox', title: 'Posta in arrivo', account, service: 'Gmail', unreadCount: Number(inbox[2].replace(/[^\d]/g, '')) };
+  }
+  if (GMAIL_FOLDERS.test(head)) return { kind: 'skip' };
+  return { kind: 'read', title: head.trim(), account, service: 'Gmail' };
+}
+
 export default {
   id: 'safari',
   label: 'Safari',
@@ -51,7 +72,23 @@ export default {
       for (const r of rows) {
         if (!/^https?:/i.test(r.url || '')) continue;
         const host = hostOf(r.url);
-        if (!host || isBlockedHost(host, blocked)) continue;
+        if (!host || isBlockedHost(host, blocked) || isSelfUrl(r.url, config.port)) continue;
+        const wm = parseWebmail(host, r.title);
+        if (wm) {
+          if (wm.kind !== 'skip') {
+            events.push({
+              id: `mail:web:${r.id}`,
+              source: 'mail',
+              kind: wm.kind,
+              ts: cdToMs(r.t),
+              title: wm.title,
+              detail: wm.service,
+              url: null,
+              meta: { webmail: wm.service, account: wm.account, unreadCount: wm.unreadCount ?? null },
+            });
+          }
+          continue;
+        }
         const s = detectSearch(r.url);
         events.push({
           id: `safari:${r.id}`,

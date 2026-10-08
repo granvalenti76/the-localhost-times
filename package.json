@@ -1,7 +1,7 @@
 {
-  "name": "dailymac",
+  "name": "localhost-times",
   "version": "0.1.0",
-  "description": "The Daily Mac — il giornale di ciò che il tuo Mac ha fatto, un'edizione ogni ora.",
+  "description": "The Localhost Times — all the news that never left the machine. A local, hourly newspaper written from what your Mac did.",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,14 +14,17 @@
     "demo": "vite build && DAILYMAC_DEMO=1 node --disable-warning=ExperimentalWarning server/index.js",
     "probe": "node --disable-warning=ExperimentalWarning server/cli.js probe",
     "collect": "node --disable-warning=ExperimentalWarning server/cli.js collect",
-    "print": "node --disable-warning=ExperimentalWarning server/cli.js print"
+    "print": "node --disable-warning=ExperimentalWarning server/cli.js print",
+    "rebuild": "node --disable-warning=ExperimentalWarning server/cli.js rebuild",
+    "photos": "node --disable-warning=ExperimentalWarning server/cli.js photos"
   },
   "dependencies": {
     "express": "^5.1.0"
   },
   "devDependencies": {
-    "@fontsource-variable/libre-franklin": "^5.2.5",
-    "@fontsource-variable/source-serif-4": "^5.2.5",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/libre-franklin": "^5.3.0",
+    "@fontsource/libre-caslon-text": "^5.3.0",
     "@fontsource/unifrakturmaguntia": "^5.2.5",
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.2",

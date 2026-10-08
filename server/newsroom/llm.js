@@ -11,6 +11,18 @@ async function fetchT(url, opts = {}, ms = 10000) {
   }
 }
 
+const LOCAL_NET_HINT = 'macOS potrebbe bloccare la rete locale: Impostazioni di Sistema → Privacy e sicurezza → Rete locale → abilita l\'app da cui lanci Node (Terminale, iTerm, VS Code…)';
+
+export function describeError(e) {
+  if (e?.name === 'AbortError') return 'timeout: nessuna risposta in 4 secondi';
+  const code = e?.cause?.code || e?.code;
+  const msg = e?.cause?.message || e?.message || String(e);
+  if (['EHOSTUNREACH', 'ENETUNREACH', 'EPERM', 'EACCES'].includes(code)) return `${code} — ${LOCAL_NET_HINT}`;
+  if (code === 'ECONNREFUSED') return 'ECONNREFUSED — il computer risponde ma nessun server ascolta su quella porta';
+  if (code === 'ETIMEDOUT' || code === 'UND_ERR_CONNECT_TIMEOUT') return `${code} — l'indirizzo non risponde (spento? IP cambiato? oppure ${LOCAL_NET_HINT})`;
+  return code ? `${code} — ${msg}` : msg;
+}
+
 export const llmStatus = { state: 'unknown', model: null, at: null, error: null };
 
 export async function connectLLM(config) {
@@ -29,7 +41,7 @@ export async function connectLLM(config) {
     Object.assign(llmStatus, { state: 'online', model, at: Date.now(), error: null });
     return { base, headers, model };
   } catch (e) {
-    Object.assign(llmStatus, { state: 'offline', model: null, at: Date.now(), error: e.name === 'AbortError' ? 'timeout' : e.message });
+    Object.assign(llmStatus, { state: 'offline', model: null, at: Date.now(), error: describeError(e) });
     return null;
   }
 }
@@ -46,13 +58,24 @@ export async function chat(llm, config, messages, maxTokens = 1400) {
         temperature: config.llm.temperature,
         max_tokens: maxTokens,
         stream: false,
+        // i modelli che "ragionano" consumano token prima di rispondere: per un giornale non serve
+        ...(config.llm.thinking ? {} : { chat_template_kwargs: { enable_thinking: false, thinking: false } }),
       }),
     },
     config.llm.timeoutMs
   );
   if (!r.ok) throw new Error(`LLM HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
-  return j.choices?.[0]?.message?.content ?? '';
+  const choice = j.choices?.[0] || {};
+  const content = choice.message?.content ?? '';
+  if (!content.trim()) {
+    const thought = choice.message?.reasoning_content || choice.message?.reasoning || '';
+    throw new Error(choice.finish_reason === 'length'
+      ? `risposta troncata: finiti i ${maxTokens} token${thought ? ' mentre il modello ragionava' : ''}`
+      : 'risposta vuota');
+  }
+  if (choice.finish_reason === 'length') llmStatus.truncated = (llmStatus.truncated || 0) + 1;
+  return content;
 }
 
 /** Estrae un oggetto JSON anche da risposte "sporche" (think, ```json, testo attorno). */

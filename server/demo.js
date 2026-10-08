@@ -29,7 +29,7 @@ const NEWS_SUBJ = ['Le novità della settimana', '[dailymac] New issue opened', 
 const CMDS = ['git status', 'git pull', 'npm run dev', 'npm install express', 'git add -A', 'git diff', 'code .', 'ls', 'cd ~/Work/git/dailymac', 'node server/cli.js probe', 'brew upgrade', 'docker compose up -d', 'ssh nas.local', 'clear', 'npm test', 'git log --oneline -5'];
 const COMMITS = ['aggiunge raccoglitore Safari', 'prima pagina in stile NYT', 'fix: timestamp Core Data', 'redazione: fallback tipografico', 'cluster per dominio'];
 const NOTES = [
-  ['Idee per The Daily Mac', 'Sezioni: Esteri (web), Corrispondenza (mail), Officina (terminale). Edizione ogni ora. Una prima pagina serale con il meglio della giornata?', 'Progetti'],
+  ['Idee per The Localhost Times', 'Sezioni: Esteri (web), Corrispondenza (mail), Officina (terminale). Edizione ogni ora. Una prima pagina serale con il meglio della giornata?', 'Progetti'],
   ['Lista spesa', 'zucca, riso carnaroli, parmigiano, burro, brodo vegetale', 'Casa'],
   ['Appunti riunione giovedì', 'Punti: tempi di consegna, budget, chi segue il design. Rivedere preventivo entro venerdì.', 'Lavoro'],
 ];

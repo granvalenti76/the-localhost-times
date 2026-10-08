@@ -1,6 +1,7 @@
 import { collectAll } from '../collect.js';
 import { printEdition } from './edition.js';
-import { hourStart, editionId } from '../util.js';
+import { hourStart, editionId, dayKey } from '../util.js';
+import { printEvening } from './evening.js';
 
 const HOUR = 3600e3;
 
@@ -27,21 +28,32 @@ export function createNewsroom({ store, config, log = console.log }) {
     return n;
   }));
 
-  const printHour = (start, final) => queue(busy(() => printEdition({ store, config, start, final, log })));
+  const printHour = (start, final, force = false) => queue(busy(() => printEdition({ store, config, start, final, force, log })));
+
+  const printEveningFor = (day) => queue(busy(() => printEvening({ store, config, day, log })));
+
+  /** L'edizione della sera, se è ora e non è ancora uscita. */
+  async function eveningIfDue(force = false) {
+    const h = config.edition.eveningHour;
+    if (h == null) return null;
+    const day = dayKey(Date.now());
+    if (new Date().getHours() < h || (!force && store.getEvening(day))) return null;
+    return printEveningFor(day);
+  }
 
   async function printNow() {
     await collect();
     const start = hourStart(Date.now());
-    return printHour(start, false);
+    return printHour(start, false, true);
   }
 
   async function backfill(hours = config.backfillHours) {
     const now = hourStart(Date.now());
-    const times = store.eventTimesSince(now - hours * HOUR);
-    const withEvents = new Set(times.map(hourStart));
     for (let h = now - hours * HOUR; h < now; h += HOUR) {
-      if (!withEvents.has(h)) continue;
-      if (store.editionMeta(editionId(h))?.final) continue;
+      // anche un'ora vuota può chiudere un'edizione: raccoglie le ore tranquille prima di lei
+      const meta = store.editionMeta(editionId(h));
+      // già definitiva, oppure ritoccata a mano dal direttore: non la tocchiamo
+      if (meta?.final || meta?.edited) continue;
       await printHour(h, true);
     }
   }
@@ -52,7 +64,10 @@ export function createNewsroom({ store, config, log = console.log }) {
     setTimeout(async () => {
       try {
         await collect();
-        await printHour(hourStart(Date.now()) - HOUR, true);
+        // stampa l'ora appena chiusa (e, se il Mac era in stop, solo l'ultima persa)
+        await backfill();
+        // alle 21 (o all'ora scelta) esce anche l'edizione della sera
+        if (new Date().getHours() === config.edition.eveningHour) await eveningIfDue(true);
       } catch (e) {
         log(`[rotativa] errore: ${e.message}`);
       }
@@ -64,10 +79,11 @@ export function createNewsroom({ store, config, log = console.log }) {
     await collect();
     scheduleHourly();
     setInterval(() => collect().catch((e) => log(`[raccolta] ${e.message}`)), config.collectEveryMinutes * 60e3);
-    backfill()
+    backfill(config.demo ? 12 : config.backfillHours)
       .then(() => (config.demo ? printNow() : null))
+      .then(() => (config.demo ? printEveningFor(dayKey(Date.now())) : eveningIfDue()))
       .catch((e) => log(`[arretrati] ${e.message}`));
   }
 
-  return { collect, printNow, printHour, backfill, start, state };
+  return { collect, printNow, printHour, printEveningFor, backfill, start, state };
 }

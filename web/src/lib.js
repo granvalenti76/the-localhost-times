@@ -1,4 +1,8 @@
-export async function api(path, opts) {
+export async function api(path, opts = {}) {
+  if (opts.json !== undefined) {
+    opts = { ...opts, body: JSON.stringify(opts.json), headers: { 'Content-Type': 'application/json' } };
+    delete opts.json;
+  }
   const r = await fetch(`/api${path}`, opts);
   if (r.status === 204) return null;
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
@@ -30,6 +34,8 @@ export const shortDate = (ms) =>
 
 export function parseRoute(hash) {
   const p = hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
+  if (p[0] === 'redazione') return { desk: true, edition: p[1] || null };
+  if (p[0] === 'sera' && p[1]) return { evening: p[1] };
   if (p[0] === 'e' && p[1]) return { edition: p[1], article: p[2] === 'a' ? p[3] : null };
   if (p[0] === 'd' && p[1]) return { day: p[1], section: p[2] === 's' ? p[3] : null };
   return {};
@@ -40,6 +46,8 @@ export const href = {
   article: (ed, a) => `#/e/${encodeURIComponent(ed)}/a/${encodeURIComponent(a)}`,
   day: (d) => `#/d/${d}`,
   section: (d, s) => `#/d/${d}/s/${s}`,
+  desk: (id) => (id ? `#/redazione/${encodeURIComponent(id)}` : '#/redazione'),
+  evening: (day) => `#/sera/${day}`,
 };
 
 export const SECTIONS = [
@@ -52,4 +60,21 @@ export const SECTIONS = [
   { id: 'books', slug: 'cultura', name: 'Cultura', tag: 'Libri' },
 ];
 
-export const writerLabel = (w) => (!w || w === 'tipografia' ? 'Tipografia automatica' : w);
+/** «gemma-4-E4B-it-Q4_K_M.gguf» → «Gemma 4 E4B» */
+export function modelName(m) {
+  let s = String(m).split('/').pop().replace(/\.gguf$/i, '');
+  for (let i = 0; i < 4; i++) {
+    s = s.replace(/[-_.](i?q\d[\w]*|f16|bf16|fp16|fp8|int[48]|gguf|mlx|awq|gptq|\d+bit|it|instruct|chat|latest)$/i, '');
+  }
+  s = s.replace(/[-_:]+/g, ' ').trim();
+  return s ? s[0].toUpperCase() + s.slice(1) : m;
+}
+/** L'ora di un'edizione (le edizioni che uniscono più ore portano l'ora finale). */
+export const edHour = (e) => e?.hour ?? e?.start;
+export const edSince = (e) => (e && e.hour && e.start < e.hour ? ` · dalle ${hhmm(e.start)}` : '');
+
+export const writerLabel = (w) => {
+  if (!w || w === 'tipografia') return 'Tipografia automatica';
+  const [model, extra] = String(w).split(' + ');
+  return modelName(model) + (extra ? ` + ${extra}` : '');
+};

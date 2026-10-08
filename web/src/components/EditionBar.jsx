@@ -1,8 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import { href, shiftDay, dayKey, dayFromKey, shortDate } from '../lib.js';
+import { href, shiftDay, dayKey, dayFromKey, shortDate, edHour } from '../lib.js';
 
-export default function EditionBar({ day, list, current, onPrint, printing }) {
-  const byHour = new Map(list.map((e) => [new Date(e.start).getHours(), e]));
+export default function EditionBar({ day, list, current, onPrint, printing, evening }) {
+  const byHour = new Map(list.map((e) => [new Date(edHour(e)).getHours(), e]));
+  // ore assorbite da un'edizione successiva: le segnamo come "unite"
+  const merged = new Set();
+  for (const e of list) {
+    for (let t = e.start; t < edHour(e); t += 3600e3) merged.add(new Date(t).getHours());
+  }
   const today = dayKey(Date.now());
   const nowH = new Date().getHours();
   const strip = useRef(null);
@@ -27,7 +32,8 @@ export default function EditionBar({ day, list, current, onPrint, printing }) {
           const future = day === today && h > nowH;
           const label = `${String(h).padStart(2, '0')}`;
           return (
-            <li key={h} className={`${e ? 'has' : ''} ${e?.id === current ? 'cur' : ''} ${future ? 'future' : ''}`}>
+            <li key={h} className={`${e ? 'has' : ''} ${e?.id === current ? 'cur' : ''} ${future ? 'future' : ''} ${!e && merged.has(h) ? 'merged' : ''}`}
+              title={!e && merged.has(h) ? 'Ora tranquilla: le sue notizie sono nell\'edizione successiva' : undefined}>
               {e ? (
                 <a href={href.edition(e.id)} title={e.lead || ''}>
                   <span className="h">{label}</span>
@@ -43,6 +49,9 @@ export default function EditionBar({ day, list, current, onPrint, printing }) {
           );
         })}
       </ol>
+      {evening && (
+        <a className={`edbar-evening ${current === evening.id ? 'cur' : ''}`} href={href.evening(day)}>Sera</a>
+      )}
       <button className="btn btn-small" onClick={onPrint} disabled={printing}>
         {printing ? 'In stampa…' : 'Stampa ora'}
       </button>

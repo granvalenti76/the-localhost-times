@@ -7,15 +7,16 @@ const DEFAULTS = {
   port: 4321,
   demo: false,
   llm: {
-    baseUrl: 'http://192.168.1.20:8080/v1',
+    baseUrl: 'http://192.168.1.120:8080/v1',
     model: '',
     apiKey: '',
     timeoutMs: 180000,
     concurrency: 2,
     temperature: 0.7,
+    thinking: false,
   },
   collectEveryMinutes: 5,
-  backfillHours: 12,
+  backfillHours: 1,
   sources: {
     safari: true, mail: true, terminal: true, notes: true,
     journal: true, podcasts: true, books: true,
@@ -28,7 +29,12 @@ const DEFAULTS = {
     notesIncludeSnippet: true,
     journalIncludeText: false,
   },
-  edition: { maxArticles: 9 },
+  edition: {
+    maxArticles: 9,
+    minEvents: 8,        // sotto questa soglia l'ora confluisce nell'edizione successiva
+    maxMergeHours: 3,    // al massimo tre ore in un'unica edizione
+    eveningHour: 21,     // l'edizione della sera esce a quest'ora (null per disattivarla)
+  },
 };
 
 function merge(base, over) {

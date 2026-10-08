@@ -6,6 +6,8 @@ import FrontPage from './components/FrontPage.jsx';
 import ArticlePage from './components/ArticlePage.jsx';
 import SectionPage from './components/SectionPage.jsx';
 import Colophon from './components/Colophon.jsx';
+import Newsroom from './components/Newsroom.jsx';
+import EveningPage from './components/EveningPage.jsx';
 
 function useHashRoute() {
   const [route, setRoute] = useState(() => parseRoute(location.hash));
@@ -24,7 +26,9 @@ export default function App() {
   const route = useHashRoute();
   const [edition, setEdition] = useState(null);
   const [list, setList] = useState([]);
-  const [day, setDay] = useState(() => route.day || (route.edition ? route.edition.slice(0, 10) : dayKey(Date.now())));
+  const dayOf = (id) => (id?.startsWith('sera-') ? id.slice(5) : id?.slice(0, 10));
+  const [day, setDay] = useState(() => route.day || route.evening || dayOf(route.edition) || dayKey(Date.now()));
+  const [evening, setEvening] = useState(null);
   const [status, setStatus] = useState(null);
   const [printing, setPrinting] = useState(false);
   const [error, setError] = useState(null);
@@ -33,6 +37,7 @@ export default function App() {
   // Edizione corrente
   useEffect(() => {
     let alive = true;
+    if (route.desk || route.evening) { setLoaded(true); return () => { alive = false; }; }
     const p = route.edition ? api(`/editions/${encodeURIComponent(route.edition)}`) : route.day ? Promise.resolve(null) : api('/editions/latest');
     p.then((e) => {
       if (!alive) return;
@@ -43,9 +48,15 @@ export default function App() {
       .catch((err) => alive && (setEdition(null), setError(route.edition ? err.message : null)))
       .finally(() => alive && setLoaded(true));
     return () => { alive = false; };
-  }, [route.edition, route.day]);
+  }, [route.edition, route.day, route.desk, route.evening]);
 
   useEffect(() => { if (route.day) setDay(route.day); }, [route.day]);
+  useEffect(() => { if (route.evening) setDay(route.evening); }, [route.evening]);
+  useEffect(() => { if (route.desk && route.edition) setDay(dayOf(route.edition)); }, [route.desk, route.edition]);
+
+  // L'edizione della sera del giorno visualizzato (se è uscita)
+  const refreshEvening = useCallback(() => api(`/evening/${day}`).then(setEvening).catch(() => setEvening(null)), [day]);
+  useEffect(() => { refreshEvening(); }, [refreshEvening, route.evening]);
 
   const refreshList = useCallback(() => api(`/editions?day=${day}`).then(setList).catch(() => setList([])), [day]);
   useEffect(() => { refreshList(); }, [refreshList]);
@@ -56,12 +67,13 @@ export default function App() {
     const t = setInterval(() => {
       refreshStatus(false);
       refreshList();
-      if (!location.hash || location.hash === '#/') {
+      refreshEvening();
+      if (!location.hash || location.hash === '#/' || location.hash === '#') {
         api('/editions/latest').then((e) => e && setEdition((cur) => (cur?.createdAt === e.createdAt ? cur : e))).catch(() => {});
       }
     }, 60e3);
     return () => clearInterval(t);
-  }, [refreshStatus, refreshList]);
+  }, [refreshStatus, refreshList, refreshEvening]);
 
   async function printNow() {
     setPrinting(true);
@@ -87,11 +99,24 @@ export default function App() {
 
   return (
     <div className="paper">
-      <Masthead edition={edition} day={day} status={status} activeSlug={route.section} />
-      <EditionBar day={day} list={list} current={edition?.id} onPrint={printNow} printing={printing} />
+      <Masthead edition={route.desk || route.evening ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk ? 'redazione' : route.evening ? 'sera' : route.section} />
+      {!route.desk && (
+        <EditionBar day={day} list={list} current={route.evening ? evening?.id : edition?.id} onPrint={printNow} printing={printing}
+          evening={evening && evening.status !== 'draft' ? evening : null} />
+      )}
+      {!route.desk && !route.evening && !route.article && evening && evening.status !== 'draft' && edition && edition.id.slice(0, 10) === evening.day && (
+        <div className="evening-banner">
+          <span><strong>È uscita l'edizione della sera.</strong> {evening.editorial.headline}</span>
+          <a href={href.evening(evening.day)}>Leggi →</a>
+        </div>
+      )}
       {error && <p className="notice" role="status">{error}</p>}
       <main>
-        {route.section ? (
+        {route.desk ? (
+          <Newsroom key={route.edition || 'desk'} editionId={route.edition} onPublished={() => { refreshList(); refreshStatus(false); refreshEvening(); }} />
+        ) : route.evening ? (
+          evening ? <EveningPage evening={evening} /> : loaded ? <p className="empty-text" style={{ marginTop: 40, textAlign: 'center' }}>L'edizione della sera non è ancora uscita.</p> : null
+        ) : route.section ? (
           <SectionPage day={day} slug={route.section} />
         ) : article ? (
           <ArticlePage edition={edition} article={article} />
