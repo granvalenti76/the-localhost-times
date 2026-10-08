@@ -18,6 +18,7 @@ Cosa NON fare:
 - Non elencare tutti gli eventi in fila: scegli quelli che raccontano qualcosa.
 - Titoli senza punto finale e senza due punti dappertutto.
 - Se un contenuto è indicato come riservato, non citarlo e non immaginarlo.
+- Se i fatti indicano una STORIA CHE CONTINUA, scrivi in continuità come un giornale vero: un breve richiamo alla puntata precedente («come anticipato stamattina», «secondo giorno di fila»), poi solo ciò che c'è di nuovo. Non ripetere titoli e frasi delle puntate precedenti.
 
 Esempio CATTIVO (da non imitare):
 «In un segmento di tempo estremamente concentrato, il proprietario si è immerso nell'ambiente del Terminale. Questo duplice tentativo dimostra la tenacia tipica di chi sviluppa: un aggiustamento fondamentale.»
@@ -188,4 +189,17 @@ LINEA EDITORIALE ATTUALE: tono ${line.tone}, lunghezza ${line.length}${line.note
   }
   msgs.push({ role: 'user', content: text });
   return msgs;
+}
+
+// ───────────────────────── Lettere al direttore ─────────────────────────
+
+export function letterPrompt({ letter, overview, line }) {
+  return [
+    {
+      role: 'system',
+      content: `Sei il caporedattore del «The Localhost Times», il quotidiano che racconta ciò che succede su un MacBook. Rispondi a una lettera arrivata in redazione, per la rubrica «Lettere al direttore». Chi scrive è il proprietario del Mac stesso: rispondigli con garbo, ironia asciutta e franchezza, appoggiandoti ai dati veri della giornata qui sotto quando servono (numeri, siti, orari). Non inventare dati. Massimo 90 parole. Italiano.${line ? '\n' + linePrompt(line) : ''}
+Rispondi SOLO con JSON: {"title": "titolo della lettera, massimo 8 parole, senza punto finale", "reply": "la risposta"}`,
+    },
+    { role: 'user', content: `${overview}\n\nLA LETTERA (firmata «${letter.signature}»):\n${letter.text}` },
+  ];
 }

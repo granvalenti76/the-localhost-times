@@ -3,10 +3,12 @@ import { href, hhmm, SECTIONS } from '../lib.js';
 import Photo from './Photo.jsx';
 import Market from './Market.jsx';
 import Cartoon from './Cartoon.jsx';
+import { LettersBox } from './Letters.jsx';
 
 function Kicker({ a }) {
   return (
     <div className="kicker">
+      {a.series && <span className="segue">Segue · {a.series.episode}ª puntata</span>}
       <span className="sec">{a.section}</span>
       {a.kicker && a.kicker.toLowerCase() !== a.section.toLowerCase() && <span className="sub"> · {a.kicker}</span>}
     </div>
@@ -115,6 +117,7 @@ export default function FrontPage({ edition }) {
             <h3 className="box-title">Il punto</h3>
             <p>{edition.summary}</p>
           </section>
+          <LettersBox letters={edition.letters} />
           <Market market={edition.market} />
           <section className="box">
             <h3 className="box-title">In numeri</h3>

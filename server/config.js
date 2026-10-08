@@ -10,8 +10,8 @@ const DEFAULTS = {
     baseUrl: 'http://192.168.1.120:8080/v1',
     model: '',
     apiKey: '',
-    timeoutMs: 180000,
-    concurrency: 2,
+    timeoutMs: 300000,   // per richiesta, dal momento in cui parte davvero
+    concurrency: 1,      // richieste al modello in parallelo (1 = in fila, adatto ai server locali)
     temperature: 0.7,
     thinking: false,
   },

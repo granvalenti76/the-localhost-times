@@ -46,6 +46,12 @@ export class Store {
         created_at INTEGER NOT NULL,
         payload TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS letters (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        payload TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS threads (
         id TEXT PRIMARY KEY,
         updated_at INTEGER NOT NULL,
@@ -61,7 +67,7 @@ export class Store {
 
   /** Svuota eventi, cursori ed edizioni: la prossima raccolta rilegge le ultime 24 ore. */
   reset() {
-    this.db.exec('DELETE FROM events; DELETE FROM cursors; DELETE FROM editions; DELETE FROM evenings; DELETE FROM threads;');
+    this.db.exec('DELETE FROM events; DELETE FROM cursors; DELETE FROM editions; DELETE FROM evenings; DELETE FROM threads; DELETE FROM letters;');
   }
 
   insertEvents(events) {
@@ -157,6 +163,30 @@ export class Store {
   getEvening(day) {
     const r = this.db.prepare(`SELECT payload FROM evenings WHERE day = ?`).get(day);
     return r ? JSON.parse(r.payload) : null;
+  }
+
+  // ── Lettere al direttore ──
+  addLetter(letter) {
+    const r = this.db
+      .prepare(`INSERT INTO letters (ts, status, payload) VALUES (?, 'pending', ?)`)
+      .run(letter.ts, JSON.stringify(letter));
+    return { ...letter, id: Number(r.lastInsertRowid), status: 'pending' };
+  }
+
+  saveLetter(letter) {
+    this.db.prepare(`UPDATE letters SET status = ?, payload = ? WHERE id = ?`).run(letter.status, JSON.stringify(letter), letter.id);
+  }
+
+  getLetter(id) {
+    const r = this.db.prepare(`SELECT id, status, payload FROM letters WHERE id = ?`).get(id);
+    return r ? { ...JSON.parse(r.payload), id: r.id, status: r.status } : null;
+  }
+
+  letters({ status, limit = 50 } = {}) {
+    return this.db
+      .prepare(`SELECT id, status, payload FROM letters ${status ? 'WHERE status = ?' : ''} ORDER BY ts DESC LIMIT ?`)
+      .all(...(status ? [status, limit] : [limit]))
+      .map((r) => ({ ...JSON.parse(r.payload), id: r.id, status: r.status }));
   }
 
   // ── Riunioni di redazione ──

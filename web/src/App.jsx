@@ -8,6 +8,7 @@ import SectionPage from './components/SectionPage.jsx';
 import Colophon from './components/Colophon.jsx';
 import Newsroom from './components/Newsroom.jsx';
 import EveningPage from './components/EveningPage.jsx';
+import LettersPage from './components/Letters.jsx';
 
 function useHashRoute() {
   const [route, setRoute] = useState(() => parseRoute(location.hash));
@@ -37,7 +38,7 @@ export default function App() {
   // Edizione corrente
   useEffect(() => {
     let alive = true;
-    if (route.desk || route.evening) { setLoaded(true); return () => { alive = false; }; }
+    if (route.desk || route.evening || route.letters) { setLoaded(true); return () => { alive = false; }; }
     const p = route.edition ? api(`/editions/${encodeURIComponent(route.edition)}`) : route.day ? Promise.resolve(null) : api('/editions/latest');
     p.then((e) => {
       if (!alive) return;
@@ -48,7 +49,7 @@ export default function App() {
       .catch((err) => alive && (setEdition(null), setError(route.edition ? err.message : null)))
       .finally(() => alive && setLoaded(true));
     return () => { alive = false; };
-  }, [route.edition, route.day, route.desk, route.evening]);
+  }, [route.edition, route.day, route.desk, route.evening, route.letters]);
 
   useEffect(() => { if (route.day) setDay(route.day); }, [route.day]);
   useEffect(() => { if (route.evening) setDay(route.evening); }, [route.evening]);
@@ -99,8 +100,8 @@ export default function App() {
 
   return (
     <div className="paper">
-      <Masthead edition={route.desk || route.evening ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk ? 'redazione' : route.evening ? 'sera' : route.section} />
-      {!route.desk && (
+      <Masthead edition={route.desk || route.evening ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk ? 'redazione' : route.letters ? 'lettere' : route.evening ? 'sera' : route.section} />
+      {!route.desk && !route.letters && (
         <EditionBar day={day} list={list} current={route.evening ? evening?.id : edition?.id} onPrint={printNow} printing={printing}
           evening={evening && evening.status !== 'draft' ? evening : null} />
       )}
@@ -114,6 +115,8 @@ export default function App() {
       <main>
         {route.desk ? (
           <Newsroom key={route.edition || 'desk'} editionId={route.edition} onPublished={() => { refreshList(); refreshStatus(false); refreshEvening(); }} />
+        ) : route.letters ? (
+          <LettersPage />
         ) : route.evening ? (
           evening ? <EveningPage evening={evening} /> : loaded ? <p className="empty-text" style={{ marginTop: 40, textAlign: 'center' }}>L'edizione della sera non è ancora uscita.</p> : null
         ) : route.section ? (

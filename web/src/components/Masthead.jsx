@@ -47,6 +47,7 @@ export default function Masthead({ edition, evening, day, status, activeSlug }) 
             {s.name}
           </a>
         ))}
+        <a href={href.letters()} className={`letters-link ${activeSlug === 'lettere' ? 'on' : ''}`}>Lettere</a>
         <a href={href.desk()} className={`desk-link ${activeSlug === 'redazione' ? 'on' : ''}`}>
           Redazione{status?.drafts ? <span className="badge">{status.drafts}</span> : null}
         </a>

@@ -36,6 +36,7 @@ export function parseRoute(hash) {
   const p = hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
   if (p[0] === 'redazione') return { desk: true, edition: p[1] || null };
   if (p[0] === 'sera' && p[1]) return { evening: p[1] };
+  if (p[0] === 'lettere') return { letters: true };
   if (p[0] === 'e' && p[1]) return { edition: p[1], article: p[2] === 'a' ? p[3] : null };
   if (p[0] === 'd' && p[1]) return { day: p[1], section: p[2] === 's' ? p[3] : null };
   return {};
@@ -48,6 +49,7 @@ export const href = {
   section: (d, s) => `#/d/${d}/s/${s}`,
   desk: (id) => (id ? `#/redazione/${encodeURIComponent(id)}` : '#/redazione'),
   evening: (day) => `#/sera/${day}`,
+  letters: () => '#/lettere',
 };
 
 export const SECTIONS = [

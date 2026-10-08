@@ -4,8 +4,8 @@
     "baseUrl": "http://192.168.1.120:8080/v1",
     "model": "",
     "apiKey": "",
-    "timeoutMs": 180000,
-    "concurrency": 2,
+    "timeoutMs": 300000,
+    "concurrency": 1,
     "temperature": 0.7,
     "thinking": false
   },

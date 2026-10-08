@@ -50,7 +50,7 @@ function context(store, config, threadId, articleId) {
   const items = [
     `Il punto: ${ed.summary}`,
     'Articoli, in ordine di pagina:',
-    ...ed.articles.map((a, i) => `- id «${a.id}» ${i === 0 ? '(APERTURA) ' : ''}[${a.section}, ${a.size || 'articolo'}, ${a.sources.length} fonti] ${a.headline} — ${a.dek || ''}\n    Testo: ${a.body.join(' ').slice(0, 320)}`),
+    ...ed.articles.map((a, i) => `- id «${a.id}» ${i === 0 ? '(APERTURA) ' : ''}[${a.section}, ${a.size || 'articolo'}, ${a.sources.length} fonti${a.series ? `, storia che continua: ${a.series.episode}ª puntata` : ''}] ${a.headline} — ${a.dek || ''}\n    Testo: ${a.body.join(' ').slice(0, 320)}`),
     ed.spiked?.length ? `Cestinati: ${ed.spiked.map((a) => `«${a.headline}»`).join(', ')}` : '',
   ].filter(Boolean).join('\n');
   let focus = null;

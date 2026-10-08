@@ -15,6 +15,7 @@ import {
 } from './newsroom/edition.js';
 import { publishEvening } from './newsroom/evening.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
+import { submitLetter, answerNow } from './newsroom/letters.js';
 
 const [maj, min] = process.versions.node.split('.').map(Number);
 if (maj < 22 || (maj === 22 && min < 13)) {
@@ -112,6 +113,11 @@ app.post('/api/evening/:day/print', wrap(async (req, res) => {
   res.json(ev);
 }));
 app.post('/api/evening/:day/publish', wrap((req, res) => res.json(publishEvening(store, req.params.day))));
+
+// ── Lettere al direttore ──
+app.get('/api/letters', (req, res) => res.json(store.letters({ limit: 100 })));
+app.post('/api/letters', wrap((req, res) => res.json(submitLetter(store, req.body || {}))));
+app.post('/api/letters/:id/answer', wrap(async (req, res) => res.json(await answerNow(store, config, req.params.id, log))));
 
 // ── Riunione di redazione ──
 app.get('/api/threads/:id', wrap((req, res) => res.json(getThreadRepaired(store, config, req.params.id))));

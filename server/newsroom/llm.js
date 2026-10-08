@@ -46,7 +46,38 @@ export async function connectLLM(config) {
   }
 }
 
+/**
+ * La fila per il redattore: i server locali (llama.cpp, LM Studio…) di solito elaborano
+ * una richiesta alla volta. Mandarne di più insieme le fa solo aspettare in coda sul server,
+ * dove il tempo massimo scade prima ancora che il modello cominci a scrivere.
+ */
+let active = 0;
+const waiting = [];
+async function slot(limit) {
+  if (active >= limit) await new Promise((resolve) => waiting.push(resolve));
+  active++;
+}
+function release() {
+  active--;
+  waiting.shift()?.();
+}
+export const llmQueue = () => ({ active, waiting: waiting.length });
+
 export async function chat(llm, config, messages, maxTokens = 1400) {
+  await slot(Math.max(1, config.llm.concurrency || 1));
+  try {
+    return await chatNow(llm, config, messages, maxTokens);
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      throw new Error(`il modello non ha risposto entro ${Math.round(config.llm.timeoutMs / 1000)} secondi (troppo lento o occupato)`);
+    }
+    throw e;
+  } finally {
+    release();
+  }
+}
+
+async function chatNow(llm, config, messages, maxTokens) {
   const r = await fetchT(
     `${llm.base}/chat/completions`,
     {

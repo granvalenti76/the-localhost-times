@@ -247,6 +247,11 @@ export function fallbackArticle(story) {
   const P = pickFrom(story.id + story.first);
   const w = W[story.kind];
   const a = w ? w(story, P) : { kicker: story.section, headline: story.topic, dek: '', body: [] };
+  const sr = story.series;
+  if (sr) {
+    const last = sr.previous[0];
+    a.body = [...a.body, `${P(['La storia continua', 'Non è la prima volta', 'Il tema torna'])}: è la ${sr.episode}ª puntata${sr.days > 1 ? ` in ${sr.days} giorni` : ''}. L'ultima, alle ${hhmm(last.hour)}, titolava ${q(short(last.headline, 70))}.`];
+  }
   return { ...a, writer: 'tipografia' };
 }
 

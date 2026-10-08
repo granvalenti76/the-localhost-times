@@ -1,5 +1,5 @@
 import React from 'react';
-import { href, hhmm, writerLabel, edHour } from '../lib.js';
+import { href, hhmm, writerLabel, edHour, shortDate } from '../lib.js';
 import Photo from './Photo.jsx';
 
 const KIND = {
@@ -17,6 +17,7 @@ export default function ArticlePage({ edition, article: a }) {
       </div>
       <article className="story">
         <div className="kicker">
+          {a.series && <span className="segue">Segue · {a.series.episode}ª puntata</span>}
           <a className="sec" href={href.section(edition.id.slice(0, 10), a.slug)}>{a.section}</a>
           {a.kicker && a.kicker.toLowerCase() !== a.section.toLowerCase() && <span className="sub"> · {a.kicker}</span>}
         </div>
@@ -31,6 +32,23 @@ export default function ArticlePage({ edition, article: a }) {
         <div className="story-body">
           {a.body.map((p, i) => <p key={i} className={i === 0 && p.length > 160 ? 'dropcap' : ''}>{p}</p>)}
         </div>
+
+        {a.series && (
+          <section className="episodes">
+            <h3 className="box-title">Le puntate precedenti</h3>
+            <ol>
+              {a.series.previous.map((p) => (
+                <li key={p.editionId}>
+                  <a href={href.article(p.editionId, a.id)}>
+                    <time>{shortDate(p.hour)}, {hhmm(p.hour)}</time>
+                    <span>{p.headline}</span>
+                  </a>
+                </li>
+              ))}
+            </ol>
+            {a.series.days > 1 && <p className="hint-small">La storia va avanti da {a.series.days} giorni.</p>}
+          </section>
+        )}
 
         <section className="evidence">
           <h3 className="box-title">Le fonti</h3>

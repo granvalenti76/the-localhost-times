@@ -6,6 +6,8 @@ import { articlePrompt, rewritePrompt, summaryPrompt, marketPrompt, sizeOf } fro
 import { getLine } from './line.js';
 import { computeMarket, fallbackMarketComment } from './market.js';
 import { illustrate } from './photos.js';
+import { findSeries, seriesInfo, seriesFacts } from './series.js';
+import { lettersForEdition } from './letters.js';
 import { editionId, hhmm, mapLimit, isSelfUrl, hourStart } from '../util.js';
 
 const HOUR = 3600e3;
@@ -50,7 +52,8 @@ async function writeArticle(story, rank, ctx) {
   const size = sizeOf(story, rank, line);
   if (llm) {
     try {
-      const raw = await chat(llm, config, articlePrompt(story, factSheet(story), hourLabel, size, line), maxTokensFor(size));
+      const facts = factSheet(story) + seriesFacts(story.series, Date.now());
+      const raw = await chat(llm, config, articlePrompt(story, facts, hourLabel, size, line), maxTokensFor(size));
       text = fromLLM(parseJson(raw), story, llm.model);
     } catch (e) {
       log(`[redazione] ${story.id}: il redattore ha fallito (${e.message}), passa la tipografia`);
@@ -59,6 +62,7 @@ async function writeArticle(story, rank, ctx) {
   text ||= fallbackArticle(story);
   return {
     id: story.id,
+    series: story.series || null,
     source: story.source,
     section: story.section,
     slug: SECTIONS[story.source].slug,
@@ -190,6 +194,9 @@ export async function printEdition({ store, config, start, final = true, force =
   const max = config.edition.maxArticles;
   const main = stories.slice(0, max);
   const rest = stories.slice(max);
+  // le storie che continuano: puntate precedenti negli ultimi 7 giorni
+  const series = findSeries(store, main, { before: windowStart, excludeId: id });
+  for (const s of main) s.series = seriesInfo(series.get(s.id));
   const hourLabel = windowStart < hour ? `${hhmm(windowStart)}–${hhmm(end)}` : hhmm(hour);
 
   const llm = await connectLLM(config);
@@ -208,9 +215,12 @@ export async function printEdition({ store, config, start, final = true, force =
 
   const market = computeMarket(store, hour, { port: config.port });
   const stats = computeStats(events, windowStart, end);
-  const [{ summary, cartoon }, comment] = await Promise.all([
+  const prevLetters = existing?.letters || [];
+  const [{ summary, cartoon }, comment, newLetters] = await Promise.all([
     writeSummary(articles, events.length, ctx, stats),
     writeMarketComment(market, ctx),
+    // ristampa: restano le lettere già uscite; altrimenti si risponde a quelle in attesa
+    prevLetters.length || !llm ? Promise.resolve(prevLetters) : lettersForEdition(store, config, id, log),
     photosJob,
   ]);
   if (market) market.comment = comment;
@@ -233,6 +243,7 @@ export async function printEdition({ store, config, start, final = true, force =
     spiked: [],
     briefs,
     market,
+    letters: newLetters,
     stats,
     sections: SECTION_ORDER.filter((s) => events.some((e) => e.source === s)).map((s) => SECTIONS[s]),
   };
@@ -328,7 +339,8 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   const story = buildStories(cleanEvents(store.eventsBetween(ed.start, ed.end), config)).find((s) => s.id === aid);
   if (!story) throw new DeskError('Non trovo più i fatti di questo articolo.', 409);
   const size = sizeOf(story, i, ctx.line);
-  const raw = await chat(ctx.llm, config, rewritePrompt(story, factSheet(story), ctx.hourLabel, size, ctx.line, prev, instruction), maxTokensFor(size));
+  story.series = prev.series || null;
+  const raw = await chat(ctx.llm, config, rewritePrompt(story, factSheet(story) + seriesFacts(story.series, Date.now()), ctx.hourLabel, size, ctx.line, prev, instruction), maxTokensFor(size));
   let text;
   try {
     text = fromLLM(parseJson(raw), story, ctx.llm.model);
