@@ -16,6 +16,9 @@ import {
 } from './newsroom/edition.js';
 import { publishEvening, editEveningCartoon } from './newsroom/evening.js';
 import { SCENES } from './newsroom/scenes.js';
+import { createNotifier } from './notify.js';
+import { tr, lang, locale } from './i18n.js';
+import { rssFeed } from './feed.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
 
@@ -26,9 +29,15 @@ if (maj < 22 || (maj === 22 && min < 13)) {
 }
 
 const config = loadConfig();
+// as a service, launchd appends to one log file: keep it small
+if (process.env.LOCALHOST_TIMES_SERVICE === '1') {
+  const f = path.join(config.dataDir, 'logs', 'server.log');
+  try { if (fs.statSync(f).size > 5e6) fs.renameSync(f, `${f}.1`); } catch { /* no log yet */ }
+}
 const store = new Store(config.dbFile);
-const log = (...a) => console.log(new Date().toLocaleTimeString('it-IT'), ...a);
-const newsroom = createNewsroom({ store, config, log });
+const log = (...a) => console.log(new Date().toLocaleTimeString(locale()), ...a);
+const notify = createNotifier(config, log);
+const newsroom = createNewsroom({ store, config, log, notify });
 
 if (config.demo) {
   const n = seedDemo(store);
@@ -139,18 +148,38 @@ app.post('/api/collect', wrap(async (req, res) => {
 // Foto scaricate dalla redazione
 app.use('/media', express.static(path.join(config.dataDir, 'media'), { maxAge: '30d', immutable: true }));
 
-// Frontend compilato
+// ── Feeds ──
+app.get(['/feed.xml', '/feed/:section.xml'], (req, res) => {
+  const base = `${req.protocol}://${req.get('host')}`;
+  const xml = rssFeed(store, { base, section: req.params.section });
+  if (!xml) return res.status(404).type('text').send('Unknown section');
+  res.type('application/rss+xml; charset=utf-8').send(xml);
+});
+
+// Built frontend: index.html carries the paper's language
 const dist = path.join(ROOT, 'web', 'dist');
 if (fs.existsSync(dist)) {
-  app.use(express.static(dist));
+  const page = () => fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
+    .replace('<html lang="it">', `<html lang="${lang()}">`)
+    .replace('<html lang="en">', `<html lang="${lang()}">`)
+    .replace('</head>', `<script>window.__LT__=${JSON.stringify({ lang: lang() })}</script></head>`);
+  app.use(express.static(dist, { index: false }));
   app.use((req, res, next) => {
-    if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/media')) return res.sendFile(path.join(dist, 'index.html'));
+    if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/media')) return res.type('html').send(page());
     next();
   });
 }
 
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
   log(`The Localhost Times è in edicola su http://localhost:${config.port}${config.demo ? '  (modalità demo)' : ''}`);
   log(`Redattore: ${config.llm.baseUrl || 'nessuno'}`);
   newsroom.start().catch((e) => log('[avvio]', e));
+});
+server.on('error', (e) => {
+  if (e.code !== 'EADDRINUSE') throw e;
+  console.error(tr({
+    en: `Port ${config.port} is already in use: the paper is probably already running (as a service? npm run service:status).`,
+    it: `La porta ${config.port} è già occupata: il giornale è probabilmente già in edicola (come servizio? npm run service:status).`,
+  }));
+  process.exit(1);
 });

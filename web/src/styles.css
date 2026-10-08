@@ -281,7 +281,7 @@ button { font: inherit; color: inherit; }
 .colo-end { text-align: center; color: var(--muted); font: italic 400 14px/1.4 var(--f-display); margin-top: 32px; }
 
 /* ───────── Responsive ───────── */
-@media (max-width: 980px) {
+@media screen and (max-width: 980px) {
   .front-top { grid-template-columns: 1fr; }
   .front-main { padding-right: 0; border-right: 0; padding-bottom: 8px; }
   .rail { padding-left: 0; padding-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
@@ -291,7 +291,7 @@ button { font: inherit; color: inherit; }
   .front-grid .card:nth-child(2n) { border-right: 0; padding-right: 0; }
 }
 
-@media (max-width: 980px) {
+@media screen and (max-width: 980px) {
   .mast-head { grid-template-columns: 1fr; text-align: center; gap: 8px; }
   .mast-ear, .mast-ear-right { text-align: center; align-items: center; }
   .mast-ear-left { order: 2; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px 10px; }
@@ -301,7 +301,7 @@ button { font: inherit; color: inherit; }
   .lead-split { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 680px) {
+@media screen and (max-width: 680px) {
   .paper { padding: 0 16px 40px; }
   .mast-bar { grid-template-columns: 1fr 1fr; }
   .mast-bar .mast-host { display: none; }
@@ -527,7 +527,7 @@ a.btn-ghost { display: inline-block; }
 .desk-vignetta-form select, .desk-vignetta-form textarea { width: 100%; font: 400 15px/1.4 var(--f-serif); padding: 6px 8px; border: 1px solid var(--rule); background: var(--card, #fff); color: inherit; }
 .desk-vignetta-form textarea { font-family: var(--f-display); font-style: italic; resize: vertical; }
 .desk-vignetta-form .small { font-size: 13px; margin: 0; }
-@media (max-width: 640px) { .desk-vignetta { grid-template-columns: 1fr; } .desk-vignetta-art { max-width: 260px; } }
+@media screen and (max-width: 640px) { .desk-vignetta { grid-template-columns: 1fr; } .desk-vignetta-art { max-width: 260px; } }
 .desk-top { padding: 14px 0; }
 .desk-top ol { margin: 8px 0 0; padding-left: 20px; }
 .desk-top li { padding: 4px 0; font-size: 15px; }
@@ -557,13 +557,13 @@ a.btn-ghost { display: inline-block; }
 .check em { display: block; font-style: normal; color: var(--muted); font-size: 12px; }
 .check-inline { margin: 2px 0; }
 
-@media (max-width: 980px) {
+@media screen and (max-width: 980px) {
   .desk-grid { grid-template-columns: 1fr; }
   .desk-main { padding-right: 0; border-right: 0; }
   .desk-side { position: static; max-height: none; padding-left: 0; margin-top: 36px; border-top: 3px double var(--rule); padding-top: 4px; }
   .meeting-log { max-height: 60vh; }
 }
-@media (max-width: 680px) {
+@media screen and (max-width: 680px) {
   .desk-head h2 { font-size: 32px; }
   .draft { grid-template-columns: 34px minmax(0, 1fr); gap: 8px; }
   .draft-body { grid-template-columns: 1fr; }
@@ -614,13 +614,13 @@ a.btn-ghost { display: inline-block; }
 .hour-by-hour time { font: 700 13px/1 var(--f-sans); font-variant-numeric: tabular-nums; }
 .hour-by-hour .t { font: 600 16px/1.25 var(--f-display); }
 .hour-by-hour .n { font: 400 11.5px/1 var(--f-sans); color: var(--muted); white-space: nowrap; }
-@media (max-width: 980px) {
+@media screen and (max-width: 980px) {
   .day-grid { grid-template-columns: 1fr 1fr; }
   .day-grid .card:nth-child(n) { padding: 14px 18px 18px; border-right: 1px solid var(--hair); }
   .day-grid .card:nth-child(2n+1) { padding-left: 0; }
   .day-grid .card:nth-child(2n) { border-right: 0; padding-right: 0; }
 }
-@media (max-width: 680px) {
+@media screen and (max-width: 680px) {
   .day-grid { grid-template-columns: 1fr; }
   .day-grid .card:nth-child(n) { padding: 14px 0; border-right: 0; }
   .hour-by-hour ol { columns: 1; }
@@ -680,4 +680,44 @@ a.btn-ghost { display: inline-block; }
 .letters-item { border-top: 1px solid var(--rule); padding: 14px 0 6px; }
 .letters-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font: 500 12px/1.3 var(--f-sans); color: var(--muted); margin-bottom: 8px; }
 .letters-meta a { color: var(--ink); font-weight: 700; }
-@media (max-width: 680px) { .letter-form-row { grid-template-columns: 1fr; } .episodes a { grid-template-columns: 1fr; gap: 2px; } }
+@media screen and (max-width: 680px) { .letter-form-row { grid-template-columns: 1fr; } .episodes a { grid-template-columns: 1fr; gap: 2px; } }
+
+/* ───────── Export ───────── */
+.export { position: relative; }
+.export > .btn-ghost { white-space: nowrap; }
+.export-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 250px;
+  background: var(--card); border: 1px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+  padding: 6px; display: flex; flex-direction: column;
+}
+.export-menu button, .export-menu a {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  background: none; border: 0; padding: 8px 10px; color: var(--ink); cursor: pointer;
+  font: 600 13px/1.2 var(--f-sans);
+}
+.export-menu button span, .export-menu a span { font-weight: 400; font-size: 11.5px; color: var(--muted); }
+.export-menu button:hover:not(:disabled), .export-menu a:hover { background: var(--paper); text-decoration: none; }
+.export-menu button:disabled { opacity: .5; cursor: default; }
+.export-menu hr { border: 0; border-top: 1px solid var(--hair); margin: 4px 0; }
+.export-note { margin: 4px 10px 6px; font: 400 12px/1.35 var(--f-sans); color: var(--muted); }
+.feed-link { font: 600 11px/1 var(--f-sans); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+
+/* ───────── Print (Export → PDF) ─────────
+   The screen layout is laid out at desktop width and scaled to the sheet. */
+@media print {
+  :root {
+    --paper: #fff; --ink: #000; --ink-2: #222; --muted: #555; --rule: #000; --hair: #bbb; --card: #fff; --accent: #a3171f;
+    color-scheme: light;
+  }
+  html, body { background: #fff !important; }
+  .paper { width: var(--wrap); max-width: none; padding: 0; margin: 0; zoom: .58; }
+  html[data-paper="A3"] .paper { zoom: .83; }
+  .edbar, .sections, .evening-banner, .notice, .colophon, .export, .more, .btn, .btn-ghost,
+  .letters-box .more, .letters-empty a, .feed-link { display: none !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+  .mast { break-after: avoid; }
+  .nameplate { font-size: 104px; }
+  article, .card, .box, .cartoon, figure, .market, .briefs li { break-inside: avoid; }
+  .photo img { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .cartoon { box-shadow: none; }
+}

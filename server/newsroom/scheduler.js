@@ -5,7 +5,7 @@ import { printEvening } from './evening.js';
 
 const HOUR = 3600e3;
 
-export function createNewsroom({ store, config, log = console.log }) {
+export function createNewsroom({ store, config, log = console.log, notify = null }) {
   // Una sola rotativa: le operazioni vanno in fila, mai in parallelo.
   let chain = Promise.resolve();
   const queue = (fn) => {
@@ -49,13 +49,16 @@ export function createNewsroom({ store, config, log = console.log }) {
 
   async function backfill(hours = config.backfillHours) {
     const now = hourStart(Date.now());
+    const printed = [];
     for (let h = now - hours * HOUR; h < now; h += HOUR) {
       // anche un'ora vuota può chiudere un'edizione: raccoglie le ore tranquille prima di lei
       const meta = store.editionMeta(editionId(h));
       // già definitiva, oppure ritoccata a mano dal direttore: non la tocchiamo
       if (meta?.final || meta?.edited) continue;
-      await printHour(h, true);
+      const ed = await printHour(h, true);
+      if (ed) printed.push(ed);
     }
+    return printed;
   }
 
   function scheduleHourly() {
@@ -65,9 +68,10 @@ export function createNewsroom({ store, config, log = console.log }) {
       try {
         await collect();
         // stampa l'ora appena chiusa (e, se il Mac era in stop, solo l'ultima persa)
-        await backfill();
+        const printed = await backfill();
+        if (printed.length) notify?.edition(printed.at(-1));
         // alle 21 (o all'ora scelta) esce anche l'edizione della sera
-        if (new Date().getHours() === config.edition.eveningHour) await eveningIfDue(true);
+        if (new Date().getHours() === config.edition.eveningHour) notify?.evening(await eveningIfDue(true));
       } catch (e) {
         log(`[rotativa] errore: ${e.message}`);
       }

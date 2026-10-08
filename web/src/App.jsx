@@ -103,7 +103,8 @@ export default function App() {
       <Masthead edition={route.desk || route.evening ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk ? 'redazione' : route.letters ? 'lettere' : route.evening ? 'sera' : route.section} />
       {!route.desk && !route.letters && (
         <EditionBar day={day} list={list} current={route.evening ? evening?.id : edition?.id} onPrint={printNow} printing={printing}
-          evening={evening && evening.status !== 'draft' ? evening : null} />
+          evening={evening && evening.status !== 'draft' ? evening : null}
+          exportable={route.evening ? (evening ? { evening } : null) : edition && !route.article && !route.section && !route.day ? { edition } : null} />
       )}
       {!route.desk && !route.evening && !route.article && evening && evening.status !== 'draft' && edition && edition.id.slice(0, 10) === evening.day && (
         <div className="evening-banner">

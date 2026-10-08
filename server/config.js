@@ -1,13 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { setLang } from './i18n.js';
 
 export const ROOT = path.resolve(import.meta.dirname, '..');
 
 const DEFAULTS = {
   port: 4321,
+  language: 'en',        // 'en' | 'it': the language the paper is written in
   demo: false,
   llm: {
-    baseUrl: 'http://192.168.1.120:8080/v1',
+    baseUrl: 'http://localhost:8080/v1',
     model: '',
     apiKey: '',
     timeoutMs: 300000,   // per richiesta, dal momento in cui parte davvero
@@ -35,6 +37,10 @@ const DEFAULTS = {
     maxMergeHours: 3,    // al massimo tre ore in un'unica edizione
     eveningHour: 21,     // l'edizione della sera esce a quest'ora (null per disattivarla)
   },
+  notifications: {
+    enabled: true,       // macOS notification when a new edition is out
+    sound: false,
+  },
 };
 
 function merge(base, over) {
@@ -61,6 +67,8 @@ export function loadConfig() {
   if (process.env.DAILYMAC_LLM_URL) cfg.llm.baseUrl = process.env.DAILYMAC_LLM_URL;
   if (process.env.DAILYMAC_LLM_MODEL) cfg.llm.model = process.env.DAILYMAC_LLM_MODEL;
   if (process.env.PORT) cfg.port = Number(process.env.PORT);
+  if (process.env.LOCALHOST_TIMES_LANG) cfg.language = process.env.LOCALHOST_TIMES_LANG;
+  cfg.language = setLang(cfg.language);
   cfg.dataDir = path.join(ROOT, 'data');
   cfg.dbFile = path.join(cfg.dataDir, cfg.demo ? 'demo.sqlite' : 'dailymac.sqlite');
   return cfg;

@@ -16,7 +16,12 @@
     "collect": "node --disable-warning=ExperimentalWarning server/cli.js collect",
     "print": "node --disable-warning=ExperimentalWarning server/cli.js print",
     "rebuild": "node --disable-warning=ExperimentalWarning server/cli.js rebuild",
-    "photos": "node --disable-warning=ExperimentalWarning server/cli.js photos"
+    "photos": "node --disable-warning=ExperimentalWarning server/cli.js photos",
+    "service:install": "node --disable-warning=ExperimentalWarning server/service.js install",
+    "service:uninstall": "node --disable-warning=ExperimentalWarning server/service.js uninstall",
+    "service:status": "node --disable-warning=ExperimentalWarning server/service.js status",
+    "service:logs": "node --disable-warning=ExperimentalWarning server/service.js logs",
+    "notify:test": "node --disable-warning=ExperimentalWarning server/cli.js notify"
   },
   "dependencies": {
     "express": "^5.1.0"

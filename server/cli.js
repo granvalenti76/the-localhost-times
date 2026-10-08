@@ -14,6 +14,7 @@ import { journalCandidates, inspectJournalDb } from './sources/journal.js';
 import { withSnapshot, tables, columns, hourStart, hhmm, isSelfUrl } from './util.js';
 import { buildStories } from './newsroom/cluster.js';
 import { candidatePages, photoForPage } from './newsroom/photos.js';
+import { createNotifier } from './notify.js';
 
 const config = loadConfig();
 const cmd = process.argv[2];
@@ -89,6 +90,12 @@ let store_ = null;
 
 async function main() {
   if (cmd === 'probe') return probe();
+  if (cmd === 'notify') {
+    const n = createNotifier({ ...config, demo: false, notifications: { ...config.notifications, enabled: true } }, console.log);
+    if (!n.enabled) return console.log('Notifications work on macOS only.');
+    n.test();
+    return console.log(`Sent (via ${n.via}). If nothing shows up: System Settings → Notifications → ${n.via === 'osascript' ? 'Script Editor' : 'terminal-notifier'} → Allow.`);
+  }
   const store = new Store(config.dbFile);
   store_ = store;
   if (cmd === 'collect') {

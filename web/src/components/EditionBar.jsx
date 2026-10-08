@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { href, shiftDay, dayKey, dayFromKey, shortDate, edHour } from '../lib.js';
+import ExportMenu from './ExportMenu.jsx';
 
-export default function EditionBar({ day, list, current, onPrint, printing, evening }) {
+export default function EditionBar({ day, list, current, onPrint, printing, evening, exportable }) {
   const byHour = new Map(list.map((e) => [new Date(edHour(e)).getHours(), e]));
   // ore assorbite da un'edizione successiva: le segnamo come "unite"
   const merged = new Set();
@@ -52,6 +53,7 @@ export default function EditionBar({ day, list, current, onPrint, printing, even
       {evening && (
         <a className={`edbar-evening ${current === evening.id ? 'cur' : ''}`} href={href.evening(day)}>Sera</a>
       )}
+      {exportable && <ExportMenu {...exportable} />}
       <button className="btn btn-small" onClick={onPrint} disabled={printing}>
         {printing ? 'In stampa…' : 'Stampa ora'}
       </button>
