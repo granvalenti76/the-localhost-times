@@ -123,3 +123,10 @@ export const editionLabel = (ms) => tr({ en: `The ${hhmm(ms)} edition`, it: `Edi
 
 /** The "continuing story" tag on articles. */
 export const episodeLabel = (n) => tr({ en: `Continuing · part ${n}`, it: `Segue · ${n}ª puntata` });
+
+/** Reading time of an article: about 230 words a minute in English, 200 in Italian. */
+export function readingTime(a) {
+  const words = [a?.dek || '', ...(a?.body || [])].join(' ').split(/\s+/).filter(Boolean).length;
+  const min = Math.max(1, Math.round(words / tr({ en: 230, it: 200 })));
+  return tr({ en: `${min} min read`, it: `${min} min di lettura` });
+}

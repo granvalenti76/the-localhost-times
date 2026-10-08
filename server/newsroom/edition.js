@@ -6,7 +6,7 @@ import { factCheck, numbersCheck } from './factcheck.js';
 import { getSteer, applySteer, steerLine, clearSteer, carrySteer } from './next.js';
 import { writerFor, columnist, byline } from './writers.js';
 import { connectLLM, chat, parseJson } from './llm.js';
-import { articlePrompt, rewritePrompt, summaryPrompt, marketPrompt, sizeOf } from './prompts.js';
+import { articlePrompt, rewritePrompt, expandPrompt, summaryPrompt, marketPrompt, sizeOf, wordCount } from './prompts.js';
 import { getLine } from './line.js';
 import { computeMarket, fallbackMarketComment } from './market.js';
 import { illustrate } from './photos.js';
@@ -52,7 +52,23 @@ function fromLLM(j, story, model) {
 }
 
 // Generous: local models sometimes reason before answering, and a truncated answer is lost
-const maxTokensFor = (size) => (size.id === 'brief' ? 1800 : size.id === 'article' ? 2400 : 3200);
+const maxTokensFor = (size) => (size.id === 'brief' ? 1800 : size.id === 'article' ? 2600 : 3600);
+
+/**
+ * Local models tend to write well under the length they are asked for. A draft under 80% of the
+ * minimum goes back to the writer once to be expanded; the longer version is kept only if valid.
+ */
+async function ensureLength(text, msgs, story, size, ctx) {
+  if (wordCount(text) >= size.min * 0.8) return text;
+  try {
+    const raw = await ctx.chat(ctx.llm, ctx.config, expandPrompt(msgs, text, size), maxTokensFor(size));
+    const longer = fromLLM(parseJson(raw), story, ctx.llm.model);
+    if (wordCount(longer) > wordCount(text)) return { ...longer, expanded: true };
+  } catch (e) {
+    ctx.log(tr({ en: `[newsroom] ${story.id}: could not expand the draft (${e.message})`, it: `[redazione] ${story.id}: non sono riuscito ad allungare la bozza (${e.message})` }));
+  }
+  return text;
+}
 
 async function writeArticle(story, rank, ctx) {
   const { llm, config, hourLabel, log, line } = ctx;
@@ -62,8 +78,10 @@ async function writeArticle(story, rank, ctx) {
   if (llm) {
     try {
       const facts = factSheet(story) + seriesFacts(story.series, Date.now());
-      const raw = await chat(llm, config, articlePrompt(story, facts, hourLabel, size, line, writer), maxTokensFor(size));
+      const msgs = articlePrompt(story, facts, hourLabel, size, line, writer);
+      const raw = await chat(llm, config, msgs, maxTokensFor(size));
       text = fromLLM(parseJson(raw), story, llm.model);
+      text = await ensureLength(text, msgs, story, size, { ...ctx, chat });
       text.check = numbersCheck(text, facts); // figures the facts don't contain
       text.byline = byline(writer);
     } catch (e) {
@@ -396,10 +414,13 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   const size = sizeOf(story, i, ctx.line);
   story.series = prev.series || null;
   const writer = writerFor(ctx.line, story.source);
-  const raw = await chat(ctx.llm, config, rewritePrompt(story, factSheet(story) + seriesFacts(story.series, Date.now()), ctx.hourLabel, size, ctx.line, prev, instruction, writer), maxTokensFor(size));
+  const msgs = rewritePrompt(story, factSheet(story) + seriesFacts(story.series, Date.now()), ctx.hourLabel, size, ctx.line, prev, instruction, writer);
+  const raw = await chat(ctx.llm, config, msgs, maxTokensFor(size));
   let text;
   try {
     text = fromLLM(parseJson(raw), story, ctx.llm.model);
+    // an explicit "make it shorter" wins over the format
+    if (!/cort|breve|short|brev|tagli|trim|cut/i.test(instruction || '')) text = await ensureLength(text, msgs, story, size, { ...ctx, config, chat });
   } catch (e) {
     throw new DeskError(tr({ en: `The writer gave a bad answer: ${e.message}`, it: `Il redattore ha risposto male: ${e.message}` }), 502);
   }
@@ -408,7 +429,7 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   const k = findArticle(fresh, aid);
   text.check = numbersCheck(text, factSheet(story) + seriesFacts(story.series, Date.now()));
   text.byline = byline(writer);
-  fresh.articles[k] = { ...fresh.articles[k], ...text, rewrittenWith: instruction || null };
+  fresh.articles[k] = { ...fresh.articles[k], ...text, size: size.id, rewrittenWith: instruction || null };
   return touch(store, fresh);
 }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { href, hhmm, writerLabel, edHour, shortDate, episodeLabel } from '../lib.js';
+import { href, hhmm, writerLabel, edHour, shortDate, episodeLabel, readingTime } from '../lib.js';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
 
@@ -34,6 +34,7 @@ export default function ArticlePage({ edition, article: a }) {
           {tr({ en: 'By', it: 'Di' })} <strong>{a.byline ? a.byline.name : tr({ en: 'The Localhost Times newsroom', it: 'Redazione Localhost Times' })}</strong>{a.byline && <span>, {a.byline.role}</span>}
           <span> · {writerLabel(a.writer)}</span>
           <span> · {hhmm(a.first)}{a.last - a.first > 60e3 ? `–${hhmm(a.last)}` : ''}</span>
+          <span> · {readingTime(a)}</span>
         </div>
         <Photo image={a.image} size="lg" />
         <div className="story-body">

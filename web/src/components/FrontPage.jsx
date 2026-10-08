@@ -1,5 +1,5 @@
 import React from 'react';
-import { href, hhmm, SECTIONS, episodeLabel } from '../lib.js';
+import { href, hhmm, SECTIONS, episodeLabel, readingTime } from '../lib.js';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
 import Market from './Market.jsx';
@@ -20,7 +20,7 @@ function Kicker({ a }) {
 }
 
 function Meta({ a }) {
-  return <div className="meta">{a.byline && <><span className="byline-name">{tr({ en: 'By', it: 'Di' })} {a.byline.name}</span> · </>}{hhmm(a.first)}{a.last - a.first > 60e3 ? `–${hhmm(a.last)}` : ''} · {a.sources.length} {a.sources.length === 1 ? tr({ en: 'source', it: 'fonte' }) : tr({ en: 'sources', it: 'fonti' })}</div>;
+  return <div className="meta">{a.byline && <><span className="byline-name">{tr({ en: 'By', it: 'Di' })} {a.byline.name}</span> · </>}{hhmm(a.first)}{a.last - a.first > 60e3 ? `–${hhmm(a.last)}` : ''} · {a.sources.length} {a.sources.length === 1 ? tr({ en: 'source', it: 'fonte' }) : tr({ en: 'sources', it: 'fonti' })} · {readingTime(a)}</div>;
 }
 
 function Activity({ stats, start }) {

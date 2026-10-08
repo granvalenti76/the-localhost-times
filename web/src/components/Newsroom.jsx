@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, href, hhmm, dayKey, longDate, SECTIONS, writerLabel, edHour, edSince } from '../lib.js';
+import { api, href, hhmm, dayKey, longDate, SECTIONS, writerLabel, edHour, edSince, readingTime } from '../lib.js';
 import Meeting from './Meeting.jsx';
 import DeskCartoon from './DeskCartoon.jsx';
 import FactCheck from './FactCheck.jsx';
@@ -263,6 +263,7 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
           <span className="tag">{a.byline ? `${a.byline.name} · ` : ''}{writerLabel(a.writer)}</span>
           {a.rewrittenWith && <span className="tag">{T.rewritten}: «{a.rewrittenWith}»</span>}
           <span className="tag">{a.sources.length} {a.sources.length === 1 ? T.source : T.sources}</span>
+          <span className="tag" title={a.expanded ? tr({ en: 'The first draft was too short: the writer expanded it.', it: 'La prima bozza era troppo corta: la firma l\'ha allungata.' }) : undefined}>{a.body.join(' ').split(/\s+/).filter(Boolean).length} {tr({ en: 'words', it: 'parole' })} · {readingTime(a)}{a.expanded ? ' ↥' : ''}</span>
           {a.check?.unverified?.length > 0 && (
             <span className="tag tag-warn" title={T.unverifiedHint}>⚠ {T.unverified}: {a.check.unverified.slice(0, 4).join(', ')}</span>
           )}

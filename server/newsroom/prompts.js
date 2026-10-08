@@ -100,15 +100,51 @@ const HINTS_IT = {
 
 const SIZE_NAMES = { en: { lead: 'lead story', article: 'article', brief: 'brief' }, it: { lead: 'apertura', article: 'articolo', brief: 'breve' } };
 
-const range = (a, b, f) => `${Math.round(a * f / 5) * 5}-${Math.round(b * f / 5) * 5}`;
+const round5 = (x) => Math.round(x / 5) * 5;
+
+// How many signals a story needs to become a lead or an article: "Long" promotes more stories,
+// "Short" fewer, so the length setting changes the shape of the page and not only word counts.
+const THRESHOLDS = {
+  short: { lead: 10, article: 15, weight: 8 },
+  standard: { lead: 8, article: 12, weight: 6 },
+  long: { lead: 5, article: 8, weight: 4 },
+};
+
+const format = (id, a, b, f, paras) => {
+  const min = round5(a * f);
+  const max = round5(b * f);
+  return { id, min, max, words: `${min}-${max}`, paras };
+};
 
 /** Article format based on the story's weight (and the length chosen by the editors). */
 export function sizeOf(story, rank, line) {
-  const f = LENGTHS[line?.length]?.factor ?? 1;
+  const id = LENGTHS[line?.length] ? line.length : 'standard';
+  const f = LENGTHS[id].factor;
+  const t = THRESHOLDS[id] || THRESHOLDS.standard;
   const n = story.events.length;
-  if (rank === 0 && n >= 8) return { id: 'lead', words: range(150, 220, f), paras: f < 1 ? '2' : '3' };
-  if (n >= 12 || story.weight >= 6) return { id: 'article', words: range(90, 150, f), paras: '2' };
-  return { id: 'brief', words: range(35, 70, f), paras: '1' };
+  if (rank === 0 && n >= t.lead) return format('lead', 150, 220, f, f < 1 ? '2' : f > 1 ? '4' : '3');
+  // the top of the page is never a brief, unless the story is only a couple of signals
+  if (n >= t.article || story.weight >= t.weight || (rank === 0 && n >= 3)) return format('article', 90, 150, f, f > 1 ? '3' : '2');
+  return format('brief', 35, 70, f, '1');
+}
+
+/** Words in an article's body. */
+export const wordCount = (a) => (a?.body || []).join(' ').split(/\s+/).filter(Boolean).length;
+
+/** The draft came out too short: ask the same writer to expand it, once, with the same facts. */
+export function expandPrompt(msgs, draft, size) {
+  const have = wordCount(draft);
+  return [
+    ...msgs,
+    { role: 'assistant', content: JSON.stringify({ kicker: draft.kicker, headline: draft.headline, dek: draft.dek, body: draft.body }) },
+    {
+      role: 'user',
+      content: tr({
+        en: `This draft is ${have} words: the format asks for ${size.words} words in ${size.paras} paragraph${size.paras === '1' ? '' : 's'}. Expand it to at least ${size.min} words using only the facts above: more of the details they contain (titles, times, counts, sites), the context, the continuity with earlier instalments if any. Don't invent anything and don't pad with adjectives. Reply ONLY with the JSON.`,
+        it: `Questa bozza è di ${have} parole: il formato chiede ${size.words} parole in ${size.paras} paragraf${size.paras === '1' ? 'o' : 'i'}. Allungala ad almeno ${size.min} parole usando solo i fatti qui sopra: più dettagli fra quelli che contengono (titoli, orari, numeri, siti), il contesto, la continuità con le puntate precedenti se ci sono. Non inventare niente e non riempire con aggettivi. Rispondi SOLO con il JSON.`,
+      }),
+    },
+  ];
 }
 
 export function articlePrompt(story, facts, hourLabel, size, line, writer = null) {
@@ -120,14 +156,14 @@ export function articlePrompt(story, facts, hourLabel, size, line, writer = null
       role: 'user',
       content: tr({
         en: `The ${hourLabel} edition. ${HINTS_EN[story.kind] || ''}
-Format: ${name} — ${size.words} words in all, ${size.paras} paragraph${size.paras === '1' ? '' : 's'}. Headline of ${maxWords} words at most.
+Format: ${name} — ${size.words} words in all (no fewer than ${size.min}), ${size.paras} paragraph${size.paras === '1' ? '' : 's'}. Headline of ${maxWords} words at most.
 
 FACTS:
 ${facts}
 
 Write the article.`,
         it: `Edizione delle ${hourLabel}. ${HINTS_IT[story.kind] || ''}
-Formato: ${name} — ${size.words} parole in tutto, ${size.paras} paragraf${size.paras === '1' ? 'o' : 'i'}. Titolo di massimo ${maxWords} parole.
+Formato: ${name} — ${size.words} parole in tutto (non meno di ${size.min}), ${size.paras} paragraf${size.paras === '1' ? 'o' : 'i'}. Titolo di massimo ${maxWords} parole.
 
 FATTI:
 ${facts}
