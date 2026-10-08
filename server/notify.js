@@ -24,7 +24,7 @@ function findBin(name) {
 
 export function createNotifier(config, log = console.log) {
   const off = process.platform !== 'darwin' || !config.notifications?.enabled || config.demo;
-  if (off) return { enabled: false, edition() {}, evening() {}, test() {} };
+  if (off) return { enabled: false, edition() {}, evening() {}, spotlight() {}, spotlightReply() {}, test() {} };
   const tn = findBin('terminal-notifier');
   const base = `http://127.0.0.1:${config.port}/`;
 
@@ -69,9 +69,24 @@ export function createNotifier(config, log = console.log) {
     });
   }
 
+  /** A Spotlight scoop is out. */
+  function spotlight(s) {
+    if (!s) return;
+    send({ subtitle: tr({ en: 'Spotlight · Exclusive', it: 'Spotlight · Esclusiva' }), message: s.headline, url: `#/spotlight/${s.id}` });
+  }
+
+  /** Spotlight asks the owner for a comment before printing. */
+  function spotlightReply(lead) {
+    send({
+      subtitle: tr({ en: 'Spotlight asks for your comment', it: 'Spotlight chiede un tuo commento' }),
+      message: lead.desk?.headline || lead.subject,
+      url: '#/newsroom/spotlight',
+    });
+  }
+
   function test() {
     send({ subtitle: tr({ en: 'Notifications are on', it: 'Le notifiche funzionano' }), message: tr({ en: 'You will hear from us every hour.', it: 'Ci sentiamo a ogni edizione.' }) });
   }
 
-  return { enabled: true, edition, evening, test, via: tn ? 'terminal-notifier' : 'osascript' };
+  return { enabled: true, edition, evening, spotlight, spotlightReply, test, via: tn ? 'terminal-notifier' : 'osascript' };
 }

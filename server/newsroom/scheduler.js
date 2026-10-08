@@ -4,6 +4,7 @@ import { printEdition } from './edition.js';
 import { hourStart, editionId, dayKey } from '../util.js';
 import { printEvening } from './evening.js';
 import { recordBulletin } from './radio.js';
+import { spotlightRound } from './spotlight/desk.js';
 
 const HOUR = 3600e3;
 
@@ -44,6 +45,10 @@ export function createNewsroom({ store, config, log = console.log, notify = null
     radio(ed);
     return ed;
   }));
+
+  // Spotlight works in the same queue (one model, one press), after the paper
+  const spotlight = (light = false) => queue(busy(() => spotlightRound(store, config, { log, notify, light })))
+    .catch((e) => log(`[spotlight] ${e.message}`));
 
   const printEveningFor = (day) => queue(busy(() => printEvening({ store, config, day, log })));
 
@@ -93,6 +98,8 @@ export function createNewsroom({ store, config, log = console.log, notify = null
           if (n) log(tr({ en: `[archive] ${n} old signals removed`, it: `[archivio] ${n} segnali vecchi rimossi` }));
         }
         if (printed.length) notify?.edition(printed.at(-1));
+        // the Spotlight desk takes a look at the leads once the hour is printed
+        await spotlight();
         // at 21:00 (or the chosen time) the evening edition comes out too
         if (new Date().getHours() === config.edition.eveningHour) notify?.evening(await eveningIfDue(true));
       } catch (e) {
@@ -105,12 +112,17 @@ export function createNewsroom({ store, config, log = console.log, notify = null
   async function start() {
     await collect();
     scheduleHourly();
-    setInterval(() => collect().catch((e) => log(`[${tr({ en: 'collect', it: 'raccolta' })}] ${e.message}`)), config.collectEveryMinutes * 60e3);
+    setInterval(() => {
+      collect().catch((e) => log(`[${tr({ en: 'collect', it: 'raccolta' })}] ${e.message}`));
+      // a right of reply that has expired doesn't wait for the next hour
+      spotlight(true);
+    }, config.collectEveryMinutes * 60e3);
     backfill(config.demo ? 12 : config.backfillHours)
       .then(() => (config.demo ? printNow() : null))
       .then(() => (config.demo ? printEveningFor(dayKey(Date.now())) : eveningIfDue()))
+      .then(() => spotlight())
       .catch((e) => log(`[${tr({ en: 'backfill', it: 'arretrati' })}] ${e.message}`));
   }
 
-  return { collect, printNow, printHour, printEveningFor, backfill, start, state };
+  return { collect, printNow, printHour, printEveningFor, backfill, start, state, spotlight };
 }

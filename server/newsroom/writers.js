@@ -13,6 +13,7 @@ const ROSTER = {
     tech: { house: 'tech', name: 'Walt Brenner', role: 'technology correspondent', style: 'Precise, a little dry, fond of the right word for a command; explains what was being built without lecturing. Respects working code.' },
     local: { house: 'daily', name: 'Frank Doyle', role: 'city desk', style: 'The old local reporter: mail, folders and downloads are his neighbourhood. Plain words, concrete details, a wry closing line.' },
     culture: { house: 'magazine', name: 'Julian Ashe', role: 'critic', style: 'Cultured without showing off; treats a podcast episode or an underlined passage as worth a real sentence. Measured, elegant, never gushing.' },
+    spotlight: { house: 'explainer', name: 'Ruth Calder', role: 'Spotlight editor', style: 'Patient and exact; builds a case exhibit by exhibit, never claims more than the evidence shows, and ends by telling the reader what it means for them. Warm, not preachy.' },
     columnist: { house: 'essay', name: 'Margaret Holt', role: 'columnist', style: 'Sharp, ironic, economical: finds the thread that ties the hour together and says it in two lines. Signs the Brief and the evening editorial.' },
   },
   it: {
@@ -20,16 +21,18 @@ const ROSTER = {
     tech: { house: 'tech', name: 'Giulio Ferraris', role: 'cronista tecnico', style: 'Preciso, un po\' asciutto, ama la parola giusta per un comando; spiega cosa si stava costruendo senza fare lezioni. Rispetta il codice che funziona.' },
     local: { house: 'daily', name: 'Tonino Brera', role: 'cronaca locale', style: 'Il vecchio cronista di quartiere: posta, cartelle e download sono la sua zona. Parole semplici, dettagli concreti, una chiusa sorniona.' },
     culture: { house: 'magazine', name: 'Ottavio Lancia', role: 'critico', style: 'Colto senza esibirsi; tratta un episodio di podcast o un passo sottolineato come degni di una frase vera. Misurato, elegante, mai entusiasta a vuoto.' },
+    spotlight: { house: 'explainer', name: 'Marta Vescovi', role: 'caporedattrice di Spotlight', style: 'Paziente ed esatta; costruisce il caso reperto dopo reperto, non afferma mai più di quanto le prove mostrino, e chiude dicendo al lettore cosa significa per lui. Calda, mai predicatoria.' },
     columnist: { house: 'essay', name: 'Bice Cantoni', role: 'corsivista', style: 'Tagliente, ironica, essenziale: trova il filo che lega l\'ora e lo dice in due righe. Firma il Punto e l\'editoriale della sera.' },
   },
 };
 
-export const WRITER_IDS = ['web', 'tech', 'local', 'culture', 'columnist'];
+export const WRITER_IDS = ['web', 'tech', 'local', 'culture', 'columnist', 'spotlight'];
 
 export const DEFAULT_DESKS = {
   safari: 'web', terminal: 'tech', files: 'local', mail: 'local',
   notes: 'culture', journal: 'columnist', podcasts: 'culture', books: 'culture',
   brief: 'columnist', // the Brief and the evening editorial
+  spotlight: 'spotlight', // the Spotlight desk's scoops
 };
 
 /** The staff, with the editor's edits (names, roles, styles) on top of the defaults. */

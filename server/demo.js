@@ -189,7 +189,77 @@ export function demoEvents(hours = 9, now = Date.now()) {
   return events;
 }
 
+// Two weeks of history for the Spotlight desk: a background of ordinary days, and five stories
+// for its detectors to find (a trip being planned, an obsession, a purchase, a project gone
+// quiet, mornings that start later).
+const STORIES = {
+  en: {
+    city: 'Lisbon',
+    searches: ['flights Boston Lisbon', 'Lisbon what to see in 3 days', 'tram 28 Lisbon times'],
+    page: 'Lisbon travel guide – Lonely Planet',
+    mail: ['TAP Air Portugal', 'booking@tap.example', 'Booking confirmed: Boston → Lisbon'],
+    file: 'Lisbon_guide.pdf',
+    note: 'Lisbon — things to see',
+    chess: ['Play Chess Online for Free – Chess.com', 'Puzzles – Chess.com', 'Chess.com – Home'],
+    buy: ['kobo vs kindle', 'kobo libra colour price', 'best ereader 2026', 'kobo clara review'],
+    shop: 'Kobo Libra Colour : Amazon.com',
+  },
+  it: {
+    city: 'Lisbona',
+    searches: ['voli Milano Lisbona', 'Lisbona cosa vedere in 3 giorni', 'tram 28 Lisbona orari'],
+    page: 'Lisbona: guida di viaggio – Lonely Planet',
+    mail: ['TAP Air Portugal', 'booking@tap.example', 'Prenotazione confermata: Milano → Lisbona'],
+    file: 'Guida_Lisbona.pdf',
+    note: 'Lisbona — cose da vedere',
+    chess: ['Gioca a scacchi online gratis – Chess.com', 'Problemi – Chess.com', 'Chess.com – Home'],
+    buy: ['kobo vs kindle', 'kobo libra colour prezzo', 'migliore ereader 2026', 'kobo clara recensione'],
+    shop: 'Kobo Libra Colour : Amazon.it',
+  },
+};
+
+export function demoHistory(now = Date.now()) {
+  seed = 7;
+  const { SITES } = L({ en: DATA_EN, it: DATA_IT });
+  const S = L(STORIES);
+  const events = [];
+  const add = (source, kind, ts, title, detail, meta = {}, url = null) =>
+    events.push({ id: `${source}:hist:${hash(`${ts}:${title}:${events.length}`)}`, source, kind, ts, title, detail, url, meta });
+  const day0 = new Date(now); day0.setHours(0, 0, 0, 0);
+  const at = (daysAgo, h, m = 0) => day0.getTime() - daysAgo * 24 * HOUR + h * HOUR + m * 60e3;
+  const sites = Object.keys(SITES);
+  for (let d = 14; d >= 1; d--) {
+    // an ordinary day: it used to start around 9, lately around 10:30
+    const startH = d >= 4 ? 8.75 + rnd() * 0.5 : 10.3 + rnd() * 0.4;
+    for (let i = 0; i < 26; i++) {
+      const t = at(d, startH + (i / 26) * (19 - startH), Math.floor(rnd() * 20));
+      const site = pick(sites);
+      add('safari', 'visit', t, pick(SITES[site]), null, { host: site }, `https://${site}/`);
+    }
+    // the TurboCode project: every working day until five days ago, then silence
+    if (d >= 5) for (let i = 0; i < 4; i++) add('files', 'changed', at(d, 11 + i * 1.5, 7), ['.js', '.ts', '.json', '.md'][i], 'turbocode', { folder: 'turbocode', dir: 'Work/turbocode/src', project: 'turbocode', ext: ['js', 'ts', 'json', 'md'][i] });
+  }
+  // a trip being planned, across four apps
+  add('safari', 'search', at(2, 21, 10), S.searches[0], 'Google', { host: 'google.com', engine: 'Google' });
+  add('safari', 'search', at(2, 21, 16), S.searches[1], 'Google', { host: 'google.com', engine: 'Google' });
+  add('safari', 'visit', at(2, 21, 18), S.page, null, { host: 'lonelyplanet.com' }, 'https://www.lonelyplanet.com/');
+  add('mail', 'received', at(1, 9, 42), S.mail[2], S.mail[0], { from: S.mail[1], fromName: S.mail[0], unread: false, mailbox: 'INBOX' });
+  add('files', 'downloaded', at(1, 12, 5), S.file, 'Downloads', { folder: 'Downloads', dir: 'Downloads', ext: 'pdf', site: 'tap.example' });
+  add('notes', 'created', at(1, 22, 30), S.note, 'Notes', { folder: 'Notes', snippet: null });
+  add('safari', 'search', now - 2 * HOUR, S.searches[2], 'Google', { host: 'google.com', engine: 'Google' });
+  // chess.com: once in the fortnight before, then every evening
+  add('safari', 'visit', at(9, 18, 20), S.chess[2], null, { host: 'chess.com' }, 'https://www.chess.com/');
+  for (const [d, h, n] of [[3, 21, 3], [2, 13, 2], [2, 21.5, 4], [1, 18.8, 2], [1, 22.2, 3]]) {
+    for (let i = 0; i < n; i++) add('safari', 'visit', at(d, h, i * 2), S.chess[i % 3], null, { host: 'chess.com' }, 'https://www.chess.com/');
+  }
+  // an e-reader being chosen
+  add('safari', 'search', at(2, 12, 40), S.buy[0], 'Google', { host: 'google.com', engine: 'Google' });
+  add('safari', 'search', at(1, 13, 5), S.buy[1], 'Google', { host: 'google.com', engine: 'Google' });
+  add('safari', 'search', at(1, 13, 9), S.buy[2], 'Google', { host: 'google.com', engine: 'Google' });
+  add('safari', 'search', now - 3 * HOUR, S.buy[3], 'Google', { host: 'google.com', engine: 'Google' });
+  add('safari', 'visit', now - 3 * HOUR + 4 * 60e3, S.shop, null, { host: 'amazon.com' }, 'https://www.amazon.com/');
+  return events;
+}
+
 export function seedDemo(store) {
-  const events = demoEvents();
-  return store.insertEvents(events);
+  return store.insertEvents([...demoHistory(), ...demoEvents()]);
 }

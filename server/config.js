@@ -53,6 +53,11 @@ const DEFAULTS = {
     enabled: true,       // macOS notification when a new edition is out
     sound: false,
   },
+  spotlight: {
+    enabled: true,       // the Spotlight desk: leads followed across days, scoops when they hold up
+    replyMinutes: 60,    // the owner's right of reply before a scoop goes to press (0 = no wait)
+    goal: 70,            // how strong a lead must be (0-100) before the desk weighs it
+  },
 };
 
 function merge(base, over) {

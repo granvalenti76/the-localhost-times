@@ -171,6 +171,20 @@ Every day:
 - **The evening edition** (at 21:00): an editorial about the day, the day's top stories, hour by hour, and the market close.
 - **Letters to the editor.** Write to the paper; the managing editor answers in the next edition, with your data at hand.
 
+**Spotlight**, the investigations desk, works on its own clock. Every hour its detectors look at the last three weeks of signals for something you may not have noticed:
+
+- **Crossed traces:** one rare subject in different apps within a few days (a city searched, a booking by mail, a PDF downloaded, a note).
+- **A recurring presence:** a site, show, book or project coming back far more often than usual.
+- **A decision in the making:** searches with comparisons, prices and reviews, then the shops.
+- **A disappearance:** something that was part of every day and has gone quiet.
+- **A change of habits:** the day starting later, the evenings getting longer, nights, an app taking over.
+
+Each finding becomes a **lead**, which gathers exhibits as they come in and grows stronger with more evidence, more days and more apps. Leads without new evidence go cold. When one is strong enough and has been followed for a few hours, the Spotlight editor (your model) decides whether it's a story. If it is, you get a **right of reply** (a notification, then an hour to comment, say nothing, or stop it); then a long piece is written (800–1,200 words: the finding, the exhibits in order, the numbers against the usual, what we don't know, what it says) and comes out under a black band at the top of the front page, with its file of exhibits. There is no schedule: most leads never make it. You can follow the board, and push or stop any lead, in **Newsroom → Spotlight**.
+
+Subjects touching health, money troubles, love, faith, politics, the law or a job search are never turned into leads, and the editor drops any that slip through.
+
+![Spotlight on the front page](docs/screenshots/spotlight.png)
+
 In **the Archive**:
 
 - **Search** everything the paper printed and every signal it read: articles, editorials, pages, mail subjects, commands, notes, folders. Words match by their beginning; "quotes" match a phrase. A small chart shows when the matches happened.
@@ -204,6 +218,7 @@ The paper is written in **English or Italian** (`"language": "en"` or `"it"`).
 - **Read-only.** App databases are read from a temporary **copy**, never opened directly, never modified.
 - **What leaves the machine:** only the stories' facts, sent to the model address you configured. If the model runs on this Mac, nothing leaves at all. Photos are fetched from the public web pages you visited, unless you turn them off in the Newsroom.
 - **What is never read:** the body of your emails (unless you enable `mailIncludeSummary`), the text of Journal entries (unless `journalIncludeText`), locked notes, iCloud history from other devices, the contents of your files. File names stay out too unless you set `files.includeNames`; build folders (`node_modules`, `dist`, `.git`…) and hidden files are ignored.
+- **Spotlight** connects signals the paper already has, and only on your Mac. It never opens a lead on delicate subjects (health, money troubles, love, faith, politics, the law, a job search), asks for your comment before every scoop, and lets you stop any lead. Turn it off with `"spotlight": { "enabled": false }`.
 - **Filters:** `privacy.blockedDomains`, `blockedMailSenders`, `blockedNoteFolders` and `files.exclude` in `config.json` keep anything you choose out of the paper. Terminal commands are scanned for tokens, keys and passwords, which are redacted.
 - **Other websites can't reach it.** Requests addressed to any host other than this Mac are refused, and data-changing API calls need a header that a page on another site can't send.
 - **No telemetry, no accounts, no cloud.**
@@ -233,6 +248,9 @@ The paper is written in **English or Italian** (`"language": "en"` or `"it"`).
 | `edition.maxMergeHours` | `3` | …up to this many hours |
 | `edition.eveningHour` | `21` | When the evening edition comes out (`null` = never) |
 | `notifications.enabled` | `true` | macOS notification for every edition |
+| `spotlight.enabled` | `true` | The Spotlight investigations desk |
+| `spotlight.replyMinutes` | `60` | Your right of reply before a scoop is printed (`0` = no wait) |
+| `spotlight.goal` | `70` | How strong (0–100) a lead must be before the editor weighs it; higher means fewer, surer scoops |
 | `radio.enabled` | `true` | Record the radio bulletin of every edition |
 | `radio.voice` | `""` | A `say` voice (list them with `say -v '?'`); empty = one that speaks the paper's language |
 | `radio.rate` | `180` | Words per minute |
@@ -300,6 +318,7 @@ app databases (read from a copy) ─► collected every 5 min ─► data/*.sqli
 | `server/newsroom/archive.js` | Search (SQLite FTS5) and "Ask the archive" |
 | `server/newsroom/investigations.js` | Investigations: gathering, numbers, timeline, writing |
 | `server/newsroom/factcheck.js` | The fact check and the figures check |
+| `server/newsroom/spotlight/` | Spotlight: the detectors, the leads' lifecycle, the writing |
 | `server/service.js` | The macOS background service |
 | `web/` | The paper: front page, articles, sections, newsroom |
 | `test/` | Tests (`npm test`) |

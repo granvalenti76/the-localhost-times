@@ -26,6 +26,7 @@ import { rssFeed } from './feed.js';
 import { search, ask } from './newsroom/archive.js';
 import { preview, steer } from './newsroom/next.js';
 import { createInvestigation, suggestions, interruptedInvestigations } from './newsroom/investigations.js';
+import { board, leadAction, teaser, recoverLeads } from './newsroom/spotlight/desk.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
 
@@ -51,6 +52,7 @@ if (process.env.LOCALHOST_TIMES_SERVICE === '1') {
 }
 const store = new Store(config.dbFile);
 interruptedInvestigations(store);
+recoverLeads(store);
 if (store.needsReindex()) {
   // first start after the archive was added: index what is already there
   store.reindex();
@@ -197,6 +199,11 @@ app.get('/api/menubar', (req, res) => {
     edition: store.latestEdition(),
     next: preview(store, config, { lastCollect: newsroom.state.lastCollect, nextPress: newsroom.state.nextEdition }),
     evening: evening?.status === 'published' ? evening : null,
+    spotlight: config.spotlight?.enabled === false ? null : {
+      waiting: store.leads({ status: ['reply'] }),
+      open: store.leads({ status: ['open', 'review', 'writing'] }).length,
+      scoop: store.scoops({ after: new Date().setHours(0, 0, 0, 0), limit: 1 })[0] || null,
+    },
     base: `http://localhost:${config.port}`,
     max: Math.min(80, Number(req.query.max) || 42),
   }));
@@ -239,6 +246,22 @@ app.delete('/api/investigations/:id', (req, res) => {
   store.deleteInvestigation(Number(req.params.id));
   res.status(204).end();
 });
+
+// ── Spotlight ──
+app.get('/api/spotlight', (req, res) => res.json(store.scoops({ before: num(req.query.before) || null, after: num(req.query.after) || null, limit: Math.min(100, num(req.query.limit) || 30) }).map(teaser)));
+app.get('/api/spotlight/desk', (req, res) => res.json(board(store, config)));
+app.get('/api/spotlight/:id', (req, res) => {
+  const s = store.getScoop(Number(req.params.id));
+  if (!s) return res.status(404).json({ error: tr({ en: 'Scoop not found', it: 'Esclusiva non trovata' }) });
+  res.json(s);
+});
+// kill, push, reply, publish: the desk acts on the next round (right away for replies)
+app.post('/api/spotlight/leads/:id', wrap((req, res) => {
+  const lead = leadAction(store, req.params.id, req.body || {});
+  if (req.body?.action === 'reply' || req.body?.action === 'publish') newsroom.spotlight(true);
+  if (req.body?.action === 'push') newsroom.spotlight(false);
+  res.json(board(store, config));
+}));
 
 // ── Feeds ──
 app.get(['/feed.xml', '/feed/:section.xml'], (req, res) => {

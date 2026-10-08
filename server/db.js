@@ -78,6 +78,17 @@ export class Store {
         status TEXT NOT NULL DEFAULT 'published',
         payload TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS leads (
+        id TEXT PRIMARY KEY,
+        status TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        payload TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS scoops (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        published_at INTEGER NOT NULL,
+        payload TEXT NOT NULL
+      );
     `);
     // migration: edition status (draft / published)
     const cols = this.db.prepare(`PRAGMA table_info(editions)`).all().map((r) => r.name);
@@ -88,7 +99,7 @@ export class Store {
 
   /** Clear events, cursors and editions: the next collection rereads the last 24 hours. */
   reset() {
-    this.db.exec('DELETE FROM events; DELETE FROM cursors; DELETE FROM editions; DELETE FROM evenings; DELETE FROM threads; DELETE FROM letters; DELETE FROM search;');
+    this.db.exec('DELETE FROM events; DELETE FROM cursors; DELETE FROM editions; DELETE FROM evenings; DELETE FROM threads; DELETE FROM letters; DELETE FROM search; DELETE FROM leads; DELETE FROM scoops;');
   }
 
   insertEvents(events) {
@@ -311,6 +322,51 @@ export class Store {
 
   deleteInvestigation(id) {
     this.db.prepare(`DELETE FROM investigations WHERE id = ?`).run(id);
+  }
+
+  // ── Spotlight: leads being worked on, and the scoops they became ──
+  saveLead(lead) {
+    this.db.prepare(`INSERT INTO leads (id, status, updated_at, payload) VALUES (?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at, payload = excluded.payload`)
+      .run(lead.id, lead.status, lead.updatedAt, JSON.stringify(lead));
+    return lead;
+  }
+
+  getLead(id) {
+    const r = this.db.prepare(`SELECT payload FROM leads WHERE id = ?`).get(id);
+    return r ? JSON.parse(r.payload) : null;
+  }
+
+  leads({ status = null, limit = 200 } = {}) {
+    const rows = status
+      ? this.db.prepare(`SELECT payload FROM leads WHERE status IN (${status.map(() => '?').join(',')}) ORDER BY updated_at DESC LIMIT ?`).all(...status, limit)
+      : this.db.prepare(`SELECT payload FROM leads ORDER BY updated_at DESC LIMIT ?`).all(limit);
+    return rows.map((r) => JSON.parse(r.payload));
+  }
+
+  deleteLeads(before, statuses) {
+    return Number(this.db.prepare(`DELETE FROM leads WHERE updated_at < ? AND status IN (${statuses.map(() => '?').join(',')})`).run(before, ...statuses).changes);
+  }
+
+  saveScoop(s) {
+    if (s.id) {
+      this.db.prepare(`UPDATE scoops SET payload = ? WHERE id = ?`).run(JSON.stringify(s), s.id);
+      return s;
+    }
+    const r = this.db.prepare(`INSERT INTO scoops (published_at, payload) VALUES (?, ?)`).run(s.publishedAt, JSON.stringify(s));
+    const saved = { ...s, id: Number(r.lastInsertRowid) };
+    this.db.prepare(`UPDATE scoops SET payload = ? WHERE id = ?`).run(JSON.stringify(saved), saved.id);
+    return saved;
+  }
+
+  getScoop(id) {
+    const r = this.db.prepare(`SELECT payload FROM scoops WHERE id = ?`).get(id);
+    return r ? JSON.parse(r.payload) : null;
+  }
+
+  scoops({ before = null, after = null, limit = 50 } = {}) {
+    return this.db.prepare(`SELECT payload FROM scoops WHERE published_at < ? AND published_at >= ? ORDER BY published_at DESC LIMIT ?`)
+      .all(before ?? 8.64e15, after ?? 0, limit).map((r) => JSON.parse(r.payload));
   }
 
   getEdition(id) {

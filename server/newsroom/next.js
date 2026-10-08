@@ -185,11 +185,13 @@ export function toolsHelp() {
     en: `- {"tool":"next_edition"}  the next edition before it is printed: signals collected so far, stories forming in page order, minutes left
 - {"tool":"story","id":"<story id>"}  the facts behind a story (of the next edition or of the edition discussed)
 - {"tool":"today"}  the day so far: editions, signals, sites
-- {"tool":"search","query":"words","days":7}  search the archive`,
+- {"tool":"search","query":"words","days":7}  search the archive
+- {"tool":"spotlight"}  the Spotlight desk: the leads its reporters are following, how strong each is, the latest scoops`,
     it: `- {"tool":"next_edition"}  la prossima edizione prima che esca: segnali raccolti finora, storie in formazione in ordine di pagina, minuti mancanti
 - {"tool":"story","id":"<id della storia>"}  i fatti dietro una storia (della prossima edizione o dell'edizione discussa)
 - {"tool":"today"}  la giornata finora: edizioni, segnali, siti
-- {"tool":"search","query":"parole","days":7}  cerca nell'archivio`,
+- {"tool":"search","query":"parole","days":7}  cerca nell'archivio
+- {"tool":"spotlight"}  la squadra Spotlight: le piste che i cronisti seguono, quanto è forte ciascuna, le ultime esclusive`,
   });
 }
 

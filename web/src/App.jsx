@@ -12,6 +12,7 @@ import EveningPage from './components/EveningPage.jsx';
 import LettersPage from './components/Letters.jsx';
 import ArchivePage from './components/ArchivePage.jsx';
 import { InvestigationsPage, InvestigationPage } from './components/Investigations.jsx';
+import { SpotlightList, SpotlightPage } from './components/Spotlight.jsx';
 
 function useHashRoute() {
   const [route, setRoute] = useState(() => parseRoute(location.hash));
@@ -30,7 +31,7 @@ export default function App() {
   const route = useHashRoute();
   const [edition, setEdition] = useState(null);
   const [list, setList] = useState([]);
-  const dayOf = (id) => (id?.startsWith('sera-') ? id.slice(5) : id?.slice(0, 10));
+  const dayOf = (id) => (!id || id === 'spotlight' ? null : id.startsWith('sera-') ? id.slice(5) : id.slice(0, 10));
   const [day, setDay] = useState(() => route.day || route.evening || dayOf(route.edition) || dayKey(Date.now()));
   const [evening, setEvening] = useState(null);
   const [status, setStatus] = useState(null);
@@ -41,7 +42,7 @@ export default function App() {
   // The current edition
   useEffect(() => {
     let alive = true;
-    const page = route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation;
+    const page = route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop;
     if (page) { setLoaded(true); return () => { alive = false; }; }
     const p = route.edition ? api(`/editions/${encodeURIComponent(route.edition)}`) : route.day ? Promise.resolve(null) : api('/editions/latest');
     p.then((e) => {
@@ -53,11 +54,11 @@ export default function App() {
       .catch((err) => alive && (setEdition(null), setError(route.edition ? err.message : null)))
       .finally(() => alive && setLoaded(true));
     return () => { alive = false; };
-  }, [route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation]);
+  }, [route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop]);
 
   useEffect(() => { if (route.day) setDay(route.day); }, [route.day]);
   useEffect(() => { if (route.evening) setDay(route.evening); }, [route.evening]);
-  useEffect(() => { if (route.desk && route.edition) setDay(dayOf(route.edition)); }, [route.desk, route.edition]);
+  useEffect(() => { if (route.desk && dayOf(route.edition)) setDay(dayOf(route.edition)); }, [route.desk, route.edition]);
 
   // The evening edition of the day on screen (if it is out)
   const refreshEvening = useCallback(() => api(`/evening/${day}`).then(setEvening).catch(() => setEvening(null)), [day]);
@@ -104,13 +105,13 @@ export default function App() {
 
   return (
     <div className="paper">
-      <Masthead edition={route.desk || route.evening ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk ? 'newsroom' : route.letters ? 'letters' : route.archive || route.investigations || route.investigation ? 'archive' : route.evening ? 'evening' : route.section} />
-      {!route.desk && !route.letters && !route.archive && !route.investigations && !route.investigation && (
+      <Masthead edition={route.desk || route.evening ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.archive || route.investigations || route.investigation ? 'archive' : route.evening ? 'evening' : route.section} />
+      {!route.desk && !route.letters && !route.archive && !route.investigations && !route.investigation && !route.spotlight && !route.scoop && (
         <EditionBar day={day} list={list} current={route.evening ? evening?.id : edition?.id} onPrint={printNow} printing={printing}
           evening={evening && evening.status !== 'draft' ? evening : null}
           exportable={route.evening ? (evening ? { evening } : null) : edition && !route.article && !route.section && !route.day ? { edition } : null} />
       )}
-      {!route.desk && !route.evening && !route.article && !route.letters && !route.archive && !route.investigations && !route.investigation && evening && evening.status !== 'draft' && edition && edition.id.slice(0, 10) === evening.day && (
+      {!route.desk && !route.evening && !route.article && !route.letters && !route.archive && !route.investigations && !route.investigation && !route.spotlight && !route.scoop && evening && evening.status !== 'draft' && edition && edition.id.slice(0, 10) === evening.day && (
         <div className="evening-banner">
           <span><strong>{tr({ en: 'The evening edition is out.', it: 'È uscita l\'edizione della sera.' })}</strong> {evening.editorial.headline}</span>
           <a href={href.evening(evening.day)}>{tr({ en: 'Read', it: 'Leggi' })} →</a>
@@ -126,6 +127,10 @@ export default function App() {
           <ArchivePage query={route.query} />
         ) : route.investigations ? (
           <InvestigationsPage />
+        ) : route.spotlight ? (
+          <SpotlightList />
+        ) : route.scoop ? (
+          <SpotlightPage id={route.scoop} />
         ) : route.investigation ? (
           <InvestigationPage id={route.investigation} />
         ) : route.evening ? (

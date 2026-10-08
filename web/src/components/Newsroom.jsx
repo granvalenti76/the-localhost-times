@@ -6,6 +6,7 @@ import FactCheck from './FactCheck.jsx';
 import NextEdition from './NextEdition.jsx';
 import { tr } from '../i18n.js';
 import Para from './Para.jsx';
+import { SpotlightDesk } from './Spotlight.jsx';
 
 const T = tr({
   en: {
@@ -158,7 +159,7 @@ function LinePanel({ onSaved }) {
       <fieldset className="field">
         <legend>{T.desksTitle}</legend>
         <div className="desks">
-          {[...SECTIONS.map((s) => ({ k: s.id, name: s.name })), { k: 'brief', name: T.briefDesk }].map(({ k, name }) => (
+          {[...SECTIONS.map((s) => ({ k: s.id, name: s.name })), { k: 'brief', name: T.briefDesk }, { k: 'spotlight', name: 'Spotlight' }].map(({ k, name }) => (
             <label key={k} className="desk-row">
               <span>{name}</span>
               <select value={line.desks?.[k] ?? ''} onChange={(e) => setDesk(k, e.target.value)}>
@@ -338,10 +339,13 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
 
 // ───────────────────────── The desk ─────────────────────────
 
-export default function Newsroom({ editionId, onPublished }) {
+export default function Newsroom({ editionId: requested, onPublished }) {
+  // #/newsroom/spotlight opens the Spotlight board
+  const spotlightTab = requested === 'spotlight';
+  const editionId = spotlightTab ? null : requested;
   const isEvening = !!editionId?.startsWith('sera-');
   const [day, setDay] = useState(() => (editionId ? (isEvening ? editionId.slice(5) : editionId.slice(0, 10)) : dayKey(Date.now())));
-  const [tab, setTab] = useState('meeting');
+  const [tab, setTab] = useState(spotlightTab ? 'spotlight' : 'meeting');
   const [focus, setFocus] = useState(null);
   const [lineKey, setLineKey] = useState(0);
   const [evening, setEvening] = useState(null);
@@ -566,6 +570,7 @@ export default function Newsroom({ editionId, onPublished }) {
             <button role="tab" aria-selected={tab === 'meeting'} className={tab === 'meeting' ? 'on' : ''} onClick={() => setTab('meeting')}>{T.meeting}</button>
             <button role="tab" aria-selected={tab === 'next'} className={tab === 'next' ? 'on' : ''} onClick={() => setTab('next')}>{T.nextTab}</button>
             <button role="tab" aria-selected={tab === 'line'} className={tab === 'line' ? 'on' : ''} onClick={() => setTab('line')}>{T.line}</button>
+            <button role="tab" aria-selected={tab === 'spotlight'} className={`tab-spot ${tab === 'spotlight' ? 'on' : ''}`} onClick={() => setTab('spotlight')}>Spotlight</button>
           </div>
           {tab === 'meeting' ? (
             (isEvening ? evening : ed) ? (
@@ -580,6 +585,8 @@ export default function Newsroom({ editionId, onPublished }) {
             ) : <p className="hint-small">{T.openEdition}</p>
           ) : tab === 'next' ? (
             <NextEdition setError={setError} onPrinted={() => refreshList()} />
+          ) : tab === 'spotlight' ? (
+            <SpotlightDesk setError={setError} />
           ) : (
             <LinePanel key={lineKey} />
           )}

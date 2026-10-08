@@ -6,6 +6,7 @@ import { connectLLM, chat } from './llm.js';
 import { getLine, saveLine, TONES, toneId, isTone } from './line.js';
 import { meetingPrompt } from './prompts.js';
 import { buildStories, factSheet } from './cluster.js';
+import { board } from './spotlight/desk.js';
 import { cleanEvents, DeskError, rewriteArticle, moveArticle, spikeArticle } from './edition.js';
 import { rewriteEditorial } from './evening.js';
 import { hhmm, dayKey } from '../util.js';
@@ -222,6 +223,18 @@ function runTool(call, { store, config, runtime, ctx }) {
       const r = search(store, { q: String(call.query || ''), any: true, from: Date.now() - days * 864e5, limit: 15 });
       if (!r.total) return en ? 'Nothing found.' : 'Nessun risultato.';
       return `${r.total} ${en ? 'matches' : 'risultati'}:\n${r.results.map((x) => `- ${dayKey(x.ts)} ${hhmm(x.ts)} [${x.section || x.kind}] ${x.title}`).join('\n')}`;
+    }
+    case 'spotlight': {
+      const b = board(store, config);
+      const active = b.leads.filter((l) => ['open', 'review', 'reply', 'writing'].includes(l.status));
+      const lines = active.map((l) => `- ${l.subject} [${l.kindName}; ${l.status}; ${en ? 'strength' : 'fiuto'} ${l.score}/${l.goal}; ${l.exhibits} ${en ? 'exhibits' : 'reperti'}, ${l.days} ${en ? 'days' : 'giorni'}] ${l.hypothesis}${l.desk?.missing && l.status === 'open' ? ` ${en ? 'Missing' : 'Manca'}: ${l.desk.missing}` : ''}`);
+      const scoops = b.scoops.map((x) => `- ${dayKey(x.publishedAt)}: ${x.headline}`);
+      return [
+        en ? `SPOTLIGHT: ${active.length} leads under investigation.` : `SPOTLIGHT: ${active.length} piste in indagine.`,
+        ...lines,
+        scoops.length ? (en ? 'LATEST SCOOPS:' : 'ULTIME ESCLUSIVE:') : '',
+        ...scoops,
+      ].filter(Boolean).join('\n');
     }
     default:
       return en ? `Unknown tool “${call.tool}”.` : `Strumento sconosciuto «${call.tool}».`;

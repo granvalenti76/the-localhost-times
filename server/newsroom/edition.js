@@ -12,6 +12,7 @@ import { computeMarket, fallbackMarketComment } from './market.js';
 import { illustrate } from './photos.js';
 import { findSeries, seriesInfo, seriesFacts } from './series.js';
 import { lettersForEdition } from './letters.js';
+import { pendingScoop } from './spotlight/desk.js';
 import { editionId, hhmm, mapLimit, isSelfUrl, hourStart } from '../util.js';
 import { tr } from '../i18n.js';
 
@@ -289,6 +290,7 @@ export async function printEdition({ store, config, start, final = true, force =
     briefs,
     market,
     letters: newLetters,
+    spotlight: existing?.spotlight || pendingScoop(store, id),
     stats,
     sections: SECTION_ORDER.filter((s) => events.some((e) => e.source === s)).map((s) => SECTIONS[s]),
   };

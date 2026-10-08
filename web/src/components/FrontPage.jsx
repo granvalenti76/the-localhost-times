@@ -1,6 +1,7 @@
 import React from 'react';
 import { href, hhmm, SECTIONS, episodeLabel, readingTime } from '../lib.js';
 import Para from './Para.jsx';
+import { SpotlightBand, SpotlightBox } from './Spotlight.jsx';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
 import Market from './Market.jsx';
@@ -75,6 +76,7 @@ export default function FrontPage({ edition }) {
 
   return (
     <div className="front">
+      <SpotlightBand scoop={edition.spotlight} />
       <section className="front-top">
         <div className="front-main">
           {lead && (
@@ -94,7 +96,7 @@ export default function FrontPage({ edition }) {
               ) : (
                 <>
                   <div className={`lead-body ${longLead ? 'two' : ''}`}>
-                    {leadParas.map((p, i) => <p key={i} className={i === 0 && p.length > 160 ? 'dropcap' : ''}>{p}</p>)}
+                    {leadParas.map((p, i) => <Para key={i} a={lead} p={p} className={i === 0 && p.length > 160 ? 'dropcap' : ''} />)}
                   </div>
                   <a className="more" href={link(lead)}>{tr({ en: 'Continue reading', it: 'Continua a leggere' })} →</a>
                 </>
@@ -125,6 +127,7 @@ export default function FrontPage({ edition }) {
             {edition.summaryBy && <p className="punto-by">— {edition.summaryBy.name}</p>}
           </section>
           <FactCheck edition={edition} />
+          <SpotlightBox edition={edition} />
           <InvestigationBox />
           <LettersBox letters={edition.letters} />
           <Market market={edition.market} />

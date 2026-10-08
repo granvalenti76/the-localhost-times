@@ -51,5 +51,10 @@
     "enabled": true,
     "voice": "",
     "rate": 180
+  },
+  "spotlight": {
+    "enabled": true,
+    "replyMinutes": 60,
+    "goal": 70
   }
 }

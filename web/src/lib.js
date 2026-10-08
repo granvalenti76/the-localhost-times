@@ -47,6 +47,7 @@ export function parseRoute(hash) {
   if (p[0] === 'archive' || p[0] === 'archivio') return { archive: true, query: p.slice(1).join('/') };
   if (p[0] === 'investigations' || p[0] === 'inchieste') return { investigations: true };
   if ((p[0] === 'investigation' || p[0] === 'inchiesta') && p[1]) return { investigation: p[1] };
+  if (p[0] === 'spotlight') return p[1] ? { scoop: p[1] } : { spotlight: true };
   if (p[0] === 'e' && p[1]) return { edition: p[1], article: p[2] === 'a' ? p[3] : null };
   if (p[0] === 'd' && p[1]) return { day: p[1], section: p[2] === 's' ? p[3] : null };
   return {};
@@ -63,6 +64,8 @@ export const href = {
   archive: (q) => (q ? `#/archive/${encodeURIComponent(q)}` : '#/archive'),
   investigations: () => '#/investigations',
   investigation: (id) => `#/investigation/${id}`,
+  spotlight: (id) => (id ? `#/spotlight/${id}` : '#/spotlight'),
+  spotlightDesk: () => '#/newsroom/spotlight',
 };
 
 const SECTION_NAMES = {

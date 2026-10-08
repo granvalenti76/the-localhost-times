@@ -22,10 +22,12 @@ const clean = (s, n) => {
 };
 
 /** The menu, in the SwiftBar/xbar text format: first line in the bar, then the dropdown. */
-export function menubarText({ edition, next, base, evening = null, max = 42 }) {
+export function menubarText({ edition, next, base, evening = null, spotlight = null, max = 42 }) {
   const lines = [];
   const lead = edition?.articles?.[0];
-  lines.push(lead ? `🗞 ${clean(lead.headline, max)}` : '🗞 The Localhost Times');
+  const waiting = spotlight?.waiting || [];
+  // a scoop waiting for the owner's comment puts a mark in the bar
+  lines.push(`${waiting.length ? '◉ ' : ''}${lead ? `🗞 ${clean(lead.headline, max)}` : '🗞 The Localhost Times'}`);
   lines.push('---');
   if (edition) {
     lines.push(`${tr({ en: `The ${hhmm(edition.hour ?? edition.start)} edition`, it: `Edizione delle ${hhmm(edition.hour ?? edition.start)}` })} | href=${base}/#/e/${encodeURIComponent(edition.id)}`);
@@ -36,6 +38,9 @@ export function menubarText({ edition, next, base, evening = null, max = 42 }) {
   } else {
     lines.push(tr({ en: 'No edition yet today', it: 'Ancora nessuna edizione oggi' }));
   }
+  if (spotlight?.scoop) lines.push(`${tr({ en: 'Spotlight exclusive', it: 'Esclusiva Spotlight' })}: ${clean(spotlight.scoop.headline, 70)} | href=${base}/#/spotlight/${spotlight.scoop.id}`);
+  for (const l of waiting) lines.push(`◉ ${tr({ en: 'Spotlight asks for your comment', it: 'Spotlight chiede un tuo commento' })}: ${clean(l.desk?.headline || l.subject, 50)} | color=red href=${base}/#/newsroom/spotlight`);
+  if (spotlight?.open) lines.push(`${tr({ en: `Spotlight: ${spotlight.open} lead${spotlight.open === 1 ? '' : 's'} under investigation`, it: `Spotlight: ${spotlight.open} ${spotlight.open === 1 ? 'pista' : 'piste'} in indagine` })} | color=gray href=${base}/#/newsroom/spotlight`);
   if (evening?.editorial) lines.push(`${tr({ en: 'Evening', it: 'Sera' })}: ${clean(evening.editorial.headline, 70)} | href=${base}/#/evening/${evening.day}`);
   lines.push('---');
   if (next) {

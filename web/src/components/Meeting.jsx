@@ -14,8 +14,8 @@ const STARTERS = tr({
 });
 
 const TOOL = tr({
-  en: { next_edition: '⌕ checked the next edition', story: '⌕ read the facts', today: '⌕ checked the day', search: '⌕ searched the archive' },
-  it: { next_edition: '⌕ ha guardato la prossima edizione', story: '⌕ ha letto i fatti', today: '⌕ ha guardato la giornata', search: '⌕ ha cercato in archivio' },
+  en: { next_edition: '⌕ checked the next edition', story: '⌕ read the facts', today: '⌕ checked the day', search: '⌕ searched the archive', spotlight: '⌕ asked Spotlight' },
+  it: { next_edition: '⌕ ha guardato la prossima edizione', story: '⌕ ha letto i fatti', today: '⌕ ha guardato la giornata', search: '⌕ ha cercato in archivio', spotlight: '⌕ ha sentito Spotlight' },
 });
 
 /**
