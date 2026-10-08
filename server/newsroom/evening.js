@@ -7,11 +7,12 @@ import { connectLLM, chat, parseJson } from './llm.js';
 import { getLine } from './line.js';
 import { eveningPrompt } from './prompts.js';
 import { fallbackEditorial } from './fallback.js';
-import { cleanEvents, DeskError } from './edition.js';
+import { cleanEvents, DeskError, applyCartoon } from './edition.js';
 import { siteOf } from './cluster.js';
 import { ticker } from './market.js';
 import { SECTION_ORDER } from './sections.js';
 import { dayRange } from '../util.js';
+import { autoScene, validScene } from './scenes.js';
 
 const HOUR = 3600e3;
 const cleanQuote = (s) => String(s).trim().replace(/^[«"“']+|[»"”']+$/g, '').trim();
@@ -123,6 +124,7 @@ export async function printEvening({ store, config, day, until = Date.now(), log
           oneliner: String(j.oneliner || '').trim(),
           body: j.editorial.map((p) => String(p).trim()).filter(Boolean),
           cartoon: j.cartoon ? cleanQuote(j.cartoon).slice(0, 160) : null,
+          scene: validScene(j.scene),
           market: j.market ? String(j.market).trim() : null,
           writer: llm.model,
         };
@@ -147,7 +149,9 @@ export async function printEvening({ store, config, day, until = Date.now(), log
     writer: written ? llm.model : 'tipografia',
     tone: line.tone,
     editorial: { headline: ed.headline, oneliner: ed.oneliner, body: ed.body },
-    cartoon: { caption: written?.cartoon || fb.cartoon, scene: 'desk' },
+    cartoon: written?.cartoon
+      ? { caption: written.cartoon, scene: written.scene || autoScene(top.map((t) => ({ ...t, id: t.articleId })), stats), by: 'redattore' }
+      : { caption: fb.cartoon, scene: 'newspaper', by: 'tipografia' },
     top,
     timeline,
     stats,
@@ -179,8 +183,17 @@ export async function rewriteEditorial(store, config, day, instruction, log = co
     oneliner: String(j.oneliner || ev.editorial.oneliner || '').trim(),
     body: j.editorial.map((p) => String(p).trim()).filter(Boolean),
   };
-  if (j.cartoon) ev.cartoon = { ...ev.cartoon, caption: cleanQuote(j.cartoon).slice(0, 160) };
+  if (j.cartoon) ev.cartoon = { ...ev.cartoon, caption: cleanQuote(j.cartoon).slice(0, 160), scene: validScene(j.scene) || ev.cartoon?.scene || 'newspaper', by: 'redattore' };
   ev.writer = llm.model;
+  ev.edited = true;
+  store.saveEvening(ev);
+  return ev;
+}
+
+export function editEveningCartoon(store, day, patch) {
+  const ev = store.getEvening(day);
+  if (!ev) throw new DeskError('Edizione della sera non trovata', 404);
+  ev.cartoon = applyCartoon(ev.cartoon, patch);
   ev.edited = true;
   store.saveEvening(ev);
   return ev;

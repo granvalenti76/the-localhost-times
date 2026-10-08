@@ -1,3 +1,4 @@
+import { sceneMenu } from './scenes.js';
 import { linePrompt, LENGTHS } from './line.js';
 
 export const SYSTEM = `Sei un redattore del «The Localhost Times», un quotidiano che racconta ciò che è successo su un MacBook nell'ultima ora. Lo stile è quello di un buon quotidiano: asciutto, preciso, con un'ironia leggera e di sottrazione. Mai enfatico.
@@ -89,8 +90,10 @@ export function summaryPrompt(articles, total, hourLabel, line) {
       content: `Sei il direttore del «The Localhost Times», il quotidiano che racconta l'ora appena trascorsa su un MacBook. Scrivi due cose:
 1. «summary»: il Punto di prima pagina. Due frasi, massimo 45 parole, che legano i fatti dell'ora con un tocco di ironia asciutta. Niente enfasi, niente aggettivi gonfi, niente elenchi di sezioni.
 2. «cartoon»: la battuta della vignetta dell'ora, come nelle vignette del New Yorker. Una sola frase breve (massimo 14 parole), detta dal proprietario del Mac a qualcuno fuori scena. Understatement, assurdo quotidiano, ispirata a un fatto dell'ora. Senza virgolette.
+3. «scene»: il disegno sopra la battuta, scelto da questo catalogo (scrivi solo l'id). Scegli la scena che fa funzionare la battuta, non per forza quella della sezione d'apertura:
+${sceneMenu()}
 Usa solo i titoli forniti.${line ? '\n' + linePrompt(line) : ''}
-Rispondi SOLO con JSON: {"summary": "...", "cartoon": "..."}`,
+Rispondi SOLO con JSON: {"summary": "...", "cartoon": "...", "scene": "id"}`,
     },
     { role: 'user', content: `Edizione delle ${hourLabel}, ${total} segnali.\nTitoli:\n${lines}` },
   ];
@@ -128,8 +131,11 @@ Rispondi SOLO con JSON:
  "oneliner": "la giornata in una riga, massimo 16 parole",
  "editorial": ["paragrafo", "paragrafo", "paragrafo"],
  "cartoon": "battuta della vignetta del giorno, detta dal proprietario, stile New Yorker, massimo 14 parole, senza virgolette",
+ "scene": "id del disegno della vignetta, dal catalogo qui sotto",
  "market": "commento di chiusura della Borsa dei siti, gergo finanziario ironico, massimo 30 parole"}
-L'editoriale ha 3 paragrafi, 160-230 parole in tutto.`,
+L'editoriale ha 3 paragrafi, 160-230 parole in tutto.
+Catalogo dei disegni per la vignetta (scegli quello che fa funzionare la battuta):
+${sceneMenu()}`,
     },
     {
       role: 'user',

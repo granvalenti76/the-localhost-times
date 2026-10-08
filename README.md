@@ -69,9 +69,12 @@ fonti (SQLite delle app) ──► raccolta ogni 5 min ──► data/dailymac.s
 - `server/newsroom/cluster.js` — dagli eventi alle storie (per sito, thread, nota, libro…)
 - `server/newsroom/prompts.js` — il "manuale di stile" del redattore
 - `server/newsroom/fallback.js` — la tipografia automatica
+- `server/newsroom/scenes.js` — il catalogo delle vignette (i disegni sono in `web/src/components/Cartoon.jsx`)
 - `web/` — la prima pagina, gli articoli, le sezioni, la linea del tempo delle edizioni
 
 Le ore tranquille (meno di `minEvents` segnali) confluiscono nell'edizione successiva, fino a tre ore. Alle 21 esce l'**edizione della sera**: editoriale, notizie del giorno, ora per ora, Borsa di chiusura. In **Redazione** puoi tenere la **riunione** con il caporedattore (il modello): discuti un'edizione o un articolo, lui propone azioni e tu le applichi con un clic.
+
+Ogni edizione ha la sua **vignetta**: il redattore sceglie uno dei 18 disegni del catalogo insieme alla battuta (a modello spento li sceglie la tipografia, dalla notizia d'apertura e dall'ora). In Redazione puoi cambiare disegno e battuta a mano.
 
 All'avvio recupera solo l'ultima edizione persa (`backfillHours` in config.json per cambiarlo). Il pulsante **Stampa ora**
 stampa subito l'edizione dell'ora in corso, che verrà ristampata in versione definitiva allo scoccare dell'ora.

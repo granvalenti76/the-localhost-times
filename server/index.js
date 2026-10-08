@@ -12,8 +12,10 @@ import { dayKey } from './util.js';
 import { getLine, saveLine, TONES, LENGTHS, WEIGHTS } from './newsroom/line.js';
 import {
   DeskError, editArticle, spikeArticle, restoreArticle, moveArticle, publishEdition, rewriteArticle, rewriteSummary,
+  editCartoon,
 } from './newsroom/edition.js';
-import { publishEvening } from './newsroom/evening.js';
+import { publishEvening, editEveningCartoon } from './newsroom/evening.js';
+import { SCENES } from './newsroom/scenes.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
 
@@ -94,6 +96,8 @@ app.post(`${A}/move`, wrap((req, res) => res.json(moveArticle(store, req.params.
 app.post(`${A}/rewrite`, wrap(async (req, res) =>
   res.json(await rewriteArticle(store, config, req.params.id, req.params.aid, String(req.body?.instruction || '').slice(0, 300), log))));
 app.post('/api/editions/:id/summary', wrap(async (req, res) => res.json(await rewriteSummary(store, config, req.params.id, log))));
+app.patch('/api/editions/:id/cartoon', wrap((req, res) => res.json(editCartoon(store, req.params.id, req.body || {}))));
+app.get('/api/scenes', (req, res) => res.json(Object.entries(SCENES).map(([id, s]) => ({ id, ...s }))));
 app.post('/api/editions/:id/publish', wrap((req, res) => res.json(publishEdition(store, req.params.id))));
 app.post('/api/editions/:id/reprint', wrap(async (req, res) => {
   const ed = store.getEdition(req.params.id);
@@ -112,6 +116,7 @@ app.post('/api/evening/:day/print', wrap(async (req, res) => {
   if (!ev) return res.status(409).json({ error: 'Nessuna edizione oraria da riassumere in questo giorno.' });
   res.json(ev);
 }));
+app.patch('/api/evening/:day/cartoon', wrap((req, res) => res.json(editEveningCartoon(store, req.params.day, req.body || {}))));
 app.post('/api/evening/:day/publish', wrap((req, res) => res.json(publishEvening(store, req.params.day))));
 
 // ── Lettere al direttore ──

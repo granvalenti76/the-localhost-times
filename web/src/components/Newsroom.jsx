@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, href, hhmm, dayKey, longDate, SECTIONS, writerLabel, edHour, edSince } from '../lib.js';
 import Meeting from './Meeting.jsx';
+import DeskCartoon from './DeskCartoon.jsx';
 
 const QUICK = ['Più corto', 'Più ironico', 'Più serio', 'Titolo migliore', 'Solo i fatti'];
 const SIZE_LABEL = { apertura: 'Apertura', articolo: 'Articolo', breve: 'Breve' };
@@ -375,8 +376,8 @@ export default function Newsroom({ editionId, onPublished }) {
                 <h3 className="hl-lg">{evening.editorial.headline}</h3>
                 {evening.editorial.oneliner && <p className="dek">{evening.editorial.oneliner}</p>}
                 <div className="draft-text">{evening.editorial.body.map((p, k) => <p key={k}>{p}</p>)}</div>
-                <p className="desk-cartoon">Vignetta: «{evening.cartoon?.caption}»</p>
               </article>
+              <DeskCartoon cartoon={evening.cartoon} endpoint={`/evening/${day}/cartoon`} onChange={setEvening} setError={setError} />
               <section className="desk-top">
                 <span className="lbl">Le notizie del giorno</span>
                 <ol>
@@ -419,6 +420,7 @@ export default function Newsroom({ editionId, onPublished }) {
                 <span className="lbl">Il punto</span>
                 <p>{ed.summary}</p>
               </div>
+              <DeskCartoon cartoon={ed.cartoon} endpoint={`/editions/${encodeURIComponent(ed.id)}/cartoon`} onChange={update} setError={setError} />
 
               <div className="drafts">
                 {ed.articles.map((a, i) => (

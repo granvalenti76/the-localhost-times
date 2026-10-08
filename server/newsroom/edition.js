@@ -1,6 +1,7 @@
 import { buildStories, factSheet } from './cluster.js';
 import { SECTIONS, SECTION_ORDER } from './sections.js';
-import { fallbackArticle, fallbackBrief, fallbackSummary, fallbackCartoon } from './fallback.js';
+import { fallbackArticle, fallbackBrief, fallbackSummary } from './fallback.js';
+import { autoScene, validScene, sceneCaption } from './scenes.js';
 import { connectLLM, chat, parseJson } from './llm.js';
 import { articlePrompt, rewritePrompt, summaryPrompt, marketPrompt, sizeOf } from './prompts.js';
 import { getLine } from './line.js';
@@ -108,36 +109,30 @@ function weightedStories(events, line) {
 
 const cleanQuote = (s) => String(s).trim().replace(/^[«"“']+|[»"”']+$/g, '').trim();
 
-/** Il Punto di prima pagina e la battuta della vignetta. */
+/** Il Punto di prima pagina e la vignetta: battuta e disegno, scelti insieme. */
 async function writeSummary(articles, total, ctx, stats) {
-  const { llm, config, hourLabel, log, line } = ctx;
+  const { llm, config, hourLabel, log, line, hour } = ctx;
   let summary = null;
-  let cartoon = null;
+  let caption = null;
+  let scene = null;
   if (llm && articles.some((a) => a.writer !== 'tipografia')) {
     try {
       const j = parseJson(await chat(llm, config, summaryPrompt(articles, total, hourLabel, line), 1800));
       if (typeof j.summary === 'string' && j.summary.trim()) summary = j.summary.trim();
-      if (typeof j.cartoon === 'string' && j.cartoon.trim()) cartoon = cleanQuote(j.cartoon).slice(0, 160);
+      if (typeof j.cartoon === 'string' && j.cartoon.trim()) caption = cleanQuote(j.cartoon).slice(0, 160);
+      scene = validScene(j.scene);
+      if (j.scene && !scene) log(`[redazione] vignetta: scena «${j.scene}» non in catalogo, decide la tipografia`);
     } catch (e) {
       log(`[redazione] punto di prima pagina: ${e.message}`);
     }
   }
+  // senza battuta del redattore, disegno e battuta li sceglie la tipografia (coerenti tra loro)
+  if (!caption) scene = null;
+  scene ||= autoScene(articles, stats, { hour });
   return {
     summary: summary || fallbackSummary(articles, total),
-    cartoon: { caption: cartoon || fallbackCartoon(articles, stats), scene: sceneFor(articles[0]) },
-    // nota: la battuta di riserva segue la stessa notizia d'apertura del disegno
+    cartoon: { caption: caption || sceneCaption(scene, `${articles[0]?.id}${stats?.total || 0}`), scene, by: caption ? 'redattore' : 'tipografia' },
   };
-}
-
-// Il disegno della vignetta: scelto in base alla notizia d'apertura
-function sceneFor(lead) {
-  if (!lead) return 'desk';
-  if (lead.source === 'terminal') return 'terminal';
-  if (lead.source === 'mail') return 'mail';
-  if (lead.source === 'safari') return lead.kind === 'searches' ? 'question' : 'browse';
-  if (lead.source === 'podcasts') return 'listen';
-  if (lead.source === 'books' || lead.source === 'journal' || lead.source === 'notes') return 'read';
-  return 'desk';
 }
 
 async function writeMarketComment(market, ctx) {
@@ -200,7 +195,7 @@ export async function printEdition({ store, config, start, final = true, force =
   const hourLabel = windowStart < hour ? `${hhmm(windowStart)}–${hhmm(end)}` : hhmm(hour);
 
   const llm = await connectLLM(config);
-  const ctx = { llm, config, hourLabel, log, line, store };
+  const ctx = { llm, config, hourLabel, log, line, store, hour: windowStart };
   log(`[redazione] edizione ${id}${windowStart < hour ? ` (dalle ${hhmm(windowStart)})` : ''}: ${events.length} eventi, ${stories.length} storie, redattore ${llm ? llm.model : 'offline → tipografia'}, tono ${line.tone}`);
 
   const articles = await mapLimit(main, llm ? config.llm.concurrency : 8, (s, i) => writeArticle(s, i, ctx));
@@ -292,6 +287,29 @@ export function editArticle(store, id, aid, patch) {
   return touch(store, ed);
 }
 
+/** Il direttore cambia il disegno o la battuta della vignetta. */
+export function editCartoon(store, id, patch = {}) {
+  const ed = load(store, id);
+  ed.cartoon = applyCartoon(ed.cartoon, patch);
+  return touch(store, ed);
+}
+
+export function applyCartoon(cartoon, patch) {
+  const next = { ...(cartoon || { caption: '', scene: 'desk' }) };
+  if (patch.scene != null) {
+    const scene = validScene(patch.scene);
+    if (!scene) throw new DeskError('Disegno non in catalogo', 400);
+    next.scene = scene;
+  }
+  if (typeof patch.caption === 'string') {
+    const c = cleanQuote(patch.caption).slice(0, 160);
+    if (!c) throw new DeskError('La vignetta ha bisogno di una battuta', 400);
+    next.caption = c;
+  }
+  next.by = 'direttore';
+  return next;
+}
+
 export function spikeArticle(store, id, aid) {
   const ed = load(store, id);
   const [a] = ed.articles.splice(findArticle(ed, aid), 1);
@@ -357,7 +375,7 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
 export async function rewriteSummary(store, config, id, log = console.log) {
   const ed = load(store, id);
   const llm = await connectLLM(config);
-  const ctx = { llm, config, hourLabel: hhmm(ed.start), log, line: getLine(store), store };
+  const ctx = { llm, config, hourLabel: hhmm(ed.start), log, line: getLine(store), store, hour: ed.start };
   const { summary, cartoon } = await writeSummary(ed.articles, ed.stats.total, ctx, ed.stats);
   ed.summary = summary;
   ed.cartoon = cartoon;

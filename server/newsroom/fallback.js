@@ -276,19 +276,6 @@ export function fallbackSummary(articles, total) {
 }
 
 /** Battute di riserva per la vignetta, quando il redattore è spento. */
-export function fallbackCartoon(articles, stats = {}) {
-  const lead = articles[0];
-  const P = pickFrom(String(lead?.id) + (stats.total || 0));
-  // la battuta segue la notizia d'apertura, come il disegno
-  if (lead?.source === 'mail') return P(['Non sono non letti. Sono un archivio.', 'Rispondo a tutti appena finisco di leggere.', 'La posta? La lascio maturare.']);
-  if (lead?.source === 'terminal') return P(['Non è un errore. È un comando che non conoscevo.', 'Funzionava. Poi ho premuto invio.', 'Il computer dice di no, ma con molta cortesia.']);
-  if (lead?.kind === 'searches') return P(['Non cercavo niente. Volevo solo vedere cosa sa.', 'Ho fatto una domanda, mi ha risposto con altre dieci.']);
-  if (lead?.source === 'safari') return P(['Apro solo una scheda, giuro.', 'Non sto perdendo tempo. Sto raccogliendo notizie.', 'Quel sito lo apro per abitudine, non per piacere.']);
-  if (lead?.source === 'podcasts') return P(['Lo ascolto a velocità doppia, così ho tempo per un altro.', 'Non parlo con nessuno. Ascolto chi parla con tutti.']);
-  if (['books', 'notes', 'journal'].includes(lead?.source)) return P(['Sottolineo, quindi leggo.', 'Scrivo tutto, così non devo ricordare niente.']);
-  return P(['Non stavo lavorando. Stavo facendo notizia.', 'Il giornale dice che oggi ho fatto molto. Sarà vero.']);
-}
-
 /** Editoriale della sera di riserva, quando il redattore è spento. */
 export function fallbackEditorial({ top, timeline, stats, market }) {
   const lead = top[0];

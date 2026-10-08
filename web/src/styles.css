@@ -520,7 +520,14 @@ a.btn-ghost { display: inline-block; }
 .ed-chip-evening { font-style: italic; }
 .desk-editorial { padding: 16px 0; border-bottom: 1px solid var(--rule); }
 .desk-editorial .hl-lg { margin: 8px 0 6px; }
-.desk-cartoon { font: italic 400 14px/1.4 var(--f-display); color: var(--muted); margin: 8px 0 0; }
+.desk-vignetta { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--rule); align-items: start; transition: opacity .2s; }
+.desk-vignetta.busy { opacity: .55; }
+.desk-vignetta .cartoon { margin: 0; }
+.desk-vignetta-form { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.desk-vignetta-form select, .desk-vignetta-form textarea { width: 100%; font: 400 15px/1.4 var(--f-serif); padding: 6px 8px; border: 1px solid var(--rule); background: var(--card, #fff); color: inherit; }
+.desk-vignetta-form textarea { font-family: var(--f-display); font-style: italic; resize: vertical; }
+.desk-vignetta-form .small { font-size: 13px; margin: 0; }
+@media (max-width: 640px) { .desk-vignetta { grid-template-columns: 1fr; } .desk-vignetta-art { max-width: 260px; } }
 .desk-top { padding: 14px 0; }
 .desk-top ol { margin: 8px 0 0; padding-left: 20px; }
 .desk-top li { padding: 4px 0; font-size: 15px; }
