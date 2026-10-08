@@ -32,7 +32,8 @@ const T = tr({
     editionOf: (h) => `The ${h} edition`, writing: 'Writing…', regenBrief: 'Regenerate the Brief',
     reprintTitle: 'Rewrites the whole edition with the current editorial line.', reprintingLong: 'Reprinting… (a few minutes)',
     confirm: 'Sure? You lose the manual edits', reprint: 'Reprint', brief: 'The Brief', spiked: 'Spiked', restore: 'Restore',
-    panels: 'Newsroom panels', meeting: 'Meeting', line: 'Editorial line', nextTab: 'Next edition', openEdition: 'Open an edition to discuss it.',
+    panels: 'Newsroom panels', meeting: 'Meeting', line: 'Editorial line', nextTab: 'Next edition',
+    staffTitle: 'The bylines', desksTitle: 'Who writes what', unsigned: 'Unsigned (the newsroom)', briefDesk: 'The Brief and the editorial', wName: 'Name', wRole: 'Role', wStyle: 'Style (how they write)', staffHint: 'Invented writers: the same model plays a different character for each.', openEdition: 'Open an edition to discuss it.',
   },
   it: {
     quick: ['Più corto', 'Più ironico', 'Più serio', 'Titolo migliore', 'Solo i fatti'],
@@ -59,7 +60,8 @@ const T = tr({
     editionOf: (h) => `Edizione delle ${h}`, writing: 'Scrivo…', regenBrief: 'Rigenera il Punto',
     reprintTitle: 'Riscrive tutta l\'edizione con la linea editoriale attuale.', reprintingLong: 'Ristampo… (qualche minuto)',
     confirm: 'Confermi? Perdi le modifiche a mano', reprint: 'Ristampa', brief: 'Il punto', spiked: 'Cestino', restore: 'Ripristina',
-    panels: 'Pannelli della redazione', meeting: 'Riunione', line: 'Linea editoriale', nextTab: 'Prossima', openEdition: 'Apri un\'edizione per discuterne.',
+    panels: 'Pannelli della redazione', meeting: 'Riunione', line: 'Linea editoriale', nextTab: 'Prossima',
+    staffTitle: 'Le firme', desksTitle: 'Chi scrive cosa', unsigned: 'Senza firma (la redazione)', briefDesk: 'Il Punto e l\'editoriale', wName: 'Nome', wRole: 'Ruolo', wStyle: 'Stile (come scrive)', staffHint: 'Redattori inventati: lo stesso modello interpreta un personaggio diverso per ciascuno.', openEdition: 'Apri un\'edizione per discuterne.',
   },
 });
 // tone names, also for ids stored by older editions
@@ -83,6 +85,10 @@ function LinePanel({ onSaved }) {
   useEffect(() => {
     api('/line').then((r) => { setMeta(r); setLine(r.line); setSaved(JSON.stringify(r.line)); });
   }, []);
+  // the staff as shown: defaults with the editor's edits on top
+  const people = meta?.staff ? Object.values(meta.staff).map((w) => ({ ...w, ...(line?.staff?.[w.id] || {}) })) : [];
+  const setPerson = (id, k, v) => setLine((l) => ({ ...l, staff: { ...l.staff, [id]: { ...(l.staff?.[id] || {}), [k]: v } } }));
+  const setDesk = (k, v) => setLine((l) => ({ ...l, desks: { ...l.desks, [k]: v } }));
 
   if (!line) return <div className="line-panel" />;
   const dirty = JSON.stringify(line) !== saved;
@@ -94,6 +100,7 @@ function LinePanel({ onSaved }) {
     try {
       const r = await api('/line', { method: 'PUT', json: line });
       setLine(r.line);
+      if (r.staff) setMeta((m) => ({ ...m, staff: r.staff }));
       setSaved(JSON.stringify(r.line));
       onSaved?.();
     } finally {
@@ -144,6 +151,34 @@ function LinePanel({ onSaved }) {
             </div>
           ))}
         </div>
+      </fieldset>
+
+      <fieldset className="field">
+        <legend>{T.desksTitle}</legend>
+        <div className="desks">
+          {[...SECTIONS.map((s) => ({ k: s.id, name: s.name })), { k: 'brief', name: T.briefDesk }].map(({ k, name }) => (
+            <label key={k} className="desk-row">
+              <span>{name}</span>
+              <select value={line.desks?.[k] ?? ''} onChange={(e) => setDesk(k, e.target.value)}>
+                <option value="">{T.unsigned}</option>
+                {people.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="field">
+        <legend>{T.staffTitle}</legend>
+        <p className="hint-small">{T.staffHint}</p>
+        {people.map((w) => (
+          <details key={w.id} className="person">
+            <summary><strong>{w.name}</strong> · {w.role}</summary>
+            <label className="lbl">{T.wName}<input value={w.name} onChange={(e) => setPerson(w.id, 'name', e.target.value)} /></label>
+            <label className="lbl">{T.wRole}<input value={w.role} onChange={(e) => setPerson(w.id, 'role', e.target.value)} /></label>
+            <label className="lbl">{T.wStyle}<textarea rows={3} value={w.style} onChange={(e) => setPerson(w.id, 'style', e.target.value)} /></label>
+          </details>
+        ))}
       </fieldset>
 
       <fieldset className="field">
@@ -225,7 +260,7 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
         <div className="draft-tags">
           <span className="sec">{a.section}</span>
           <span className="tag">{T.size[OLD_SIZE[a.size] || a.size] || a.size || '—'}</span>
-          <span className="tag">{writerLabel(a.writer)}</span>
+          <span className="tag">{a.byline ? `${a.byline.name} · ` : ''}{writerLabel(a.writer)}</span>
           {a.rewrittenWith && <span className="tag">{T.rewritten}: «{a.rewrittenWith}»</span>}
           <span className="tag">{a.sources.length} {a.sources.length === 1 ? T.source : T.sources}</span>
           {a.check?.unverified?.length > 0 && (

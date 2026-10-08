@@ -38,7 +38,7 @@ export default function EveningPage({ evening: ev }) {
             <div className="kicker"><span className="sec">{tr({ en: 'Editorial', it: 'L\'editoriale' })}</span><span className="sub"> · {longDate(ev.start)}</span></div>
             <h2 className="hl-editorial">{ed.headline}</h2>
             {ed.oneliner && <p className="dek dek-lg">{ed.oneliner}</p>}
-            <div className="byline">{tr({ en: 'By', it: 'Di' })} <strong>{tr({ en: 'The Editor', it: 'Il Direttore' })}</strong><span> · {writerLabel(ev.writer)}</span><span> · {tr({ en: 'at', it: 'alle' })} {hhmm(ev.createdAt)}</span></div>
+            <div className="byline">{tr({ en: 'By', it: 'Di' })} <strong>{ev.byline ? ev.byline.name : tr({ en: 'The Editor', it: 'Il Direttore' })}</strong>{ev.byline && <span>, {ev.byline.role}</span>}<span> · {writerLabel(ev.writer)}</span><span> · {tr({ en: 'at', it: 'alle' })} {hhmm(ev.createdAt)}</span></div>
             <div className={`lead-body ${long ? 'two' : ''}`}>
               {ed.body.map((p, i) => <p key={i} className={i === 0 && p.length > 120 ? 'dropcap' : ''}>{p}</p>)}
             </div>

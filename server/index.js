@@ -17,6 +17,9 @@ import {
 import { publishEvening, editEveningCartoon } from './newsroom/evening.js';
 import { SCENES } from './newsroom/scenes.js';
 import { createNotifier } from './notify.js';
+import { staff } from './newsroom/writers.js';
+import { menubarText } from './menubar.js';
+import { radioFeed, radioDir } from './newsroom/radio.js';
 import { tr, lang, locale } from './i18n.js';
 import { rssFeed } from './feed.js';
 import { search, ask } from './newsroom/archive.js';
@@ -126,8 +129,8 @@ app.post('/api/print', wrap(async (req, res) => {
 }));
 
 // ── The Newsroom ──
-app.get('/api/line', (req, res) => res.json({ line: getLine(store), tones: TONES, lengths: LENGTHS, weights: WEIGHTS }));
-app.put('/api/line', (req, res) => res.json({ line: saveLine(store, req.body || {}) }));
+app.get('/api/line', (req, res) => { const line = getLine(store); res.json({ line, tones: TONES, lengths: LENGTHS, weights: WEIGHTS, staff: staff(line) }); });
+app.put('/api/line', (req, res) => { const line = saveLine(store, req.body || {}); res.json({ line, staff: staff(line) }); });
 app.get('/api/drafts', (req, res) => res.json(store.drafts()));
 
 const A = '/api/editions/:id/articles/:aid';
@@ -179,8 +182,24 @@ app.post('/api/collect', wrap(async (req, res) => {
   res.json({ added: n });
 }));
 
+// The radio bulletins
+app.use('/radio', express.static(radioDir(config), { maxAge: '1h' }));
+app.get('/radio.xml', (req, res) => res.type('application/rss+xml; charset=utf-8').send(radioFeed(store, { base: `${req.protocol}://${req.get('host')}` })));
+
 // Photos downloaded by the newsroom
 app.use('/media', express.static(path.join(config.dataDir, 'media'), { maxAge: '30d', immutable: true }));
+
+// ── The menu bar (SwiftBar / xbar plugin) ──
+app.get('/api/menubar', (req, res) => {
+  const evening = store.getEvening(dayKey(Date.now()));
+  res.type('text/plain; charset=utf-8').send(menubarText({
+    edition: store.latestEdition(),
+    next: preview(store, config, { lastCollect: newsroom.state.lastCollect, nextPress: newsroom.state.nextEdition }),
+    evening: evening?.status === 'published' ? evening : null,
+    base: `http://localhost:${config.port}`,
+    max: Math.min(80, Number(req.query.max) || 42),
+  }));
+});
 
 // ── The next edition: preview and steering ──
 app.get('/api/next', (req, res) => res.json(preview(store, config, { lastCollect: newsroom.state.lastCollect, nextPress: newsroom.state.nextEdition })));
@@ -238,7 +257,7 @@ if (fs.existsSync(dist)) {
   app.get('/index.html', (req, res) => res.type('html').send(page()));
   app.use(express.static(dist, { index: false }));
   app.use((req, res, next) => {
-    if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/media')) return res.type('html').send(page());
+    if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/media') && !req.path.startsWith('/radio')) return res.type('html').send(page());
     next();
   });
 }

@@ -4,6 +4,7 @@ import { fallbackArticle, fallbackBrief, fallbackSummary } from './fallback.js';
 import { autoScene, validScene, sceneCaption } from './scenes.js';
 import { factCheck, numbersCheck } from './factcheck.js';
 import { getSteer, applySteer, steerLine, clearSteer, carrySteer } from './next.js';
+import { writerFor, columnist, byline } from './writers.js';
 import { connectLLM, chat, parseJson } from './llm.js';
 import { articlePrompt, rewritePrompt, summaryPrompt, marketPrompt, sizeOf } from './prompts.js';
 import { getLine } from './line.js';
@@ -57,12 +58,14 @@ async function writeArticle(story, rank, ctx) {
   const { llm, config, hourLabel, log, line } = ctx;
   let text = null;
   const size = sizeOf(story, rank, line);
+  const writer = writerFor(line, story.source); // the byline of the section
   if (llm) {
     try {
       const facts = factSheet(story) + seriesFacts(story.series, Date.now());
-      const raw = await chat(llm, config, articlePrompt(story, facts, hourLabel, size, line), maxTokensFor(size));
+      const raw = await chat(llm, config, articlePrompt(story, facts, hourLabel, size, line, writer), maxTokensFor(size));
       text = fromLLM(parseJson(raw), story, llm.model);
       text.check = numbersCheck(text, facts); // figures the facts don't contain
+      text.byline = byline(writer);
     } catch (e) {
       log(tr({ en: `[newsroom] ${story.id}: the writer failed (${e.message}), automatic typesetting takes over`, it: `[redazione] ${story.id}: il redattore ha fallito (${e.message}), passa la tipografia` }));
     }
@@ -122,10 +125,11 @@ async function writeSummary(articles, total, ctx, stats) {
   let summary = null;
   let caption = null;
   let scene = null;
+  let summaryBy = null;
   if (llm && articles.some((a) => !isTypeset(a.writer))) {
     try {
-      const j = parseJson(await chat(llm, config, summaryPrompt(articles, total, hourLabel, line), 1800));
-      if (typeof j.summary === 'string' && j.summary.trim()) summary = j.summary.trim();
+      const j = parseJson(await chat(llm, config, summaryPrompt(articles, total, hourLabel, line, columnist(line)), 1800));
+      if (typeof j.summary === 'string' && j.summary.trim()) { summary = j.summary.trim(); summaryBy = byline(columnist(line)); }
       if (typeof j.cartoon === 'string' && j.cartoon.trim()) caption = cleanQuote(j.cartoon).slice(0, 160);
       scene = validScene(j.scene);
       if (j.scene && !scene) log(tr({ en: `[newsroom] cartoon: scene “${j.scene}” is not in the catalogue, automatic typesetting picks one`, it: `[redazione] vignetta: scena «${j.scene}» non in catalogo, decide la tipografia` }));
@@ -138,6 +142,7 @@ async function writeSummary(articles, total, ctx, stats) {
   scene ||= autoScene(articles, stats, { hour });
   return {
     summary: summary || fallbackSummary(articles, total),
+    summaryBy,
     cartoon: { caption: caption || sceneCaption(scene, `${articles[0]?.id}${stats?.total || 0}`), scene, by: caption ? 'writer' : 'typesetting' },
   };
 }
@@ -233,7 +238,7 @@ export async function printEdition({ store, config, start, final = true, force =
   const market = computeMarket(store, hour, { port: config.port });
   const stats = computeStats(events, windowStart, end);
   const prevLetters = existing?.letters || [];
-  const [{ summary, cartoon }, comment, newLetters] = await Promise.all([
+  const [{ summary, summaryBy, cartoon }, comment, newLetters] = await Promise.all([
     writeSummary(articles, events.length, ctx, stats),
     writeMarketComment(market, ctx),
     // reprint: letters already published stay; otherwise answer the pending ones
@@ -258,6 +263,7 @@ export async function printEdition({ store, config, start, final = true, force =
     tone: line.tone,
     steered: steer.boost.length || steer.bury.length || steer.notes.length ? { boost: steer.boost, bury: steer.bury, notes: steer.notes } : null,
     summary,
+    summaryBy,
     cartoon,
     factcheck,
     articles,
@@ -389,7 +395,8 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   if (!story) throw new DeskError(tr({ en: 'The facts behind this article are no longer available.', it: 'Non trovo più i fatti di questo articolo.' }), 409);
   const size = sizeOf(story, i, ctx.line);
   story.series = prev.series || null;
-  const raw = await chat(ctx.llm, config, rewritePrompt(story, factSheet(story) + seriesFacts(story.series, Date.now()), ctx.hourLabel, size, ctx.line, prev, instruction), maxTokensFor(size));
+  const writer = writerFor(ctx.line, story.source);
+  const raw = await chat(ctx.llm, config, rewritePrompt(story, factSheet(story) + seriesFacts(story.series, Date.now()), ctx.hourLabel, size, ctx.line, prev, instruction, writer), maxTokensFor(size));
   let text;
   try {
     text = fromLLM(parseJson(raw), story, ctx.llm.model);
@@ -400,6 +407,7 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   const fresh = load(store, id);
   const k = findArticle(fresh, aid);
   text.check = numbersCheck(text, factSheet(story) + seriesFacts(story.series, Date.now()));
+  text.byline = byline(writer);
   fresh.articles[k] = { ...fresh.articles[k], ...text, rewrittenWith: instruction || null };
   return touch(store, fresh);
 }
@@ -421,8 +429,9 @@ export async function rewriteSummary(store, config, id, log = console.log) {
   const ed = load(store, id);
   const llm = await connectLLM(config);
   const ctx = { llm, config, hourLabel: hhmm(ed.start), log, line: getLine(store), store, hour: ed.start };
-  const { summary, cartoon } = await writeSummary(ed.articles, ed.stats.total, ctx, ed.stats);
+  const { summary, summaryBy, cartoon } = await writeSummary(ed.articles, ed.stats.total, ctx, ed.stats);
   ed.summary = summary;
+  ed.summaryBy = summaryBy;
   ed.cartoon = cartoon;
   return touch(store, ed);
 }

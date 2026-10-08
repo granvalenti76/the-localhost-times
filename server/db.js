@@ -246,7 +246,7 @@ export class Store {
     this.db.prepare(`DELETE FROM search WHERE kind = 'article' AND ref LIKE ?`).run(`${ed.id}/%`);
     const ins = this.db.prepare(`INSERT INTO search (kind, ref, ts, source, title, body) VALUES ('article', ?, ?, ?, ?, ?)`);
     for (const a of ed.articles || []) {
-      ins.run(`${ed.id}/${a.id}`, a.last ?? ed.start, a.source, a.headline, [a.kicker, a.dek, ...(a.body || [])].filter(Boolean).join('\n'));
+      ins.run(`${ed.id}/${a.id}`, a.last ?? ed.start, a.source ?? '', a.headline ?? '', [a.kicker, a.dek, ...(a.body || [])].filter(Boolean).join('\n'));
     }
   }
 

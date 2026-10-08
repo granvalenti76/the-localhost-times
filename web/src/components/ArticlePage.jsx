@@ -31,7 +31,7 @@ export default function ArticlePage({ edition, article: a }) {
         <h1 className="hl-story">{a.headline}</h1>
         {a.dek && <p className="dek dek-story">{a.dek}</p>}
         <div className="byline">
-          {tr({ en: 'By', it: 'Di' })} <strong>{tr({ en: 'The Localhost Times newsroom', it: 'Redazione Localhost Times' })}</strong>
+          {tr({ en: 'By', it: 'Di' })} <strong>{a.byline ? a.byline.name : tr({ en: 'The Localhost Times newsroom', it: 'Redazione Localhost Times' })}</strong>{a.byline && <span>, {a.byline.role}</span>}
           <span> · {writerLabel(a.writer)}</span>
           <span> · {hhmm(a.first)}{a.last - a.first > 60e3 ? `–${hhmm(a.last)}` : ''}</span>
         </div>

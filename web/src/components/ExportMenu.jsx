@@ -97,6 +97,9 @@ export default function ExportMenu({ edition, evening }) {
           <a role="menuitem" href="/feed.xml" target="_blank" rel="noreferrer">
             {tr({ en: 'RSS feed', it: 'Feed RSS' })}<span>{tr({ en: 'every article, as it is printed', it: 'tutti gli articoli, appena stampati' })}</span>
           </a>
+          <a role="menuitem" href="/radio.xml" target="_blank" rel="noreferrer">
+            {tr({ en: 'Radio podcast feed', it: 'Feed podcast del giornale radio' })}<span>{tr({ en: 'the bulletins, for the Podcasts app', it: 'i notiziari, per l\'app Podcasts' })}</span>
+          </a>
           {note && <p className="export-note">{note}</p>}
         </div>
       )}

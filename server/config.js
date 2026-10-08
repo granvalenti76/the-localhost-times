@@ -44,6 +44,11 @@ const DEFAULTS = {
     maxMergeHours: 3,    // at most three hours in a single edition
     eveningHour: 21,     // the evening edition comes out at this hour (null to disable it)
   },
+  radio: {
+    enabled: true,       // the hourly bulletin read aloud by the Mac's voice (macOS only)
+    voice: '',           // a voice from `say -v '?'`; empty = one that speaks the paper's language
+    rate: 180,           // words per minute
+  },
   notifications: {
     enabled: true,       // macOS notification when a new edition is out
     sound: false,

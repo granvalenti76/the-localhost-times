@@ -7,6 +7,7 @@ import Cartoon from './Cartoon.jsx';
 import { LettersBox } from './Letters.jsx';
 import { InvestigationBox } from './Investigations.jsx';
 import FactCheck from './FactCheck.jsx';
+import RadioBox from './Radio.jsx';
 
 function Kicker({ a }) {
   return (
@@ -19,7 +20,7 @@ function Kicker({ a }) {
 }
 
 function Meta({ a }) {
-  return <div className="meta">{hhmm(a.first)}{a.last - a.first > 60e3 ? `–${hhmm(a.last)}` : ''} · {a.sources.length} {a.sources.length === 1 ? tr({ en: 'source', it: 'fonte' }) : tr({ en: 'sources', it: 'fonti' })}</div>;
+  return <div className="meta">{a.byline && <><span className="byline-name">{tr({ en: 'By', it: 'Di' })} {a.byline.name}</span> · </>}{hhmm(a.first)}{a.last - a.first > 60e3 ? `–${hhmm(a.last)}` : ''} · {a.sources.length} {a.sources.length === 1 ? tr({ en: 'source', it: 'fonte' }) : tr({ en: 'sources', it: 'fonti' })}</div>;
 }
 
 function Activity({ stats, start }) {
@@ -116,9 +117,11 @@ export default function FrontPage({ edition }) {
         </div>
         <aside className="rail">
           <Cartoon cartoon={edition.cartoon} />
+          <RadioBox edition={edition} />
           <section className="box punto">
             <h3 className="box-title">{tr({ en: 'The Brief', it: 'Il punto' })}</h3>
             <p>{edition.summary}</p>
+            {edition.summaryBy && <p className="punto-by">— {edition.summaryBy.name}</p>}
           </section>
           <FactCheck edition={edition} />
           <InvestigationBox />

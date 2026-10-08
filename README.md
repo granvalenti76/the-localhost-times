@@ -124,6 +124,16 @@ As a service, the paper runs as `node` and not inside Terminal, so macOS asks fo
 
 **Notifications.** When an edition is out you get a macOS notification with the lead headline (turn it off with `"notifications": { "enabled": false }`). Try it with `npm run notify:test`. With `brew install terminal-notifier`, clicking the notification opens the edition.
 
+**The headline in the menu bar.** With [SwiftBar](https://swiftbar.app) (free) the lead headline sits in the macOS menu bar; click it for the edition's stories, what the next edition would lead with, and quick links to the paper, the newsroom and the archive:
+
+```bash
+brew install --cask swiftbar   # open it once and choose a plugin folder
+npm run menubar:install        # adds the plugin (xbar works too)
+npm run menubar:uninstall      # removes it
+```
+
+It refreshes every 5 minutes and only asks the paper on this Mac (`/api/menubar`).
+
 ## Updating
 
 ```bash
@@ -154,6 +164,7 @@ Every hour:
 - **Fact check.** The model, as a fact-checker, rates the boldest claims of the edition (true, mostly true, false, unverifiable) against the hour's data. In the newsroom, every figure an article quotes that is *not* in its facts gets flagged.
 - **The website market.** Every site you visit is a listed stock, its visits are the price, with change and a 12-hour trend.
 - **Photos.** Preview images of public pages and YouTube thumbnails. Private, local and webmail pages are never fetched.
+- **The radio bulletin.** Every edition is read aloud in about a minute by your Mac's own voice (`say`, built into macOS), with a player on the front page. Subscribe to the bulletins in Podcasts: *File → Follow a Show by URL…* → `http://localhost:4321/radio.xml`. The last 72 bulletins are kept.
 
 Every day:
 
@@ -176,6 +187,7 @@ In **the Archive**:
 In **the Newsroom** you are the editor-in-chief:
 
 - **Drafts.** Reorder, edit, rewrite with an instruction, or spike any article.
+- **The bylines.** The paper has a staff of invented writers, each with a voice: a web correspondent, a technology correspondent, the city desk, a critic and a columnist who signs *The Brief* and the evening editorial. The model is the same; it plays a different character for each. In *Editorial line* choose who writes each section, and rename them or rewrite their style.
 - **The editorial line.** Set the tone (dry, ironic, satirical, understatement, tabloid), the article length and how much room each section gets, and give permanent rules to the writers. Turn off automatic publishing to approve every edition before it goes out.
 - **The editorial meeting.** Discuss an edition with the managing editor (the model). It proposes concrete actions, and you apply them with one click. It can also look things up while you talk: the next edition before it's printed (signals collected so far, stories forming, minutes left), the facts behind a story, the day so far, the archive.
 - **The next edition.** See what the coming edition will contain while the hour is still running, and steer it: pick its lead, leave a story out, give the writers a one-off instruction, or print it right away. Your choices apply to that edition only. The managing editor can propose the same moves in the meeting.
@@ -221,6 +233,9 @@ The paper is written in **English or Italian** (`"language": "en"` or `"it"`).
 | `edition.maxMergeHours` | `3` | …up to this many hours |
 | `edition.eveningHour` | `21` | When the evening edition comes out (`null` = never) |
 | `notifications.enabled` | `true` | macOS notification for every edition |
+| `radio.enabled` | `true` | Record the radio bulletin of every edition |
+| `radio.voice` | `""` | A `say` voice (list them with `say -v '?'`); empty = one that speaks the paper's language |
+| `radio.rate` | `180` | Words per minute |
 | `backfillHours` | `1` | Editions to catch up on after the Mac was off |
 | `keepEventsDays` | `60` | How long raw signals are kept (editions are kept forever); `0` = forever |
 
@@ -241,6 +256,7 @@ Environment variables override the file: `LOCALHOST_TIMES_LANG`, `LOCALHOST_TIME
 | `npm run service:restart` / `stop` / `start` | Restart (after an update), stop, start the service |
 | `npm run service:status` / `logs` / `uninstall` | Check it, follow its log, remove it |
 | `npm run notify:test` | Send a test notification |
+| `npm run menubar:install` / `uninstall` | Add or remove the menu-bar headline (SwiftBar or xbar) |
 | `npm run dev` | Development, with hot reload → http://localhost:5173 |
 | `npm test` | Run the tests |
 

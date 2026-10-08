@@ -41,7 +41,9 @@
     "service:restart": "node --disable-warning=ExperimentalWarning server/service.js restart",
     "service:uninstall": "node --disable-warning=ExperimentalWarning server/service.js uninstall",
     "service:status": "node --disable-warning=ExperimentalWarning server/service.js status",
-    "service:logs": "node --disable-warning=ExperimentalWarning server/service.js logs"
+    "service:logs": "node --disable-warning=ExperimentalWarning server/service.js logs",
+    "menubar:install": "node --disable-warning=ExperimentalWarning server/menubar.js install",
+    "menubar:uninstall": "node --disable-warning=ExperimentalWarning server/menubar.js uninstall"
   },
   "dependencies": {
     "express": "^5.1.0"

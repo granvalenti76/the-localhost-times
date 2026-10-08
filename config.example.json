@@ -46,5 +46,10 @@
   "notifications": {
     "enabled": true,
     "sound": false
+  },
+  "radio": {
+    "enabled": true,
+    "voice": "",
+    "rate": 180
   }
 }

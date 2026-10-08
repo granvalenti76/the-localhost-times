@@ -21,6 +21,6 @@ export default defineConfig({
   build: { outDir: 'dist', emptyOutDir: true },
   server: {
     port: 5173,
-    proxy: { '/api': api, '/media': api, '/feed': api },
+    proxy: { '/api': api, '/media': api, '/feed': api, '/radio': api },
   },
 });

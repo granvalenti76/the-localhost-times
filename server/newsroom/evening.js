@@ -13,6 +13,7 @@ import { ticker } from './market.js';
 import { SECTION_ORDER } from './sections.js';
 import { dayRange } from '../util.js';
 import { tr } from '../i18n.js';
+import { columnist, byline } from './writers.js';
 import { autoScene, validScene } from './scenes.js';
 
 const HOUR = 3600e3;
@@ -118,7 +119,7 @@ export async function printEvening({ store, config, day, until = Date.now(), log
   let written = null;
   if (llm) {
     try {
-      const j = parseJson(await chat(llm, config, eveningPrompt({ top, timeline, stats, market, line }), 3000));
+      const j = parseJson(await chat(llm, config, eveningPrompt({ top, timeline, stats, market, line, writer: columnist(line) }), 3000));
       if (Array.isArray(j.editorial) && j.editorial.length && typeof j.headline === 'string') {
         written = {
           headline: j.headline.trim().replace(/(?<!\.)\.$/, ''),
@@ -148,6 +149,7 @@ export async function printEvening({ store, config, day, until = Date.now(), log
     status: prev?.status === 'published' || line.autoPublish ? 'published' : 'draft',
     createdAt: Date.now(),
     writer: written ? llm.model : 'typesetting',
+    byline: written ? byline(columnist(line)) : null,
     tone: line.tone,
     editorial: { headline: ed.headline, oneliner: ed.oneliner, body: ed.body },
     cartoon: written?.cartoon
@@ -172,7 +174,7 @@ export async function rewriteEditorial(store, config, day, instruction, log = co
   if (!ev) throw new DeskError(tr({ en: 'Evening edition not found', it: 'Edizione della sera non trovata' }), 404);
   const llm = await connectLLM(config);
   if (!llm) throw new DeskError(tr({ en: 'The writer is not answering: cannot rewrite now.', it: 'Il redattore non risponde: impossibile riscrivere ora.' }), 503);
-  const msgs = eveningPrompt({ top: ev.top, timeline: ev.timeline, stats: ev.stats, market: ev.market, line: getLine(store) });
+  const msgs = eveningPrompt({ top: ev.top, timeline: ev.timeline, stats: ev.stats, market: ev.market, line: getLine(store), writer: columnist(getLine(store)) });
   msgs.push({ role: 'assistant', content: JSON.stringify({ headline: ev.editorial.headline, oneliner: ev.editorial.oneliner, editorial: ev.editorial.body }) });
   msgs.push({
     role: 'user',

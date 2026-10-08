@@ -3,6 +3,7 @@ import { collectAll } from '../collect.js';
 import { printEdition } from './edition.js';
 import { hourStart, editionId, dayKey } from '../util.js';
 import { printEvening } from './evening.js';
+import { recordBulletin } from './radio.js';
 
 const HOUR = 3600e3;
 
@@ -29,7 +30,20 @@ export function createNewsroom({ store, config, log = console.log, notify = null
     return n;
   }));
 
-  const printHour = (start, final, force = false) => queue(busy(() => printEdition({ store, config, start, final, force, log })));
+  // the radio bulletin is recorded outside the queue: the next edition doesn't wait for it
+  const radio = (ed) => {
+    if (!ed) return;
+    recordBulletin(ed, config, log).then((r) => {
+      const fresh = r && store.getEdition(ed.id);
+      if (fresh) { fresh.radio = r; store.saveEdition(fresh); }
+    }).catch(() => {});
+  };
+
+  const printHour = (start, final, force = false) => queue(busy(async () => {
+    const ed = await printEdition({ store, config, start, final, force, log });
+    radio(ed);
+    return ed;
+  }));
 
   const printEveningFor = (day) => queue(busy(() => printEvening({ store, config, day, log })));
 

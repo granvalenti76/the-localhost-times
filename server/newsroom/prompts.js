@@ -1,6 +1,7 @@
 import { sceneMenu } from './scenes.js';
 import { linePrompt, LENGTHS, toneId } from './line.js';
 import { L, tr } from '../i18n.js';
+import { personaPrompt } from './writers.js';
 
 const SYSTEM_EN = `You are a reporter for The Localhost Times, a daily paper that tells what happened on a MacBook in the last hour. The style is that of a good newspaper: dry, precise, with light, understated irony. Never emphatic.
 
@@ -58,9 +59,9 @@ Esempio BUONO:
 Rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo:
 {"kicker": "occhiello, 1-3 parole", "headline": "titolo", "dek": "sommario di una frase", "body": ["paragrafo", ...]}`;
 
-export const systemFor = (line) => {
+export const systemFor = (line, writer = null) => {
   const sys = tr({ en: SYSTEM_EN, it: SYSTEM_IT });
-  return line ? sys + '\n' + linePrompt(line) : sys;
+  return (line ? sys + '\n' + linePrompt(line) : sys) + personaPrompt(writer);
 };
 
 const HINTS_EN = {
@@ -110,11 +111,11 @@ export function sizeOf(story, rank, line) {
   return { id: 'brief', words: range(35, 70, f), paras: '1' };
 }
 
-export function articlePrompt(story, facts, hourLabel, size, line) {
+export function articlePrompt(story, facts, hourLabel, size, line, writer = null) {
   const name = L(SIZE_NAMES)[size.id].toUpperCase();
   const maxWords = size.id === 'brief' ? 9 : 12;
   return [
-    { role: 'system', content: systemFor(line) },
+    { role: 'system', content: systemFor(line, writer) },
     {
       role: 'user',
       content: tr({
@@ -137,8 +138,8 @@ Scrivi l'articolo.`,
   ];
 }
 
-export function rewritePrompt(story, facts, hourLabel, size, line, previous, instruction) {
-  const msgs = articlePrompt(story, facts, hourLabel, size, line);
+export function rewritePrompt(story, facts, hourLabel, size, line, previous, instruction, writer = null) {
+  const msgs = articlePrompt(story, facts, hourLabel, size, line, writer);
   msgs.push({ role: 'assistant', content: JSON.stringify({ kicker: previous.kicker, headline: previous.headline, dek: previous.dek, body: previous.body }) });
   msgs.push({
     role: 'user',
@@ -150,9 +151,9 @@ export function rewritePrompt(story, facts, hourLabel, size, line, previous, ins
   return msgs;
 }
 
-export function summaryPrompt(articles, total, hourLabel, line) {
+export function summaryPrompt(articles, total, hourLabel, line, writer = null) {
   const lines = articles.map((a) => `- [${a.section}] ${a.headline}`).join('\n');
-  const extra = line ? '\n' + linePrompt(line) : '';
+  const extra = (line ? '\n' + linePrompt(line) : '') + personaPrompt(writer);
   return [
     {
       role: 'system',
@@ -216,7 +217,7 @@ Rispondi SOLO con JSON: {"comment": "..."}`,
 
 const hh = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:00`; };
 
-export function eveningPrompt({ top, timeline, stats, market, line }) {
+export function eveningPrompt({ top, timeline, stats, market, line, writer = null }) {
   const en = tr({ en: true, it: false });
   const topLines = top.map((t) => `- [${t.section}, ${hh(t.hour)}${t.appearances > 1 ? (en ? `, in ${t.appearances} editions` : `, in ${t.appearances} edizioni`) : ''}] ${t.headline} — ${t.dek || ''}`).join('\n');
   const tl = timeline.map((t) => (en
@@ -226,7 +227,7 @@ export function eveningPrompt({ top, timeline, stats, market, line }) {
   const mk = market?.rows?.slice(0, 6).map((r) => (en
     ? `${r.ticker} (${r.site}) ${r.close} visits${r.change == null ? ', new since yesterday' : `, ${pct(r.change)} on yesterday`}`
     : `${r.ticker} (${r.site}) ${r.close} visite${r.change == null ? ', nuovo rispetto a ieri' : `, ${pct(r.change)} su ieri`}`)).join('; ');
-  const extra = line ? '\n' + linePrompt(line) : '';
+  const extra = (line ? '\n' + linePrompt(line) : '') + personaPrompt(writer);
   const busiest = `${String(stats.busiestHour).padStart(2, '0')}:00`;
   return [
     {

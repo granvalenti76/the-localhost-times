@@ -3,6 +3,7 @@
  * Stored in the database, read at every edition.
  */
 import { L, tr } from '../i18n.js';
+import { DEFAULT_DESKS, WRITER_IDS } from './writers.js';
 
 const TONE_TEXT = {
   en: {
@@ -58,6 +59,8 @@ export const DEFAULT_LINE = {
   photos: true,
   notes: '',
   sectionWeights: { safari: 1, mail: 1, terminal: 1, files: 1, notes: 1, journal: 1, podcasts: 1, books: 1 },
+  desks: { ...DEFAULT_DESKS }, // who writes each section ('' = unsigned)
+  staff: {},                   // the editor's edits to the bylines: { web: { name, role, style } }
 };
 
 export function getLine(store) {
@@ -66,6 +69,8 @@ export function getLine(store) {
     ...DEFAULT_LINE,
     ...saved,
     sectionWeights: { ...DEFAULT_LINE.sectionWeights, ...(saved.sectionWeights || {}) },
+    desks: { ...DEFAULT_LINE.desks, ...(saved.desks || {}) },
+    staff: { ...(saved.staff || {}) },
   };
   line.tone = toneId(line.tone);
   line.length = lengthId(line.length);
@@ -80,6 +85,16 @@ export function saveLine(store, patch) {
   next.notes = String(next.notes || '').slice(0, 2000);
   next.autoPublish = !!next.autoPublish;
   next.photos = !!next.photos;
+  next.desks = { ...cur.desks, ...(patch.desks || {}) };
+  for (const [k, v] of Object.entries(next.desks)) if (v !== '' && !WRITER_IDS.includes(v)) next.desks[k] = DEFAULT_DESKS[k] ?? '';
+  next.staff = { ...cur.staff, ...(patch.staff || {}) };
+  for (const id of Object.keys(next.staff)) {
+    if (!WRITER_IDS.includes(id)) { delete next.staff[id]; continue; }
+    const w = next.staff[id] || {};
+    next.staff[id] = Object.fromEntries(['name', 'role', 'style']
+      .map((k) => [k, String(w[k] ?? '').trim().slice(0, k === 'style' ? 400 : 60)])
+      .filter(([, v]) => v));
+  }
   for (const [k, v] of Object.entries(next.sectionWeights)) {
     next.sectionWeights[k] = Math.max(0, Math.min(3, Number(v) || 0));
   }
