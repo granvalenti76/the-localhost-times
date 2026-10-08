@@ -34,7 +34,7 @@ export default function EditionBar({ day, list, current, onPrint, printing, even
           const future = day === today && h > nowH;
           const label = `${String(h).padStart(2, '0')}`;
           return (
-            <li key={h} className={`${e ? 'has' : ''} ${e?.id === current ? 'cur' : ''} ${future ? 'future' : ''} ${!e && merged.has(h) ? 'merged' : ''}`}
+            <li key={h} className={`${e ? 'has' : ''} ${e && e.id === current ? 'cur' : ''} ${future ? 'future' : ''} ${!e && merged.has(h) ? 'merged' : ''}`}
               title={!e && merged.has(h) ? tr({ en: 'A quiet hour: its news is in the next edition', it: 'Ora tranquilla: le sue notizie sono nell\'edizione successiva' }) : undefined}>
               {e ? (
                 <a href={href.edition(e.id)} title={e.lead || ''}>

@@ -21,7 +21,13 @@
     "notes": true,
     "journal": true,
     "podcasts": true,
-    "books": true
+    "books": true,
+    "files": true
+  },
+  "files": {
+    "folders": [],
+    "exclude": [],
+    "includeNames": false
   },
   "privacy": {
     "blockedDomains": [],

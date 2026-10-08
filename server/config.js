@@ -23,7 +23,12 @@ const DEFAULTS = {
   keepEventsDays: 60,    // raw signals are kept this long (editions are kept forever); 0 = forever
   sources: {
     safari: true, mail: true, terminal: true, notes: true,
-    journal: true, podcasts: true, books: true,
+    journal: true, podcasts: true, books: true, files: true,
+  },
+  files: {
+    folders: [],         // folders to watch (empty = Desktop, Documents, Downloads, Work, Developer, Projects, Code…)
+    exclude: [],         // parts of paths to leave out, e.g. "Documents/Medical"
+    includeNames: false, // true = file names in the paper (otherwise only folders, types and counts)
   },
   privacy: {
     blockedDomains: [],

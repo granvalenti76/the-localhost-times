@@ -225,6 +225,48 @@ const W = {
     };
   },
 
+  folder(s, P) {
+    const types = s.exts.map((x) => `.${x.k}`);
+    const where = s.project ? q(s.project) : q(s.topic);
+    return {
+      kicker: s.project || s.topic.split('/').pop(),
+      headline: s.created >= 3
+        ? P([`${where} cresce: ${plural(s.created, 'file nuovo', 'file nuovi')}`, `File nuovi in ${where}: ${s.created}, soprattutto ${types[0] || 'file'}`])
+        : P([`${plural(s.events.length, 'salvataggio', 'salvataggi')} in ${where}${types.length ? `, soprattutto ${types[0]}` : ''}`, `Lavori in corso in ${where}`]),
+      dek: `${cap(span(s))}, ${s.files ? plural(s.files, 'file toccato', 'file toccati') : plural(s.events.length, 'salvataggio', 'salvataggi')}${s.project ? ` nel progetto ${q(s.project)}` : ''}${s.created ? `, ${plural(s.created, 'file nuovo', 'file nuovi')}` : ''}.`,
+      body: [
+        types.length ? `Per tipo: ${list(s.exts.map((x) => `${x.n} ${q('.' + x.k)}`))}.` : 'I tipi di file non dicono molto.',
+        s.dirs.length > 1 ? `Il lavoro si sposta tra ${list(s.dirs.slice(0, 3).map((d) => q(d.k)))}.` : P(['Tutto in una cartella: un lavoro concentrato.', 'Una cartella, un lavoro.']),
+        P(['Cosa è cambiato dentro, il giornale non lo legge: solo cartelle e conteggi.', 'Il contenuto resta sulla scrivania; il giornale si limita a contare.']),
+      ],
+    };
+  },
+
+  folders(s, P) {
+    return {
+      kicker: 'Cronaca locale',
+      headline: P([`Qualche file qua e là: ${list(s.folders.slice(0, 3).map((f) => q(f.k)))}`, `Piccoli salvataggi in ${plural(s.folders.length, 'cartella', 'cartelle')}`]),
+      dek: `${plural(s.events.length, 'file salvato', 'file salvati')} ${span(s)}, nessuno in una cartella affollata.`,
+      body: [`Le cartelle: ${list(s.folders.map((f) => `${q(f.k)} (${f.n})`))}.`],
+    };
+  },
+
+  downloads(s, P) {
+    const n = s.events.length;
+    const sites = s.sites.map((x) => x.k);
+    return {
+      kicker: 'Download',
+      headline: n === 1
+        ? `Arrivato${s.events[0].meta.site ? ` da ${s.events[0].meta.site}` : ''}: ${/^\./.test(s.events[0].title) ? `un file ${s.events[0].title}` : q(short(s.events[0].title, 60))}`
+        : P([`${n} download${sites.length ? `, da ${list(sites.slice(0, 3))}` : ''}`, `La cartella Download si riempie: ${n} file nuovi`]),
+      dek: `${cap(span(s))}${s.exts.length ? `; tipi: ${list(s.exts.map((x) => `.${x.k}`))}` : ''}.`,
+      body: [
+        `Tra gli arrivi: ${list(s.events.slice(0, 5).map((e) => `${/^\./.test(e.title) ? `un file ${e.title}` : q(short(e.title, 60))}${e.meta.site ? ` da ${e.meta.site}` : ''}`))}.`,
+        P(['Se verranno mai aperti, lo dirà un\'altra edizione.', 'La cartella Download, come sempre, conserva tutto.']),
+      ],
+    };
+  },
+
   book(s) {
     const e = s.events[0];
     const hl = s.events.filter((x) => x.kind === 'highlight');

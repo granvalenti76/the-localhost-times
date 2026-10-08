@@ -180,9 +180,47 @@ const podcastStories = perKey('podcasts', 'episode', (e) => e.meta.episodeId, 3,
 const bookStories = perKey('books', 'book', (e) => e.meta.assetId, 3,
   (l) => l.filter((e) => e.kind === 'highlight').length * 0.8);
 
+/** Files: hot folders (one story each), small ones together, and the downloads. */
+function filesStories(evs) {
+  const out = [];
+  const dls = evs.filter((e) => e.kind === 'downloaded');
+  const work = evs.filter((e) => e.kind !== 'downloaded');
+  const countBy = (list, fn) => Object.entries(list.reduce((m, e) => { const k = fn(e); if (k) m[k] = (m[k] || 0) + 1; return m; }, {}))
+    .sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ k, n }));
+  const small = [];
+  for (const [folder, list] of groupBy(work, (e) => e.meta.folder)) {
+    // with file names hidden (the default) files can't be told apart: count saves instead
+    const named = !/^\./.test(list[0].title);
+    const files = named ? new Set(list.map((e) => `${e.meta.dir}/${e.title}`)).size : null;
+    if (list.length >= 3) {
+      out.push(story('files', 'folder', folder, list, 1.5 + log2(list.length + 1) * 1.1 + (list[0].meta.project ? 0.6 : 0), {
+        topic: folder,
+        project: list[0].meta.project,
+        files,
+        created: list.filter((e) => e.kind === 'created').length,
+        exts: countBy(list, (e) => e.meta.ext).slice(0, 5),
+        dirs: countBy(list, (e) => (e.meta.dir === folder ? '.' : e.meta.dir.startsWith(`${folder}/`) ? e.meta.dir.slice(folder.length + 1) : e.meta.dir)).slice(0, 4),
+      }));
+    } else small.push(...list);
+  }
+  if (small.length >= 2) {
+    out.push(story('files', 'folders', 'misc', small, 0.8 + log2(small.length) * 0.5, {
+      topic: tr({ en: 'files', it: 'file' }), folders: countBy(small, (e) => e.meta.folder).slice(0, 6),
+    }));
+  }
+  if (dls.length) {
+    out.push(story('files', 'downloads', 'all', dls, 2 + log2(dls.length + 1), {
+      topic: tr({ en: 'downloads', it: 'download' }),
+      sites: countBy(dls, (e) => e.meta.site).slice(0, 5),
+      exts: countBy(dls, (e) => e.meta.ext).slice(0, 5),
+    }));
+  }
+  return out;
+}
+
 const BUILDERS = {
   safari: safariStories, mail: mailStories, terminal: terminalStories, notes: notesStories,
-  journal: journalStories, podcasts: podcastStories, books: bookStories,
+  journal: journalStories, podcasts: podcastStories, books: bookStories, files: filesStories,
 };
 
 export function buildStories(events) {
@@ -285,6 +323,25 @@ export function factSheet(s) {
       if (m.description) L.push(`${T('Episode description', 'Descrizione dell\'episodio')}: ${m.description}`);
       break;
     }
+    case 'folder': {
+      L.push(T(
+        `Folder ${q(s.topic)}${s.project ? ` (git project ${q(s.project)})` : ''}: ${s.events.length} saves${s.files ? ` on ${s.files} files` : ''}, ${s.created} of them new files. File names are private.`,
+        `Cartella ${q(s.topic)}${s.project ? ` (progetto git ${q(s.project)})` : ''}: ${s.events.length} salvataggi${s.files ? ` su ${s.files} file` : ''}, di cui ${s.created} file nuovi. I nomi dei file sono riservati.`,
+      ));
+      if (s.exts.length) L.push(`${T('File types', 'Tipi di file')}: ${s.exts.map((x) => `.${x.k} ×${x.n}`).join(', ')}`);
+      if (s.dirs.length > 1) L.push(`${T('Subfolders', 'Sottocartelle')}: ${s.dirs.map((x) => `${x.k} ×${x.n}`).join(', ')}`);
+      if (!/^\./.test(s.events[0].title)) L.push(`${T('Files', 'File')}: ${[...new Set(s.events.map((e) => e.title))].slice(0, 12).map(q).join(', ')}`);
+      L.push(`${T('First and last save', 'Primo e ultimo salvataggio')}: ${hhmm(s.first)}, ${hhmm(s.last)}`);
+      break;
+    }
+    case 'folders':
+      L.push(T(`A few files saved here and there (${s.events.length}):`, `Qualche file salvato qua e là (${s.events.length}):`));
+      s.folders.forEach((f) => L.push(`- ${q(f.k)} ×${f.n}`));
+      break;
+    case 'downloads':
+      L.push(T(`Downloads: ${s.events.length} files.`, `Download: ${s.events.length} file.`));
+      s.events.slice(0, 20).forEach((e) => L.push(`- ${t(e)} ${q(e.title)}${e.meta.site ? ` ${T('from', 'da')} ${e.meta.site}` : ''}${e.meta.size ? ` (${Math.max(1, Math.round(e.meta.size / 1e6))} MB)` : ''}`));
+      break;
     case 'book': {
       const e = s.events[0];
       const opened = s.events.filter((x) => x.kind === 'opened').at(-1);

@@ -3,6 +3,14 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { dayRange, dayKey } from './util.js';
 
+/** The searchable text of a raw signal: titles, people, places — never more than the paper itself may read. */
+function eventText(e) {
+  const m = e.meta || {};
+  const parts = [e.detail, m.host, m.fromName, m.from, m.folder, m.snippet, m.show, m.author, m.text, m.project, m.site]
+    .filter((x) => typeof x === 'string' && x && x !== e.title);
+  return [...new Set(parts)].join('\n');
+}
+
 export class Store {
   constructor(file) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -58,6 +66,19 @@ export class Store {
         payload TEXT NOT NULL
       );
     `);
+    // the archive's full-text index: articles, evening editorials and raw signals
+    this.db.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS search USING fts5(
+        kind UNINDEXED, ref UNINDEXED, ts UNINDEXED, source UNINDEXED, title, body,
+        tokenize = 'unicode61 remove_diacritics 2'
+      );
+      CREATE TABLE IF NOT EXISTS investigations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'published',
+        payload TEXT NOT NULL
+      );
+    `);
     // migration: edition status (draft / published)
     const cols = this.db.prepare(`PRAGMA table_info(editions)`).all().map((r) => r.name);
     if (!cols.includes('status')) {
@@ -67,7 +88,7 @@ export class Store {
 
   /** Clear events, cursors and editions: the next collection rereads the last 24 hours. */
   reset() {
-    this.db.exec('DELETE FROM events; DELETE FROM cursors; DELETE FROM editions; DELETE FROM evenings; DELETE FROM threads; DELETE FROM letters;');
+    this.db.exec('DELETE FROM events; DELETE FROM cursors; DELETE FROM editions; DELETE FROM evenings; DELETE FROM threads; DELETE FROM letters; DELETE FROM search;');
   }
 
   insertEvents(events) {
@@ -76,15 +97,18 @@ export class Store {
       `INSERT OR IGNORE INTO events (id, source, kind, ts, title, detail, url, meta)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     );
+    const idx = this.db.prepare(`INSERT INTO search (kind, ref, ts, source, title, body) VALUES ('event', ?, ?, ?, ?, ?)`);
     let added = 0;
     this.db.exec('BEGIN');
     try {
       for (const e of events) {
         if (!Number.isFinite(e.ts)) continue;
-        added += Number(
+        const n = Number(
           st.run(e.id, e.source, e.kind, e.ts, e.title ?? null, e.detail ?? null, e.url ?? null,
             JSON.stringify(e.meta ?? {})).changes
         );
+        if (n) idx.run(e.id, e.ts, e.source, e.title ?? '', eventText(e));
+        added += n;
       }
       this.db.exec('COMMIT');
     } catch (err) {
@@ -107,6 +131,7 @@ export class Store {
 
   /** Raw events older than `before` are deleted: the editions written from them stay. */
   pruneEvents(before) {
+    this.db.prepare(`DELETE FROM search WHERE kind = 'event' AND ts < ?`).run(before);
     return Number(this.db.prepare(`DELETE FROM events WHERE ts < ?`).run(before).changes);
   }
 
@@ -163,6 +188,7 @@ export class Store {
     this.db
       .prepare(`INSERT OR REPLACE INTO evenings (day, status, created_at, payload) VALUES (?, ?, ?, ?)`)
       .run(ev.day, ev.status || 'published', ev.createdAt, JSON.stringify(ev));
+    this.indexEvening(ev);
   }
 
   getEvening(day) {
@@ -212,6 +238,79 @@ export class Store {
       .prepare(`INSERT OR REPLACE INTO editions (id, start_ts, end_ts, final, created_at, payload, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?)`)
       .run(ed.id, ed.start, ed.end, ed.final ? 1 : 0, ed.createdAt, JSON.stringify(ed), ed.status || 'published');
+    this.indexEdition(ed);
+  }
+
+  // ── The archive's index ──
+  indexEdition(ed) {
+    this.db.prepare(`DELETE FROM search WHERE kind = 'article' AND ref LIKE ?`).run(`${ed.id}/%`);
+    const ins = this.db.prepare(`INSERT INTO search (kind, ref, ts, source, title, body) VALUES ('article', ?, ?, ?, ?, ?)`);
+    for (const a of ed.articles || []) {
+      ins.run(`${ed.id}/${a.id}`, a.last ?? ed.start, a.source, a.headline, [a.kicker, a.dek, ...(a.body || [])].filter(Boolean).join('\n'));
+    }
+  }
+
+  indexEvening(ev) {
+    this.db.prepare(`DELETE FROM search WHERE kind = 'evening' AND ref = ?`).run(ev.day);
+    this.db.prepare(`INSERT INTO search (kind, ref, ts, source, title, body) VALUES ('evening', ?, ?, '', ?, ?)`)
+      .run(ev.day, ev.createdAt, ev.editorial.headline, [ev.editorial.oneliner, ...ev.editorial.body].filter(Boolean).join('\n'));
+  }
+
+  /** Build the index from scratch (first run after an upgrade, or after a reset). */
+  reindex() {
+    this.db.exec('BEGIN');
+    try {
+      this.db.exec('DELETE FROM search');
+      const idx = this.db.prepare(`INSERT INTO search (kind, ref, ts, source, title, body) VALUES ('event', ?, ?, ?, ?, ?)`);
+      for (const r of this.db.prepare(`SELECT * FROM events`).iterate()) {
+        const e = { ...r, meta: JSON.parse(r.meta || '{}') };
+        idx.run(e.id, e.ts, e.source, e.title ?? '', eventText(e));
+      }
+      for (const r of this.db.prepare(`SELECT payload FROM editions`).iterate()) this.indexEdition(JSON.parse(r.payload));
+      for (const r of this.db.prepare(`SELECT payload FROM evenings`).iterate()) this.indexEvening(JSON.parse(r.payload));
+      this.db.exec('COMMIT');
+    } catch (err) {
+      this.db.exec('ROLLBACK');
+      throw err;
+    }
+  }
+
+  /** True when there is something to search but the index is empty. */
+  needsReindex() {
+    const has = (sql) => !!this.db.prepare(sql).get();
+    return !has(`SELECT 1 FROM search LIMIT 1`) && (has(`SELECT 1 FROM events LIMIT 1`) || has(`SELECT 1 FROM editions LIMIT 1`));
+  }
+
+  /** The edition that covers a moment (its window contains ts), published or not. */
+  editionAt(ts) {
+    const r = this.db.prepare(`SELECT id FROM editions WHERE start_ts <= ? AND end_ts > ? ORDER BY start_ts DESC LIMIT 1`).get(ts, ts);
+    return r?.id ?? null;
+  }
+
+  // ── Investigations ──
+  saveInvestigation(inv) {
+    if (inv.id) {
+      this.db.prepare(`UPDATE investigations SET status = ?, payload = ? WHERE id = ?`).run(inv.status || 'published', JSON.stringify(inv), inv.id);
+      return inv;
+    }
+    const r = this.db.prepare(`INSERT INTO investigations (created_at, status, payload) VALUES (?, ?, ?)`)
+      .run(inv.createdAt, inv.status || 'published', JSON.stringify(inv));
+    const saved = { ...inv, id: Number(r.lastInsertRowid) };
+    this.db.prepare(`UPDATE investigations SET payload = ? WHERE id = ?`).run(JSON.stringify(saved), saved.id);
+    return saved;
+  }
+
+  getInvestigation(id) {
+    const r = this.db.prepare(`SELECT payload FROM investigations WHERE id = ?`).get(id);
+    return r ? JSON.parse(r.payload) : null;
+  }
+
+  investigations(limit = 50) {
+    return this.db.prepare(`SELECT payload FROM investigations ORDER BY created_at DESC LIMIT ?`).all(limit).map((r) => JSON.parse(r.payload));
+  }
+
+  deleteInvestigation(id) {
+    this.db.prepare(`DELETE FROM investigations WHERE id = ?`).run(id);
   }
 
   getEdition(id) {

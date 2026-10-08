@@ -5,6 +5,8 @@ import Photo from './Photo.jsx';
 import Market from './Market.jsx';
 import Cartoon from './Cartoon.jsx';
 import { LettersBox } from './Letters.jsx';
+import { InvestigationBox } from './Investigations.jsx';
+import FactCheck from './FactCheck.jsx';
 
 function Kicker({ a }) {
   return (
@@ -118,6 +120,8 @@ export default function FrontPage({ edition }) {
             <h3 className="box-title">{tr({ en: 'The Brief', it: 'Il punto' })}</h3>
             <p>{edition.summary}</p>
           </section>
+          <FactCheck edition={edition} />
+          <InvestigationBox />
           <LettersBox letters={edition.letters} />
           <Market market={edition.market} />
           <section className="box">

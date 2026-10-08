@@ -4,6 +4,7 @@ import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
 import Market from './Market.jsx';
 import Cartoon from './Cartoon.jsx';
+import { InvestigationBox } from './Investigations.jsx';
 
 function DayChart({ hours }) {
   const W = 288, H = 72, bw = W / 24;
@@ -45,6 +46,7 @@ export default function EveningPage({ evening: ev }) {
         </div>
         <aside className="rail">
           <Cartoon cartoon={ev.cartoon} />
+          <InvestigationBox />
           <section className="box">
             <h3 className="box-title">{tr({ en: 'The day by the numbers', it: 'La giornata in numeri' })}</h3>
             <DayChart hours={ev.stats.hours} />

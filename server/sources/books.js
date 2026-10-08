@@ -42,7 +42,7 @@ export default {
           source: 'books',
           kind: 'opened',
           ts: cdToMs(r.opened),
-          title: r.title || 'Libro senza titolo',
+          title: r.title || tr({ en: 'Untitled book', it: 'Libro senza titolo' }),
           detail: r.author || null,
           url: null,
           meta: { assetId: r.id, author: r.author, genre: r.genre, progress: r.progress },

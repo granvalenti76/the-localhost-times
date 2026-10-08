@@ -2,6 +2,7 @@ import { buildStories, factSheet } from './cluster.js';
 import { SECTIONS, SECTION_ORDER } from './sections.js';
 import { fallbackArticle, fallbackBrief, fallbackSummary } from './fallback.js';
 import { autoScene, validScene, sceneCaption } from './scenes.js';
+import { factCheck, numbersCheck } from './factcheck.js';
 import { connectLLM, chat, parseJson } from './llm.js';
 import { articlePrompt, rewritePrompt, summaryPrompt, marketPrompt, sizeOf } from './prompts.js';
 import { getLine } from './line.js';
@@ -60,6 +61,7 @@ async function writeArticle(story, rank, ctx) {
       const facts = factSheet(story) + seriesFacts(story.series, Date.now());
       const raw = await chat(llm, config, articlePrompt(story, facts, hourLabel, size, line), maxTokensFor(size));
       text = fromLLM(parseJson(raw), story, llm.model);
+      text.check = numbersCheck(text, facts); // figures the facts don't contain
     } catch (e) {
       log(tr({ en: `[newsroom] ${story.id}: the writer failed (${e.message}), automatic typesetting takes over`, it: `[redazione] ${story.id}: il redattore ha fallito (${e.message}), passa la tipografia` }));
     }
@@ -226,6 +228,8 @@ export async function printEdition({ store, config, start, final = true, force =
     photosJob,
   ]);
   if (market) market.comment = comment;
+  // the fact-check reads the finished edition: articles, Brief and the hour's data
+  const factcheck = await factCheck({ articles, stories: main, summary, stats, market, hourLabel }, ctx);
 
   const edition = {
     id,
@@ -241,6 +245,7 @@ export async function printEdition({ store, config, start, final = true, force =
     tone: line.tone,
     summary,
     cartoon,
+    factcheck,
     articles,
     spiked: [],
     briefs,
@@ -277,6 +282,7 @@ function findArticle(ed, aid) {
 
 function touch(store, ed) {
   ed.edited = true;
+  if (ed.factcheck) ed.factcheck.stale = true; // the page changed after it was checked
   ed.editedAt = Date.now();
   store.saveEdition(ed);
   return ed;
@@ -298,7 +304,10 @@ export function editArticle(store, id, aid, patch) {
 export function editCartoon(store, id, patch = {}) {
   const ed = load(store, id);
   ed.cartoon = applyCartoon(ed.cartoon, patch);
-  return touch(store, ed);
+  const stale = ed.factcheck?.stale;
+  touch(store, ed);
+  if (ed.factcheck) { ed.factcheck.stale = !!stale; store.saveEdition(ed); } // the cartoon isn't fact-checked
+  return ed;
 }
 
 export function applyCartoon(cartoon, patch) {
@@ -375,8 +384,22 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   // the edition may have changed in the meantime
   const fresh = load(store, id);
   const k = findArticle(fresh, aid);
+  text.check = numbersCheck(text, factSheet(story) + seriesFacts(story.series, Date.now()));
   fresh.articles[k] = { ...fresh.articles[k], ...text, rewrittenWith: instruction || null };
   return touch(store, fresh);
+}
+
+/** The desk's "Check again": a new fact-check of the edition as it is now. */
+export async function factCheckEdition(store, config, id, log = console.log) {
+  const ed = load(store, id);
+  const ctx = await ctxFor(store, config, ed, log);
+  const stories = buildStories(cleanEvents(store.eventsBetween(ed.start, ed.end), config));
+  const fc = await factCheck({ articles: ed.articles, stories, summary: ed.summary, stats: ed.stats, market: ed.market, hourLabel: ctx.hourLabel }, ctx);
+  if (!fc) throw new DeskError(tr({ en: 'The fact-checker gave no usable answer.', it: 'Il fact-checker non ha dato una risposta utilizzabile.' }), 502);
+  const fresh = load(store, id);
+  fresh.factcheck = fc;
+  store.saveEdition(fresh);
+  return fresh;
 }
 
 export async function rewriteSummary(store, config, id, log = console.log) {

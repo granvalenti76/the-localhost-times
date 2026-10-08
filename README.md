@@ -2,7 +2,7 @@
 
 *“All the news that never left the machine.”*
 
-**An hourly newspaper about your own Mac.** Every hour, The Localhost Times reads what your Mac did (the pages you visited in Safari, the mail you received, the commands you typed, the notes you wrote, the podcasts you heard), groups it into stories and has a language model **running on your own machine** write them up as a newspaper: front page, sections, cartoons, letters to the editor, a stock market of websites and an evening edition.
+**An hourly newspaper about your own Mac.** Every hour, The Localhost Times reads what your Mac did (the pages you visited in Safari, the mail you received, the commands you typed, the notes you wrote, the folders you worked in, the podcasts you heard), groups it into stories and has a language model **running on your own machine** write them up as a newspaper: front page, sections, cartoons, letters to the editor, a stock market of websites, an evening edition, a searchable archive and investigations.
 
 Nothing leaves your computer. The only thing sent anywhere is the text of the stories, and it goes to the model *you* run.
 
@@ -87,7 +87,7 @@ When the model is off or doesn't answer, the paper doesn't stop: that hour's art
 
 ## Permissions
 
-Safari, Mail, Notes, Podcasts, Books and Journal keep their data in folders protected by macOS. To read them, the app you run the paper from needs **Full Disk Access**:
+Safari, Mail, Notes, Podcasts, Books and Journal keep their data in folders protected by macOS, and so are Desktop, Documents and Downloads (for the Local section, which also needs Spotlight, on by default). To read them, the app you run the paper from needs **Full Disk Access**:
 
 1. Open **System Settings → Privacy & Security → Full Disk Access**.
 2. Turn on the app you start the paper from: **Terminal**, iTerm, VS Code…
@@ -129,11 +129,13 @@ As a service, the paper runs as `node` and not inside Terminal, so macOS asks fo
 | Journal | Diary | Journal entries (experimental). The text stays **private** by default. |
 | Podcasts | Radio | Episodes played, and how far |
 | Books | Culture | Books opened, progress, highlighted passages |
+| Files | Local | Folders you worked in (via Spotlight) and downloads with the site they came from. **Not** file names (unless you enable them) or contents. |
 
 Every hour:
 
 - **The front page.** A lead story, sections, briefs and *The Brief*, a two-line summary. Stories that keep coming back become **continuing stories**, with links to the earlier instalments.
 - **The cartoon.** The model writes a New Yorker-style caption and picks one of 18 original line drawings to go with it.
+- **Fact check.** The model, as a fact-checker, rates the boldest claims of the edition (true, mostly true, false, unverifiable) against the hour's data. In the newsroom, every figure an article quotes that is *not* in its facts gets flagged.
 - **The website market.** Every site you visit is a listed stock, its visits are the price, with change and a 12-hour trend.
 - **Photos.** Preview images of public pages and YouTube thumbnails. Private, local and webmail pages are never fetched.
 
@@ -141,6 +143,19 @@ Every day:
 
 - **The evening edition** (at 21:00): an editorial about the day, the day's top stories, hour by hour, and the market close.
 - **Letters to the editor.** Write to the paper; the managing editor answers in the next edition, with your data at hand.
+
+In **the Archive**:
+
+- **Search** everything the paper printed and every signal it read: articles, editorials, pages, mail subjects, commands, notes, folders. Words match by their beginning; "quotes" match a phrase. A small chart shows when the matches happened.
+- **Ask the archive** a question in plain words (*"How many times was I on YouTube this week?"*): the archivist (your model) answers from the matching records, and cites them.
+- **Investigations.** Pick a subject and a period (or one of the newsroom's ideas, drawn from the stories that keep coming back): the paper gathers every trace in the archive, computes the numbers, the busiest days and hours and a timeline, and writes a long feature with key findings and charts.
+
+<table>
+<tr>
+<td><img src="docs/screenshots/archive.png" alt="The archive"></td>
+<td><img src="docs/screenshots/investigation.png" alt="An investigation"></td>
+</tr>
+</table>
 
 In **the Newsroom** you are the editor-in-chief:
 
@@ -159,8 +174,8 @@ The paper is written in **English or Italian** (`"language": "en"` or `"it"`).
 - **Local by design.** The paper is served on `127.0.0.1`, so other devices on your network can't open it. Your editions live in `data/` in the project folder.
 - **Read-only.** App databases are read from a temporary **copy**, never opened directly, never modified.
 - **What leaves the machine:** only the stories' facts, sent to the model address you configured. If the model runs on this Mac, nothing leaves at all. Photos are fetched from the public web pages you visited, unless you turn them off in the Newsroom.
-- **What is never read:** the body of your emails (unless you enable `mailIncludeSummary`), the text of Journal entries (unless `journalIncludeText`), locked notes, iCloud history from other devices.
-- **Filters:** `privacy.blockedDomains`, `blockedMailSenders` and `blockedNoteFolders` in `config.json` keep anything you choose out of the paper. Terminal commands are scanned for tokens, keys and passwords, which are redacted.
+- **What is never read:** the body of your emails (unless you enable `mailIncludeSummary`), the text of Journal entries (unless `journalIncludeText`), locked notes, iCloud history from other devices, the contents of your files. File names stay out too unless you set `files.includeNames`; build folders (`node_modules`, `dist`, `.git`…) and hidden files are ignored.
+- **Filters:** `privacy.blockedDomains`, `blockedMailSenders`, `blockedNoteFolders` and `files.exclude` in `config.json` keep anything you choose out of the paper. Terminal commands are scanned for tokens, keys and passwords, which are redacted.
 - **Other websites can't reach it.** Requests addressed to any host other than this Mac are refused, and data-changing API calls need a header that a page on another site can't send.
 - **No telemetry, no accounts, no cloud.**
 
@@ -180,6 +195,9 @@ The paper is written in **English or Italian** (`"language": "en"` or `"it"`).
 | `llm.concurrency` | `1` | Requests in parallel (1 suits local servers) |
 | `llm.thinking` | `false` | Let "thinking" models reason before writing (slower) |
 | `sources.<name>` | `true` | Turn a source off |
+| `files.folders` | Desktop, Documents, Downloads, Work, Developer, Projects, Code… | Folders the Local section watches |
+| `files.exclude` | `[]` | Parts of paths to leave out, e.g. `"Documents/Medical"` |
+| `files.includeNames` | `false` | Put file names in the paper (otherwise only folders, types and counts) |
 | `privacy.*` | | See [Privacy](#privacy) |
 | `edition.maxArticles` | `9` | Articles per edition |
 | `edition.minEvents` | `8` | Quieter hours merge into the next edition… |
@@ -244,6 +262,9 @@ app databases (read from a copy) ─► collected every 5 min ─► data/*.sqli
 | `server/newsroom/fallback.*.js` | The automatic typesetting (templates, one file per language) |
 | `server/newsroom/scenes.js` | The cartoon catalogue (the drawings are in `web/src/components/Cartoon.jsx`) |
 | `server/newsroom/edition.js` | Printing an edition, and the newsroom's desk operations |
+| `server/newsroom/archive.js` | Search (SQLite FTS5) and "Ask the archive" |
+| `server/newsroom/investigations.js` | Investigations: gathering, numbers, timeline, writing |
+| `server/newsroom/factcheck.js` | The fact check and the figures check |
 | `server/service.js` | The macOS background service |
 | `web/` | The paper: front page, articles, sections, newsroom |
 | `test/` | Tests (`npm test`) |

@@ -11,6 +11,7 @@ const NAMES = {
     journal:  { slug: 'diary',          name: 'Diary',          tag: 'Journal' },
     podcasts: { slug: 'radio',          name: 'Radio',          tag: 'Podcasts' },
     books:    { slug: 'culture',        name: 'Culture',        tag: 'Books' },
+    files:    { slug: 'local',          name: 'Local',          tag: 'Files' },
   },
   it: {
     safari:   { slug: 'esteri',         name: 'Esteri',         tag: 'Dal web' },
@@ -20,10 +21,11 @@ const NAMES = {
     journal:  { slug: 'diario',         name: 'Diario',         tag: 'Journal' },
     podcasts: { slug: 'radio',          name: 'Radio',          tag: 'Podcast' },
     books:    { slug: 'cultura',        name: 'Cultura',        tag: 'Libri' },
+    files:    { slug: 'cronaca',        name: 'Cronaca locale', tag: 'File' },
   },
 };
 
-export const SECTION_ORDER = ['safari', 'mail', 'terminal', 'notes', 'journal', 'podcasts', 'books'];
+export const SECTION_ORDER = ['safari', 'mail', 'terminal', 'files', 'notes', 'journal', 'podcasts', 'books'];
 
 export const SECTIONS = Object.fromEntries(SECTION_ORDER.map((id) => [id, {
   id,

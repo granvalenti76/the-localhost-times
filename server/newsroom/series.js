@@ -7,7 +7,7 @@ import { tr, locale } from '../i18n.js';
 
 const DAY = 24 * 3600e3;
 // topics too generic to make a series of
-const NOT_SERIAL = new Set(['roundup', 'searches', 'inbox', 'session', 'webmail']);
+const NOT_SERIAL = new Set(['roundup', 'searches', 'inbox', 'session', 'webmail', 'folders', 'downloads']);
 
 /** Previous instalments of stories, looked up in the editions of the last `days` days. */
 export function findSeries(store, stories, { before, excludeId, days = 7 } = {}) {

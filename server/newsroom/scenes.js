@@ -117,6 +117,9 @@ export function autoScene(articles, stats = {}, { hour } = {}) {
       if (has(lead, RE.money)) return 'chart';
       if (has(lead, RE.bug)) return 'bug';
       return (stats.bySource?.safari || 0) > 40 || lead.kind === 'roundup' ? 'tabs' : 'desk';
+    case 'files':
+      if (lead.kind === 'downloads') return 'mailpile';
+      return lead.project ? (h != null && h >= 23 ? 'night' : 'terminal') : 'tidy';
     case 'podcasts':
       return 'listen';
     case 'books':

@@ -37,6 +37,7 @@ const DATA_EN = {
     ['Notes from Thursday\'s meeting', 'Points: delivery dates, budget, who owns the design. Review the quote by Friday.', 'Work'],
   ],
   JOURNAL: 'A day made of paper',
+  DOCS: 'Documents/Invoices',
   PODCAST: [
     ['Source Code', 'Episode 112 – SQLite everywhere', 'Why the most widely deployed database in the world lives inside every app you use.', 2900],
     ['Paper Stories', 'The night the front page was born', 'A journey through the composing rooms of twentieth-century newspapers.', 2400],
@@ -82,11 +83,12 @@ const DATA_IT = {
 
   SENT: 'Inviata',
   JOURNAL: 'Una giornata di carta',
+  DOCS: 'Documents/Fatture',
 };
 
 export function demoEvents(hours = 9, now = Date.now()) {
   seed = 42;
-  const { SITES, SEARCHES, PEOPLE, NEWS, THREADS, NEWS_SUBJ, CMDS, COMMITS, NOTES, PODCAST, BOOKS, SENT, JOURNAL } = L({ en: DATA_EN, it: DATA_IT });
+  const { SITES, SEARCHES, PEOPLE, NEWS, THREADS, NEWS_SUBJ, CMDS, COMMITS, NOTES, PODCAST, BOOKS, SENT, JOURNAL, DOCS } = L({ en: DATA_EN, it: DATA_IT });
   const events = [];
   const add = (source, kind, ts, title, detail, meta = {}, url = null) =>
     events.push({ id: `${source}:demo:${hash(`${ts}:${title}:${events.length}`)}`, source, kind, ts, title, detail, url, meta });
@@ -137,6 +139,25 @@ export function demoEvents(hours = 9, now = Date.now()) {
         const m = pick(COMMITS);
         add('terminal', 'command', at(), `git commit -m "${m}"`, 'zsh', { shell: 'zsh', family: 'git commit', timed: true });
       }
+    }
+
+    // Files: a project folder, a documents folder, the downloads
+    if (!quiet && rnd() < 0.75) {
+      const project = 'Work/git/localhost-times';
+      const n = 4 + Math.floor(rnd() * 12);
+      for (let i = 0; i < n; i++) {
+        const [dir, ext] = pick([['server', 'js'], ['server/newsroom', 'js'], ['web/src/components', 'jsx'], ['web/src', 'css'], ['', 'md']]);
+        add('files', rnd() < 0.15 ? 'created' : 'changed', at(), `.${ext}`, project, { folder: project, dir: dir ? `${project}/${dir}` : project, project: 'localhost-times', ext, size: 2000 + Math.floor(rnd() * 30000) });
+      }
+    }
+    if (rnd() < 0.2) {
+      const ext = pick(['pdf', 'docx']);
+      add('files', 'changed', at(), `.${ext}`, DOCS, { folder: DOCS, dir: DOCS, project: null, ext, size: 80000 });
+      add('files', 'created', at(), `.${ext}`, DOCS, { folder: DOCS, dir: DOCS, project: null, ext, size: 60000 });
+    }
+    if (rnd() < 0.3) {
+      const [ext, site] = pick([['dmg', 'github.com'], ['pdf', 'arxiv.org'], ['zip', 'fonts.google.com']]);
+      add('files', 'downloaded', at(), `.${ext}`, 'Downloads', { folder: 'Downloads', dir: 'Downloads', project: null, ext, site, size: 4e6 + Math.floor(rnd() * 9e7) });
     }
 
     // Notes

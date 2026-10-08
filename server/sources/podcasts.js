@@ -43,7 +43,7 @@ export default {
         source: 'podcasts',
         kind: 'listened',
         ts: cdToMs(r.played),
-        title: r.title || 'Episodio senza titolo',
+        title: r.title || tr({ en: 'Untitled episode', it: 'Episodio senza titolo' }),
         detail: r.show || null,
         url: null,
         meta: {

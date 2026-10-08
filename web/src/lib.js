@@ -44,6 +44,9 @@ export function parseRoute(hash) {
   if (p[0] === 'newsroom' || p[0] === 'redazione') return { desk: true, edition: p[1] || null };
   if ((p[0] === 'evening' || p[0] === 'sera') && p[1]) return { evening: p[1] };
   if (p[0] === 'letters' || p[0] === 'lettere') return { letters: true };
+  if (p[0] === 'archive' || p[0] === 'archivio') return { archive: true, query: p.slice(1).join('/') };
+  if (p[0] === 'investigations' || p[0] === 'inchieste') return { investigations: true };
+  if ((p[0] === 'investigation' || p[0] === 'inchiesta') && p[1]) return { investigation: p[1] };
   if (p[0] === 'e' && p[1]) return { edition: p[1], article: p[2] === 'a' ? p[3] : null };
   if (p[0] === 'd' && p[1]) return { day: p[1], section: p[2] === 's' ? p[3] : null };
   return {};
@@ -57,6 +60,9 @@ export const href = {
   desk: (id) => (id ? `#/newsroom/${encodeURIComponent(id)}` : '#/newsroom'),
   evening: (day) => `#/evening/${day}`,
   letters: () => '#/letters',
+  archive: (q) => (q ? `#/archive/${encodeURIComponent(q)}` : '#/archive'),
+  investigations: () => '#/investigations',
+  investigation: (id) => `#/investigation/${id}`,
 };
 
 const SECTION_NAMES = {
@@ -68,6 +74,7 @@ const SECTION_NAMES = {
     { id: 'journal', slug: 'diary', name: 'Diary', tag: 'Journal' },
     { id: 'podcasts', slug: 'radio', name: 'Radio', tag: 'Podcasts' },
     { id: 'books', slug: 'culture', name: 'Culture', tag: 'Books' },
+    { id: 'files', slug: 'local', name: 'Local', tag: 'Files' },
   ],
   it: [
     { id: 'safari', slug: 'esteri', name: 'Esteri', tag: 'Dal web' },
@@ -77,6 +84,7 @@ const SECTION_NAMES = {
     { id: 'journal', slug: 'diario', name: 'Diario', tag: 'Journal' },
     { id: 'podcasts', slug: 'radio', name: 'Radio', tag: 'Podcast' },
     { id: 'books', slug: 'cultura', name: 'Cultura', tag: 'Libri' },
+    { id: 'files', slug: 'cronaca', name: 'Cronaca locale', tag: 'File' },
   ],
 };
 export const SECTIONS = tr(SECTION_NAMES);

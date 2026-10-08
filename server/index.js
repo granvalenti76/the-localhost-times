@@ -12,13 +12,15 @@ import { dayKey } from './util.js';
 import { getLine, saveLine, TONES, LENGTHS, WEIGHTS } from './newsroom/line.js';
 import {
   DeskError, editArticle, spikeArticle, restoreArticle, moveArticle, publishEdition, rewriteArticle, rewriteSummary,
-  editCartoon,
+  editCartoon, factCheckEdition,
 } from './newsroom/edition.js';
 import { publishEvening, editEveningCartoon } from './newsroom/evening.js';
 import { SCENES } from './newsroom/scenes.js';
 import { createNotifier } from './notify.js';
 import { tr, lang, locale } from './i18n.js';
 import { rssFeed } from './feed.js';
+import { search, ask } from './newsroom/archive.js';
+import { createInvestigation, suggestions } from './newsroom/investigations.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
 
@@ -43,6 +45,10 @@ if (process.env.LOCALHOST_TIMES_SERVICE === '1') {
   }, 3600e3).unref();
 }
 const store = new Store(config.dbFile);
+if (store.needsReindex()) {
+  // first start after the archive was added: index what is already there
+  store.reindex();
+}
 const log = (...a) => console.log(new Date().toLocaleTimeString(locale()), ...a);
 const notify = createNotifier(config, log);
 const newsroom = createNewsroom({ store, config, log, notify });
@@ -132,6 +138,7 @@ app.post(`${A}/rewrite`, wrap(async (req, res) =>
 app.post('/api/editions/:id/summary', wrap(async (req, res) => res.json(await rewriteSummary(store, config, req.params.id, log))));
 app.patch('/api/editions/:id/cartoon', wrap((req, res) => res.json(editCartoon(store, req.params.id, req.body || {}))));
 app.get('/api/scenes', (req, res) => res.json(Object.entries(SCENES).map(([id, s]) => ({ id, ...s }))));
+app.post('/api/editions/:id/factcheck', wrap(async (req, res) => res.json(await factCheckEdition(store, config, req.params.id, log))));
 app.post('/api/editions/:id/publish', wrap((req, res) => res.json(publishEdition(store, req.params.id))));
 app.post('/api/editions/:id/reprint', wrap(async (req, res) => {
   const ed = store.getEdition(req.params.id);
@@ -172,6 +179,36 @@ app.post('/api/collect', wrap(async (req, res) => {
 
 // Photos downloaded by the newsroom
 app.use('/media', express.static(path.join(config.dataDir, 'media'), { maxAge: '30d', immutable: true }));
+
+// ── The archive ──
+const num = (v) => (v == null || v === '' ? null : Number(v));
+app.get('/api/search', (req, res) => res.json(search(store, {
+  q: String(req.query.q || '').slice(0, 200),
+  kind: ['article', 'event', 'evening'].includes(req.query.kind) ? req.query.kind : null,
+  source: req.query.source || null,
+  from: num(req.query.from),
+  to: num(req.query.to),
+  sort: req.query.sort === 'recent' ? 'recent' : 'relevance',
+  limit: Math.min(100, num(req.query.limit) || 40),
+  offset: num(req.query.offset) || 0,
+})));
+app.post('/api/ask', wrap(async (req, res) => res.json(await ask(store, config, req.body?.question, log))));
+
+// ── Investigations ──
+app.get('/api/investigations', (req, res) => res.json(store.investigations(Math.min(100, num(req.query.limit) || 50))));
+app.get('/api/investigations/suggestions', (req, res) => res.json(suggestions(store)));
+app.get('/api/investigations/:id', (req, res) => {
+  const inv = store.getInvestigation(Number(req.params.id));
+  if (!inv) return res.status(404).json({ error: tr({ en: 'Investigation not found', it: 'Inchiesta non trovata' }) });
+  res.json(inv);
+});
+app.post('/api/investigations', wrap(async (req, res) => res.json(await createInvestigation(store, config, {
+  topic: req.body?.topic, keywords: req.body?.keywords, days: req.body?.days,
+}, log))));
+app.delete('/api/investigations/:id', (req, res) => {
+  store.deleteInvestigation(Number(req.params.id));
+  res.status(204).end();
+});
 
 // ── Feeds ──
 app.get(['/feed.xml', '/feed/:section.xml'], (req, res) => {

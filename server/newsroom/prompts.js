@@ -75,6 +75,9 @@ const HINTS_EN = {
   entry: 'A personal journal entry: absolute discretion.',
   episode: 'A podcast episode: name the show and the episode.',
   book: 'Reading a book: you may quote the highlighted passages.',
+  folder: 'Work in a folder of the Mac (often a software project): what was being worked on, judging by the folders and file types. Local news, plain words.',
+  folders: 'A few files saved in different folders: a short local brief.',
+  downloads: 'What arrived in the Downloads folder, and from which sites.',
 };
 
 const HINTS_IT = {
@@ -89,6 +92,9 @@ const HINTS_IT = {
   entry: 'Una voce di diario personale: discrezione assoluta.',
   episode: 'Un podcast ascoltato: cita lo show e l\'episodio.',
   book: 'Lettura di un libro: puoi citare i passi evidenziati.',
+  folder: 'Lavoro in una cartella del Mac (spesso un progetto software): su cosa si lavorava, a giudicare da cartelle e tipi di file. Cronaca locale, parole semplici.',
+  folders: 'Qualche file salvato in cartelle diverse: una breve di cronaca locale.',
+  downloads: 'Cosa è arrivato nella cartella Download, e da quali siti.',
 };
 
 const SIZE_NAMES = { en: { lead: 'lead story', article: 'article', brief: 'brief' }, it: { lead: 'apertura', article: 'articolo', brief: 'breve' } };

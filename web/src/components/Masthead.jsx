@@ -49,6 +49,7 @@ export default function Masthead({ edition, evening, day, status, activeSlug }) 
           </a>
         ))}
         <a href={href.letters()} className={`letters-link ${activeSlug === 'letters' ? 'on' : ''}`}>{tr({ en: 'Letters', it: 'Lettere' })}</a>
+        <a href={href.archive()} className={activeSlug === 'archive' ? 'on' : ''}>{tr({ en: 'Archive', it: 'Archivio' })}</a>
         <a href={href.desk()} className={`desk-link ${activeSlug === 'newsroom' ? 'on' : ''}`}>
           {tr({ en: 'Newsroom', it: 'Redazione' })}{status?.drafts ? <span className="badge">{status.drafts}</span> : null}
         </a>

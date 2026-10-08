@@ -226,6 +226,48 @@ const W = {
     };
   },
 
+  folder(s, P) {
+    const types = s.exts.map((x) => `.${x.k}`);
+    const where = s.project ? q(s.project) : q(s.topic);
+    return {
+      kicker: s.project || s.topic.split('/').pop(),
+      headline: s.created >= 3
+        ? P([`${where} grows: ${plural(s.created, 'new file', 'new files')}`, `New files in ${where}: ${s.created}, mostly ${types[0] || 'files'}`])
+        : P([`${plural(s.events.length, 'save', 'saves')} in ${where}${types.length ? `, mostly ${types[0]}` : ''}`, `Work in progress in ${where}`]),
+      dek: `${cap(span(s))}, ${s.files ? `${plural(s.files, 'file', 'files')} touched` : plural(s.events.length, 'save', 'saves')}${s.project ? ` in the ${q(s.project)} project` : ''}${s.created ? `, ${plural(s.created, 'new file', 'new files')}` : ''}.`,
+      body: [
+        types.length ? `By type: ${list(s.exts.map((x) => `${x.n} ${q('.' + x.k)}`))}.` : 'The file types say little.',
+        s.dirs.length > 1 ? `The work moves between ${list(s.dirs.slice(0, 3).map((d) => q(d.k)))}.` : P(['All in one folder: a focused job.', 'One folder, one job.']),
+        P(['What changed inside, the paper doesn\'t read: only the folders and the counts.', 'The contents stay on the desk; the paper only counts.']),
+      ],
+    };
+  },
+
+  folders(s, P) {
+    return {
+      kicker: 'Local',
+      headline: P([`A few files here and there: ${list(s.folders.slice(0, 3).map((f) => q(f.k)))}`, `Small saves in ${plural(s.folders.length, 'folder', 'folders')}`]),
+      dek: `${plural(s.events.length, 'file', 'files')} saved ${span(s)}, none of them in a busy folder.`,
+      body: [`The folders: ${list(s.folders.map((f) => `${q(f.k)} (${f.n})`))}.`],
+    };
+  },
+
+  downloads(s, P) {
+    const n = s.events.length;
+    const sites = s.sites.map((x) => x.k);
+    return {
+      kicker: 'Downloads',
+      headline: n === 1
+        ? `Arrived${s.events[0].meta.site ? ` from ${s.events[0].meta.site}` : ''}: ${/^\./.test(s.events[0].title) ? `a ${s.events[0].title} file` : q(short(s.events[0].title, 60))}`
+        : P([`${n} downloads${sites.length ? `, from ${list(sites.slice(0, 3))}` : ''}`, `The Downloads folder fills up: ${n} new files`]),
+      dek: `${cap(span(s))}${s.exts.length ? `; types: ${list(s.exts.map((x) => `.${x.k}`))}` : ''}.`,
+      body: [
+        `Among the arrivals: ${list(s.events.slice(0, 5).map((e) => `${/^\./.test(e.title) ? `a ${e.title} file` : q(short(e.title, 60))}${e.meta.site ? ` from ${e.meta.site}` : ''}`))}.`,
+        P(['Whether they will ever be opened is a story for another edition.', 'The Downloads folder, as usual, keeps everything.']),
+      ],
+    };
+  },
+
   book(s) {
     const e = s.events[0];
     const hl = s.events.filter((x) => x.kind === 'highlight');

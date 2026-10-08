@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, href, hhmm, dayKey, longDate, SECTIONS, writerLabel, edHour, edSince } from '../lib.js';
 import Meeting from './Meeting.jsx';
 import DeskCartoon from './DeskCartoon.jsx';
+import FactCheck from './FactCheck.jsx';
 import { tr } from '../i18n.js';
 
 const T = tr({
@@ -18,7 +19,7 @@ const T = tr({
     kicker: 'Kicker', headline: 'Headline', dek: 'Summary', paraHint: 'A blank line separates paragraphs.', removePhoto: 'Remove the photo',
     save: 'Save', cancel: 'Cancel', orWrite: 'Or write your own: “say more about the TurboCode project”', rewrite: 'Rewrite',
     closeText: 'Close text', readText: 'Read text', toLead: 'Make it the lead', edit: 'Edit', discuss: 'Discuss', spike: 'Spike',
-    working: 'The writer is working…',
+    working: 'The writer is working…', unverified: 'figures not in the facts', unverifiedHint: 'These numbers or times are in the article but not in the facts it was written from: check them, or rewrite.',
     title: 'The Newsroom', subtitle: 'The editor\'s desk · drafts, page plan and editorial line',
     draft: 'draft', retouched: 'edited', noEditions: 'No editions today.', evening: 'Evening',
     writingEvening: 'Writing the evening…', printEvening: 'Print the evening edition',
@@ -45,7 +46,7 @@ const T = tr({
     kicker: 'Occhiello', headline: 'Titolo', dek: 'Sommario', paraHint: 'Una riga vuota separa i paragrafi.', removePhoto: 'Togli la foto',
     save: 'Salva', cancel: 'Annulla', orWrite: 'Oppure scrivi tu: «parla di più del progetto TurboCode»', rewrite: 'Riscrivi',
     closeText: 'Chiudi testo', readText: 'Leggi testo', toLead: 'In apertura', edit: 'Modifica', discuss: 'Discuti', spike: 'Cestina',
-    working: 'Il redattore lavora…',
+    working: 'Il redattore lavora…', unverified: 'numeri non presenti nei fatti', unverifiedHint: 'Questi numeri o orari sono nell\'articolo ma non nei fatti da cui è stato scritto: controllali, o fai riscrivere.',
     title: 'La Redazione', subtitle: 'Il tavolo del direttore · bozze, menabò e linea editoriale',
     draft: 'bozza', retouched: 'ritoccata', noEditions: 'Nessuna edizione oggi.', evening: 'Sera',
     writingEvening: 'Scrivo la sera…', printEvening: 'Stampa l\'edizione della sera',
@@ -226,6 +227,9 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
           <span className="tag">{writerLabel(a.writer)}</span>
           {a.rewrittenWith && <span className="tag">{T.rewritten}: «{a.rewrittenWith}»</span>}
           <span className="tag">{a.sources.length} {a.sources.length === 1 ? T.source : T.sources}</span>
+          {a.check?.unverified?.length > 0 && (
+            <span className="tag tag-warn" title={T.unverifiedHint}>⚠ {T.unverified}: {a.check.unverified.slice(0, 4).join(', ')}</span>
+          )}
         </div>
 
         {mode === 'edit' ? (
@@ -485,6 +489,7 @@ export default function Newsroom({ editionId, onPublished }) {
                 <p>{ed.summary}</p>
               </div>
               <DeskCartoon cartoon={ed.cartoon} endpoint={`/editions/${encodeURIComponent(ed.id)}/cartoon`} onChange={update} setError={setError} />
+              <FactCheck edition={ed} desk onChange={update} setError={setError} />
 
               <div className="drafts">
                 {ed.articles.map((a, i) => (
