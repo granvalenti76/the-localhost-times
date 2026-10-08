@@ -37,8 +37,8 @@ Nothing leaves your computer. The only thing sent anywhere is the text of the st
 ## Quick start
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/localhost-times.git
-cd localhost-times
+git clone https://github.com/granvalenti76/the-localhost-times.git
+cd the-localhost-times
 npm install
 npm run demo        # a paper made of invented data → http://localhost:4321
 ```
