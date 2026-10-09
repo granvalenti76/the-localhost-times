@@ -389,7 +389,7 @@ button { font: inherit; color: inherit; }
 
 /* ───────── The Newsroom ───────── */
 .desk { padding-top: 26px; }
-.desk-head { border-bottom: 1px solid var(--rule); padding-bottom: 14px; margin-bottom: 22px; }
+.desk-head { border-bottom: 1px solid var(--rule); padding-bottom: 14px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
 .desk-head h2 { font: 700 40px/1 var(--f-display); margin: 0 0 6px; letter-spacing: -.02em; }
 .desk-head p { margin: 0; font: 500 13px/1.3 var(--f-sans); color: var(--muted); }
 .desk-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 0; align-items: start; }
@@ -1253,3 +1253,44 @@ a.btn-ghost { display: inline-block; }
 .scoreboard td { text-align: right; padding: 5px 0 5px 8px; font-variant-numeric: tabular-nums; color: var(--muted); }
 .scoreboard tr { border-bottom: 1px solid var(--hair); }
 @media print { .calls-bar, .flash-band, .chatter-box, .oracle-box .bet, .para-tools, .fblock-tools { display: none !important; } }
+
+/* a new article: the newsroom proposes, the Editor commissions and judges */
+.new-article { font-size: 14px; padding: 11px 18px; }
+.new-article.on { background: transparent; color: var(--ink); }
+.commission { border: 1px solid var(--ink); background: var(--card); padding: 16px 18px; margin: 0 0 22px; animation: call-in .25s ease-out; }
+.commission-head { display: flex; justify-content: space-between; align-items: baseline; }
+.commission-head .hl-md { margin: 0; }
+.proposals { margin-top: 16px; }
+.proposals ul { list-style: none; margin: 6px 0 0; padding: 0; }
+.proposals li { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--hair); }
+.proposals li.in-work { opacity: .6; }
+.prop-topic { font: 650 18px/1.2 var(--f-display); grid-column: 1; }
+.prop-why { font: 400 12px/1.3 var(--f-sans); color: var(--muted); grid-column: 1; }
+.proposals li > .btn, .proposals li > .tag { grid-column: 2; grid-row: 1 / 3; }
+.commission-own { margin-top: 16px; }
+.commission-own .lbl { display: block; margin-bottom: 6px; }
+.commission input, .tipbox input { font: 400 14px/1.4 var(--f-sans); color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 2px; padding: 8px 10px; width: 100%; }
+.pieces { margin: 0 0 18px; padding: 10px 0 12px; border-bottom: 1px solid var(--rule); }
+.pieces ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.piece a { display: flex; flex-direction: column; gap: 3px; border: 1px solid var(--hair); border-left: 4px solid var(--muted); padding: 8px 10px; min-width: 220px; max-width: 320px; background: var(--card); }
+.piece a:hover { text-decoration: none; border-color: var(--ink); }
+.piece.st-draft a { border-left-color: var(--accent); }
+.piece.st-approved a { border-left-color: #2f8f4e; }
+.piece.st-writing a, .piece.st-planning a { border-left-color: #b8860b; }
+.piece-hl { font: 650 15px/1.2 var(--f-display); }
+.piece-st { font: 800 10px/1 var(--f-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.piece.st-draft .piece-st { color: var(--accent); }
+.piece.st-approved .piece-st { color: #2f8f4e; }
+.piece-by { font: 400 11.5px/1.2 var(--f-sans); color: var(--muted); }
+.tipbox { margin: 26px 0 0; padding: 14px 16px; background: var(--chip); border-left: 4px solid #6b4f8f; }
+.tipbox .lbl { display: block; margin-bottom: 8px; color: #6b4f8f; }
+.tipbox-list { margin: 0 0 10px; padding-left: 16px; font: italic 400 15px/1.45 var(--f-serif); }
+.tipbox .btn-ghost { margin-top: 10px; }
+.verdict { margin: 18px 0 0; padding: 16px 18px; border: 2px solid var(--ink); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.verdict-q { margin: 0; flex: 1 1 100%; font: italic 600 22px/1.25 var(--f-display); }
+.verdict.approved { border-color: #2f8f4e; }
+.verdict.approved p { margin: 0; flex: 1; font: 400 14px/1.4 var(--f-sans); }
+.verdict.approved strong { color: #2f8f4e; }
+.verdict.printed { border-color: var(--hair); }
+.next-commissioned { margin: 0 0 14px; padding: 10px 12px; border-left: 4px solid #2f8f4e; background: var(--chip); }
+.next-commissioned ul { margin: 6px 0 0; padding-left: 16px; font: 600 13.5px/1.5 var(--f-sans); }

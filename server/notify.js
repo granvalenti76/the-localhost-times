@@ -24,7 +24,7 @@ function findBin(name) {
 
 export function createNotifier(config, log = console.log) {
   const off = process.platform !== 'darwin' || !config.notifications?.enabled || config.demo;
-  if (off) return { enabled: false, edition() {}, evening() {}, spotlight() {}, spotlightReply() {}, call() {}, flash() {}, test() {} };
+  if (off) return { enabled: false, edition() {}, evening() {}, spotlight() {}, spotlightReply() {}, call() {}, flash() {}, piece() {}, test() {} };
   const tn = findBin('terminal-notifier');
   const base = `http://127.0.0.1:${config.port}/`;
 
@@ -96,6 +96,12 @@ export function createNotifier(config, log = console.log) {
     });
   }
 
+  /** A commissioned piece is written and waits for the Editor's review. */
+  function piece(f) {
+    if (!f) return;
+    send({ subtitle: tr({ en: 'A piece is waiting for your review', it: 'Un pezzo aspetta la sua revisione' }), message: f.headline || f.topic, url: `#/feature/${f.id}` });
+  }
+
   /** Breaking news. */
   function flash(f) {
     if (!f) return;
@@ -106,5 +112,5 @@ export function createNotifier(config, log = console.log) {
     send({ subtitle: tr({ en: 'Notifications are on', it: 'Le notifiche funzionano' }), message: tr({ en: 'You will hear from us every hour.', it: 'Ci sentiamo a ogni edizione.' }) });
   }
 
-  return { enabled: true, edition, evening, spotlight, spotlightReply, call, flash, test, via: tn ? 'terminal-notifier' : 'osascript' };
+  return { enabled: true, edition, evening, spotlight, spotlightReply, call, flash, piece, test, via: tn ? 'terminal-notifier' : 'osascript' };
 }

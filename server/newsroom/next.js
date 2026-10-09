@@ -11,6 +11,7 @@ import { editionWindow, cleanEvents, DeskError } from './edition.js';
 import { hourStart, editionId, hhmm, dayKey } from '../util.js';
 import { SECTIONS } from './sections.js';
 import { siteOf } from './cluster.js';
+import { approvedPieces } from './features.js';
 
 const HOUR = 3600e3;
 const KEY = 'steer';
@@ -66,7 +67,7 @@ export function steerLine(line, steer) {
 // ───────────────────────── The preview ─────────────────────────
 
 /** A short, readable name for a story that has no headline yet. */
-function label(s) {
+export function label(s) {
   const en = lang() === 'en';
   switch (s.kind) {
     case 'session': return `${en ? 'Terminal session' : 'Sessione nel terminale'}${s.families?.length ? ` (${s.families.slice(0, 2).map((f) => f.family).join(', ')})` : ''}`;
@@ -132,6 +133,7 @@ export function preview(store, config, { now = Date.now(), lastCollect = null, n
     stories: ranked.map(brief),
     buried: buried.map((s, i) => ({ ...brief(s, i), inPaper: false })),
     steer,
+    commissioned: approvedPieces(store),
   };
 }
 
@@ -151,6 +153,7 @@ export function previewText(p) {
     ...p.stories.slice(0, 12).map((s) => `- ${s.rank}. id “${s.id}” [${s.section}, ${s.kind}] ${s.topic} — ${s.signals} ${en ? 'signals' : 'segnali'}, ${en ? 'weight' : 'peso'} ${s.weight}${s.boosted ? (en ? ', LEAD chosen by the editor' : ', APERTURA scelta dal direttore') : ''}${s.inPaper ? '' : (en ? ' (would not fit: briefs)' : ' (non entrerebbe: in breve)')}`),
     p.buried.length ? `${en ? 'Left out by the editor' : 'Escluse dal direttore'}: ${p.buried.map((s) => `“${s.id}”`).join(', ')}` : '',
     p.steer.notes.length ? `${en ? 'Instructions for this edition' : 'Indicazioni per questa edizione'}: ${p.steer.notes.join(' · ')}` : '',
+    p.commissioned?.length ? `${en ? 'Commissioned pieces approved by the editor for this edition' : 'Pezzi su commissione approvati dal direttore per questa edizione'}: ${p.commissioned.map((c) => `“${c.headline}”${c.placement === 'lead' ? (en ? ' (lead)' : ' (apertura)') : ''}`).join(', ')}` : '',
   ];
   return lines.filter(Boolean).join('\n');
 }

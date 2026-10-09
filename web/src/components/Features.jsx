@@ -20,6 +20,10 @@ const T = tr({
     textPh: 'Write here. A blank line between paragraphs; a line starting with ## is a section heading.', claims: 'What the facts don\'t support', suggestions: 'Data you could use', proposals: 'The desk proposes', apply: 'use',
     issues: 'Style', by: 'By', of: 'of', allFeatures: 'All the long pieces', none: 'No long pieces yet. Open one from any article: “Go deeper”.', draft: 'draft', yourDraft: 'your draft',
     sourcesNote: 'With the owner\'s statements and the tips of the tip box.', unchecked: 'Not yet checked',
+    newArticle: 'New article', forNext: 'for the next edition', newsroom: 'Newsroom', format: 'Format', formats: { article: 'Article', long: 'Long piece' },
+    approveEd: 'Approve for the next edition', placement: { lead: 'As the lead', inside: 'Inside' }, approved: (h) => `Approved: it goes into the ${h} edition`, withdraw: 'Withdraw',
+    printed: 'In the paper', seeIt: 'See it on the page →', asLong: 'Publish as a long read', tipFor: 'A tip for this piece', tipForPh: 'something the signals can\'t know: it goes into the next rewrite',
+    addTip: 'Add', rewriteAll: 'Rewrite with the new tips', tipsGiven: 'Tips given', judge: 'Is it good for the next edition?',
   },
   it: {
     deepen: 'Approfondisci', deepening: 'Apro il fascicolo…', feature: 'Approfondimento', features: 'Approfondimenti', newOne: 'Un approfondimento su…', newPh: 'un argomento: chess.com, il progetto, le serate…', start: 'Apri il fascicolo',
@@ -38,6 +42,10 @@ const T = tr({
     textPh: 'Scriva qui. Una riga vuota tra i paragrafi; una riga che comincia con ## è un titoletto di sezione.', claims: 'Cosa i fatti non sostengono', suggestions: 'Dati che potrebbe usare', proposals: 'Il desk propone', apply: 'usa',
     issues: 'Stile', by: 'Di', of: 'di', allFeatures: 'Tutti gli approfondimenti', none: 'Ancora nessun approfondimento. Lo apra da un articolo qualsiasi: «Approfondisci».', draft: 'bozza', yourDraft: 'la sua bozza',
     sourcesNote: 'Con le dichiarazioni del proprietario e le soffiate della cassetta.', unchecked: 'Non ancora controllato',
+    newArticle: 'Nuovo articolo', forNext: 'per la prossima edizione', newsroom: 'Redazione', format: 'Formato', formats: { article: 'Articolo', long: 'Pezzo lungo' },
+    approveEd: 'Approva per la prossima edizione', placement: { lead: 'In apertura', inside: 'All\'interno' }, approved: (h) => `Approvato: esce nell'edizione delle ${h}`, withdraw: 'Ritira',
+    printed: 'In pagina', seeIt: 'Vedi in pagina →', asLong: 'Pubblica come approfondimento', tipFor: 'Una soffiata per questo pezzo', tipForPh: 'qualcosa che i segnali non sanno: entra alla prossima riscrittura',
+    addTip: 'Aggiungi', rewriteAll: 'Riscrivi con le soffiate nuove', tipsGiven: 'Soffiate date', judge: 'Va bene per la prossima edizione?',
   },
 });
 
@@ -66,7 +74,7 @@ export function DeepenButton({ editionId, articleId, className = 'btn-ghost' }) 
 /** In the rail: the latest long pieces. */
 export function FeaturesBox() {
   const [list, setList] = useState([]);
-  useEffect(() => { api('/features?status=published&limit=3').then(setList).catch(() => {}); }, []);
+  useEffect(() => { api('/features?status=published&target=longread&limit=3').then(setList).catch(() => {}); }, []);
   if (!list.length) return null;
   return (
     <section className="box features-box">
@@ -141,8 +149,9 @@ function Brief({ f, meta, onChange, setError }) {
   const [facts, setFacts] = useState(f.sources.filter((s) => s.via !== 'tip').map((s) => s.text).concat(['']).slice(0, 6));
   const [tips, setTips] = useState([]);
   const [picked, setPicked] = useState(new Set());
-  const [mode, setMode] = useState(f.mode || 'desk');
+  const [mode, setMode] = useState(f.mode || (f.target === 'edition' ? 'together' : 'desk'));
   const [style, setStyle] = useState(f.style || 'magazine');
+  const [format, setFormat] = useState(f.format || 'long');
   const [length, setLength] = useState(f.length || 'standard');
   const [busy, setBusy] = useState(false);
   useEffect(() => { api('/tips?status=new').then(setTips).catch(() => {}); }, []);
@@ -151,7 +160,7 @@ function Brief({ f, meta, onChange, setError }) {
     setBusy(true);
     setError(null);
     try {
-      onChange(await api(`/features/${f.id}/brief`, { method: 'POST', json: { answers, sources: facts.filter((x) => x.trim()), tips: [...picked], mode, style, length } }));
+      onChange(await api(`/features/${f.id}/brief`, { method: 'POST', json: { answers, sources: facts.filter((x) => x.trim()), tips: [...picked], mode, style, length, format } }));
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
   return (
@@ -215,6 +224,12 @@ function Brief({ f, meta, onChange, setError }) {
               {meta.styles.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
           </label>
+          <div>
+            <span className="lbl">{T.format}</span>
+            <div className="seg">
+              {Object.entries(T.formats).map(([k, l]) => <button key={k} type="button" className={format === k ? 'on' : ''} onClick={() => setFormat(k)}>{l}</button>)}
+            </div>
+          </div>
           <div>
             <span className="lbl">{T.length}</span>
             <div className="seg">
@@ -388,6 +403,58 @@ function Yours({ f, onChange, setError, busy }) {
   );
 }
 
+// ───────────────────────── A commissioned piece: tips and the verdict ─────────────────────────
+
+function TipBox({ f, act }) {
+  const [text, setText] = useState('');
+  const tips = (f.sources || []).filter((x) => x.via === 'tip');
+  const fresh = tips.some((x) => x.at && x.at > (f.finishedAt || 0));
+  return (
+    <section className="tipbox">
+      <span className="lbl">{T.tipFor}</span>
+      {tips.length > 0 && (
+        <ul className="tipbox-list">{tips.map((x, i) => <li key={i}>{x.text}</li>)}</ul>
+      )}
+      <form className="rewrite-row" onSubmit={async (e) => { e.preventDefault(); if (!text.trim()) return; await act('/sources', { text: text.trim(), via: 'tip' }); setText(''); }}>
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={T.tipForPh} />
+        <button className="btn btn-small" disabled={!text.trim()}>{T.addTip}</button>
+      </form>
+      {fresh && f.mode !== 'yours' && f.status !== 'writing' && <button className="btn-ghost" disabled={f.busy} onClick={() => act('/rewrite-all')}>↻ {T.rewriteAll}</button>}
+    </section>
+  );
+}
+
+const nextHour = () => { const d = new Date(); d.setMinutes(0, 0, 0); d.setHours(d.getHours() + 1); return `${String(d.getHours()).padStart(2, '0')}:00`; };
+
+function Verdict({ f, act }) {
+  const [placement, setPlacement] = useState(f.placement || 'inside');
+  if (f.printedIn) {
+    return (
+      <section className="verdict printed">
+        <span className="lbl">✓ {T.printed}</span>
+        <a className="more" href={href.article(f.printedIn, `feature:${f.id}`)}>{T.seeIt}</a>
+      </section>
+    );
+  }
+  if (f.status === 'approved') {
+    return (
+      <section className="verdict approved">
+        <p><strong>✓ {T.approved(nextHour())}</strong> · {T.placement[f.placement || 'inside']}</p>
+        <button className="btn-ghost" onClick={() => act('/withdraw')}>{T.withdraw}</button>
+      </section>
+    );
+  }
+  return (
+    <section className="verdict">
+      <p className="verdict-q">{T.judge}</p>
+      <div className="seg">
+        {['lead', 'inside'].map((k) => <button key={k} type="button" className={placement === k ? 'on' : ''} onClick={() => setPlacement(k)}>{T.placement[k]}</button>)}
+      </div>
+      <button className="btn" disabled={f.busy || !f.blocks.some((b) => b.paragraphs?.length)} onClick={() => act('/approve', { placement })}>{T.approveEd}</button>
+    </section>
+  );
+}
+
 // ───────────────────────── The page ─────────────────────────
 
 export function FeaturePage({ id }) {
@@ -418,15 +485,21 @@ export function FeaturePage({ id }) {
   const published = f.status === 'published';
   const editable = !published && f.mode && f.mode !== 'yours' && ['writing', 'draft'].includes(f.status);
   const pending = f.blocks.some((b) => b.status === 'pending');
+  const forEdition = f.target === 'edition';
+  const approved = f.status === 'approved';
 
   return (
     <div className="feature">
       <div className="story-top">
-        <a className="back" href={href.features()}>← {T.features}</a>
-        {f.origin && <a className="back" href={href.article(f.origin.editionId, f.origin.articleId)}>{quote(f.origin.headline)}</a>}
+        {forEdition ? <a className="back" href={href.desk()}>← {T.newsroom}</a> : <a className="back" href={href.features()}>← {T.features}</a>}
+        {f.origin?.editionId && <a className="back" href={href.article(f.origin.editionId, f.origin.articleId)}>{quote(f.origin.headline)}</a>}
       </div>
       <article className="feature-article">
-        <div className="kicker"><span className="sec">{f.kicker || T.feature}</span>{f.status !== 'published' && f.mode && <span className="sub"> · {T.modes[f.mode]?.[0]}</span>}</div>
+        <div className="kicker">
+          <span className="sec">{forEdition ? T.newArticle : (f.kicker || T.feature)}</span>
+          {forEdition && !f.printedIn && <span className="sub"> · {T.forNext}</span>}
+          {f.status !== 'published' && f.mode && <span className="sub"> · {T.modes[f.mode]?.[0]}</span>}
+        </div>
         {editable && editingHead ? (
           <div className="draft-form">
             <input className="f-head" defaultValue={f.headline} id="fhead" />
@@ -453,24 +526,28 @@ export function FeaturePage({ id }) {
         {f.status === 'brief' && <Brief f={f} meta={meta} onChange={setF} setError={setError} />}
         {f.status === 'planning' && <p className="working big"><span className="inv-spinner" aria-hidden="true" /> {T.planning}</p>}
         {f.status === 'outline' && <Outline f={f} onChange={setF} setError={setError} />}
-        {f.mode === 'yours' && !published && f.status === 'draft' && <Yours f={f} onChange={setF} setError={setError} busy={f.busy} />}
-        {(['writing', 'draft'].includes(f.status) && f.mode !== 'yours') || published ? (
+        {f.mode === 'yours' && f.status === 'draft' && <Yours f={f} onChange={setF} setError={setError} busy={f.busy} />}
+        {(['writing', 'draft', 'approved'].includes(f.status) && f.mode !== 'yours') || published || (approved && f.mode === 'yours') ? (
           <div className="story-body feature-body">
             {f.blocks.map((b, i) => <Block key={`${i}-${b.heading}`} f={f} b={b} i={i} busy={f.busy} act={act} />)}
           </div>
         ) : null}
 
-        {(f.status === 'draft' || f.status === 'writing' || published) && (
+        {forEdition && ['draft', 'writing', 'approved'].includes(f.status) && <TipBox f={f} act={act} />}
+        {forEdition && (f.status === 'draft' || approved || (published && f.printedIn)) && <Verdict f={f} act={act} />}
+        {(f.status === 'draft' || f.status === 'writing' || published || approved) && (
           <div className="feature-bar">
             {f.check?.unverified?.length > 0 && !published && <span className="tag tag-warn">⚠ {T.unverified}: {f.check.unverified.slice(0, 5).join(', ')}</span>}
             {f.lint && !published && <span className="tag">{T.score} {f.lint.score}/100</span>}
             {f.status === 'writing' && <button className="btn-ghost" onClick={() => act('/stop')}>{T.stop}</button>}
             {f.status === 'draft' && pending && f.mode !== 'yours' && <button className="btn-ghost" disabled={f.busy} onClick={() => act('/continue')}>{T.resume}</button>}
-            {f.status === 'draft' && <button className="btn" disabled={f.busy} onClick={() => act('/publish')}>{T.publish}</button>}
-            {published && <button className="btn-ghost" onClick={() => act('/unpublish')}>{T.unpublish}</button>}
+            {f.status === 'draft' && (forEdition
+              ? <button className="btn-ghost" disabled={f.busy} onClick={() => act('/publish')}>{T.asLong}</button>
+              : <button className="btn" disabled={f.busy} onClick={() => act('/publish')}>{T.publish}</button>)}
+            {published && !f.printedIn && <button className="btn-ghost" onClick={() => act('/unpublish')}>{T.unpublish}</button>}
             <button className={`btn-ghost danger ${armed ? 'on' : ''}`} onClick={async () => {
               if (!armed) { setArmed(true); setTimeout(() => setArmed(false), 3000); return; }
-              try { await api(`/features/${f.id}`, { method: 'DELETE' }); location.hash = href.features(); } catch (e) { setError(e.message); }
+              try { await api(`/features/${f.id}`, { method: 'DELETE' }); location.hash = forEdition ? href.desk() : href.features(); } catch (e) { setError(e.message); }
             }}>{armed ? T.confirmDel : T.del}</button>
           </div>
         )}

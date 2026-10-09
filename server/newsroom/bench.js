@@ -30,6 +30,10 @@ function bump(t, writer, key) {
 
 /** The facts an article was written from (or, if they're gone, the article and its sources). */
 function factsFor(store, config, ed, a) {
+  if (a.kind === 'commissioned') {
+    const f = store.getItem('feature', a.featureId);
+    if (f?.dossier) return f.dossier;
+  }
   const story = buildStories(cleanEvents(store.eventsBetween(ed.start, ed.end), config)).find((s) => s.id === a.id);
   if (story) return factSheet(story) + seriesFacts(a.series || null, Date.now());
   return [`${a.section}`, ...(a.sources || []).map((s) => `- ${hhmm(s.ts)} ${s.title}${s.host ? ` (${s.host})` : ''}`)].join('\n');

@@ -9,6 +9,7 @@ import { SpotlightDesk } from './Spotlight.jsx';
 import { Paragraphs, HeadlinePicker } from './Bench.jsx';
 import { DeepenButton } from './Features.jsx';
 import { ChatterFeed } from './Live.jsx';
+import CommissionPanel, { PiecesStrip } from './Commissions.jsx';
 
 const T = tr({
   en: {
@@ -37,7 +38,7 @@ const T = tr({
     reprintTitle: 'Rewrites the whole edition with the current editorial line.', reprintingLong: 'Reprinting… (a few minutes)',
     confirm: 'Sure? You lose the manual edits', reprint: 'Reprint', brief: 'The Brief', spiked: 'Spiked', restore: 'Restore',
     panels: 'Newsroom panels', meeting: 'Meeting', line: 'Editorial line', nextTab: 'Next edition',
-    heads: 'Headlines', bench: 'Quick bench', benchHint: 'One article at a time, keep or cut', viva: 'Live', tipsTab: 'Tips',
+    newArticle: 'New article', heads: 'Headlines', bench: 'Quick bench', benchHint: 'One article at a time, keep or cut', viva: 'Live', tipsTab: 'Tips',
     games: 'The Editor\'s part and the games', gamesHint: 'Each can be turned off. The calls and the closing send a notification.',
     feat: { interview: ['Interviews', 'A reporter calls you about a big story; your answer becomes a quote'], closing: ['The closing at :55', 'The desk asks what leads, what to cut, which tone'], tips: ['Tip box', 'Your tips go into the stories, or into “Word is”'], flash: ['Breaking news', 'A flash when a record falls mid-hour'], sport: ['Sport', 'Report cards and records'], oracle: ['The Oracle', 'Predictions on the next hour; bet against it'], serial: ['The serial', 'A novel in instalments, you choose how it goes on'], chatter: ['The newsroom, live', 'What the writers say to each other'] },
     genre: 'Genre of the serial', director: 'How you sign your pieces', directorPh: 'The Editor', scoreTitle: 'The staff\'s scoreboard', scoreHint: '♥ paragraphs you liked · ✕ disliked · kept and cut on the bench',
@@ -70,7 +71,7 @@ const T = tr({
     reprintTitle: 'Riscrive tutta l\'edizione con la linea editoriale attuale.', reprintingLong: 'Ristampo… (qualche minuto)',
     confirm: 'Confermi? Perdi le modifiche a mano', reprint: 'Ristampa', brief: 'Il punto', spiked: 'Cestino', restore: 'Ripristina',
     panels: 'Pannelli della redazione', meeting: 'Riunione', line: 'Linea editoriale', nextTab: 'Prossima',
-    heads: 'Titoli', bench: 'Banco rapido', benchHint: 'Un articolo alla volta, tieni o taglia', viva: 'Viva', tipsTab: 'Soffiate',
+    newArticle: 'Nuovo articolo', heads: 'Titoli', bench: 'Banco rapido', benchHint: 'Un articolo alla volta, tieni o taglia', viva: 'Viva', tipsTab: 'Soffiate',
     games: 'La parte del direttore e i giochi', gamesHint: 'Ognuno si può spegnere. Le chiamate e la chiusura mandano una notifica.',
     feat: { interview: ['Interviste', 'Un cronista la chiama su una storia grossa; la risposta diventa una citazione'], closing: ['La chiusura delle :55', 'Il desk chiede cosa aprire, cosa tagliare, che tono'], tips: ['Cassetta delle soffiate', 'Le soffiate entrano nelle storie, o in «Si dice che»'], flash: ['Ultim\'ora', 'Un flash quando cade un primato a metà ora'], sport: ['Sport', 'Pagelle e primati'], oracle: ['L\'Oracolo', 'Pronostici sull\'ora dopo; ci si può scommettere contro'], serial: ['Il feuilleton', 'Un romanzo a puntate, come continua lo decide lei'], chatter: ['La redazione viva', 'Cosa si dicono i redattori'] },
     genre: 'Genere del feuilleton', director: 'Come firma i suoi pezzi', directorPh: 'Il Direttore', scoreTitle: 'La classifica della redazione', scoreHint: '♥ paragrafi apprezzati · ✕ bocciati · tenuti e tagliati al banco',
@@ -441,7 +442,7 @@ export default function Newsroom({ editionId: requested, onPublished }) {
   // #/newsroom/spotlight opens the Spotlight board
   const spotlightTab = requested === 'spotlight';
   const sideTab = ['viva', 'live'].includes(requested) ? 'viva' : ['soffiate', 'tips'].includes(requested) ? 'tips' : spotlightTab ? 'spotlight' : null;
-  const editionId = sideTab ? null : requested;
+  const editionId = sideTab || ['nuovo', 'new'].includes(requested) ? null : requested;
   const isEvening = !!editionId?.startsWith('sera-');
   const [day, setDay] = useState(() => (editionId ? (isEvening ? editionId.slice(5) : editionId.slice(0, 10)) : dayKey(Date.now())));
   const [tab, setTab] = useState(sideTab || 'meeting');
@@ -455,6 +456,7 @@ export default function Newsroom({ editionId: requested, onPublished }) {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(null);
   const [armed, setArmed] = useState(false);
+  const [commission, setCommission] = useState(requested === 'nuovo' || requested === 'new');
 
   function reprint() {
     // an edition edited by hand: a second click confirms
@@ -527,9 +529,13 @@ export default function Newsroom({ editionId: requested, onPublished }) {
   return (
     <div className="desk">
       <header className="desk-head">
-        <h2>{T.title}</h2>
-        <p>{T.subtitle}</p>
+        <div>
+          <h2>{T.title}</h2>
+          <p>{T.subtitle}</p>
+        </div>
+        <button className={`btn new-article ${commission ? 'on' : ''}`} onClick={() => setCommission((c) => !c)}>＋ {T.newArticle}</button>
       </header>
+      {commission && <CommissionPanel onClose={() => setCommission(false)} />}
 
       <div className="desk-grid">
         <section className="desk-main">
@@ -555,6 +561,8 @@ export default function Newsroom({ editionId: requested, onPublished }) {
               )}
             </div>
           </div>
+
+          <PiecesStrip />
 
           {otherDrafts.length > 0 && (
             <p className="desk-alert">

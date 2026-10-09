@@ -18,9 +18,10 @@ import { FeaturesBox } from './Features.jsx';
 /** Small flags on an article: the Editor's choice, a record, a quote, a tip. */
 function Flags({ a, chosen }) {
   const quoted = a.quotes?.some((q) => q.answer);
-  if (!chosen && !a.record && !quoted && !a.tipped) return null;
+  if (!chosen && !a.record && !quoted && !a.tipped && !a.commissioned) return null;
   return (
     <span className="flags">
+      {a.commissioned && <span className="flag flag-chosen">{tr({ en: 'Commissioned', it: 'Su commissione' })}</span>}
       {chosen && <span className="flag flag-chosen">{tr({ en: 'The Editor\'s choice', it: 'Scelta del direttore' })}</span>}
       {a.record && <span className="flag flag-record">{tr({ en: 'Record', it: 'Primato' })}</span>}
       {quoted && <span className="flag flag-quote">☎︎ {tr({ en: 'Interview', it: 'Intervista' })}</span>}

@@ -40,6 +40,7 @@ import { episodes } from './newsroom/serial.js';
 import {
   features, createFeature, getFeature, briefFeature, approveOutline, continueFeature, blockAction, editFeature,
   reviewFeature, publishFeature, unpublishFeature, deleteFeature, stopFeature, interruptedFeatures,
+  approveFeature, withdrawFeature, addSource, piecesInWork, topicProposals, setNotifier, rewriteAllFeature,
 } from './newsroom/features.js';
 import { paragraphAction, headlineOptions, verdict, scoreboard, getTaste, forgetExample } from './newsroom/bench.js';
 
@@ -74,6 +75,7 @@ if (store.needsReindex()) {
 const log = (...a) => console.log(new Date().toLocaleTimeString(locale()), ...a);
 const notify = createNotifier(config, log);
 const newsroom = createNewsroom({ store, config, log, notify });
+setNotifier(notify);
 
 if (config.demo) {
   const n = seedDemo(store);
@@ -202,10 +204,21 @@ app.get('/api/serial', (req, res) => res.json(episodes(store)));
 
 // ── Long pieces (Approfondisci) ──
 const F = '/api/features/:id';
-app.get('/api/features', (req, res) => res.json(features(store, { status: req.query.status ? String(req.query.status).split(',') : null, limit: Math.min(100, num(req.query.limit) || 30) })));
+app.get('/api/features', (req, res) => res.json(features(store, {
+  status: req.query.status ? String(req.query.status).split(',') : null,
+  target: ['edition', 'longread'].includes(req.query.target) ? req.query.target : null,
+  limit: Math.min(100, num(req.query.limit) || 30),
+})));
 app.post('/api/features', wrap(async (req, res) => res.json(await createFeature(store, config, {
-  editionId: req.body?.editionId, articleId: req.body?.articleId, topic: req.body?.topic, days: req.body?.days,
+  editionId: req.body?.editionId, articleId: req.body?.articleId, storyId: req.body?.storyId, topic: req.body?.topic, days: req.body?.days,
+  target: req.body?.target === 'edition' ? 'edition' : 'longread',
 }, log))));
+// a new article for the edition: what the newsroom proposes, and what is in the works
+app.get('/api/commissions', (req, res) => res.json({ proposals: topicProposals(store, config), pieces: piecesInWork(store) }));
+app.post(`${F}/approve`, wrap((req, res) => res.json(approveFeature(store, req.params.id, { placement: req.body?.placement }))));
+app.post(`${F}/withdraw`, wrap((req, res) => res.json(withdrawFeature(store, req.params.id))));
+app.post(`${F}/rewrite-all`, wrap((req, res) => res.json(rewriteAllFeature(store, config, req.params.id, log))));
+app.post(`${F}/sources`, wrap((req, res) => res.json(addSource(store, req.params.id, { text: req.body?.text, via: req.body?.via }))));
 app.get(F, wrap((req, res) => res.json(getFeature(store, req.params.id))));
 app.patch(F, wrap((req, res) => res.json(editFeature(store, req.params.id, req.body || {}))));
 app.delete(F, wrap((req, res) => { deleteFeature(store, req.params.id); res.status(204).end(); }));

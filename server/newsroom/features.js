@@ -17,7 +17,8 @@
 import { tr, lang } from '../i18n.js';
 import { buildStories, factSheet, siteOf } from './cluster.js';
 import { load, findArticle, cleanEvents, cleanHeadline, DeskError } from './edition.js';
-import { gather, timeline, dataSheet, typeset } from './investigations.js';
+import { gather, timeline, dataSheet, typeset, suggestions } from './investigations.js';
+import { isSensitive } from './spotlight/detectors.js';
 import { seriesFacts } from './series.js';
 import { getLine, linePrompt, LENGTHS } from './line.js';
 import { writerFor, columnist, byline, directorByline, personaPrompt, tastePrompt } from './writers.js';
@@ -25,7 +26,9 @@ import { STYLES, isStyle } from './styles.js';
 import { connectLLM, chat, parseJson } from './llm.js';
 import { numbersCheck, figures } from './factcheck.js';
 import { lint, lintInstruction } from './lint.js';
-import { templateQuestion } from './calls.js';
+import { templateQuestion, formingStories } from './calls.js';
+import { nextEditionId, label as storyLabel } from './next.js';
+import { SECTIONS } from './sections.js';
 import { words } from './tips.js';
 import { say } from './chatter.js';
 import { dayKey, hhmm } from '../util.js';
@@ -34,6 +37,8 @@ const KIND = 'feature';
 const DAY = 24 * 3600e3;
 export const MODES = ['desk', 'together', 'yours'];
 const BLOCK_WORDS = { short: [120, 180], standard: [180, 260], long: [260, 360] };
+/** An article for the edition is shorter: three sections that read as one piece. */
+const ARTICLE_WORDS = { short: [60, 100], standard: [90, 140], long: [140, 200] };
 const running = new Set(); // features being written right now (one job at a time each)
 
 const q = (s) => (lang() === 'it' ? `«${s}»` : `“${s}”`);
@@ -45,8 +50,9 @@ export function getFeature(store, id) {
   return { ...f, busy: running.has(f.id), text: featureText(f) };
 }
 
-export const features = (store, { status = null, limit = 30 } = {}) => store.items(KIND, { status, limit })
-  .map((f) => ({ id: f.id, ts: f.ts, status: f.status, mode: f.mode, topic: f.topic, headline: f.headline || f.topic, dek: f.dek || '', kicker: f.kicker || '', byline: f.byline || null, words: wordsOf(f), publishedAt: f.publishedAt || null }));
+export const features = (store, { status = null, limit = 30, target = null } = {}) => store.items(KIND, { status, limit: target ? limit * 3 : limit })
+  .filter((f) => !target || (f.target || 'longread') === target).slice(0, limit)
+  .map((f) => ({ target: f.target || 'longread', printedIn: f.printedIn || null, id: f.id, ts: f.ts, status: f.status, mode: f.mode, topic: f.topic, headline: f.headline || f.topic, dek: f.dek || '', kicker: f.kicker || '', byline: f.byline || null, words: wordsOf(f), publishedAt: f.publishedAt || null }));
 
 const wordsOf = (f) => (f.blocks || []).flatMap((b) => b.paragraphs || []).join(' ').split(/\s+/).filter(Boolean).length;
 
@@ -104,11 +110,19 @@ Rispondi SOLO con JSON: {"questions": ["...", "...", "..."]}`,
  * A new long piece, from an article (editionId + articleId) or a free subject (topic).
  * Gathers the dossier at once and prepares the reporter's questions.
  */
-export async function createFeature(store, config, { editionId, articleId, topic, days = 7, now = Date.now() } = {}, log = console.log) {
+export async function createFeature(store, config, { editionId, articleId, storyId, topic, days = 7, target = 'longread', now = Date.now() } = {}, log = console.log) {
   const line = getLine(store);
   let story = null;
   let origin = null;
   let subject = String(topic || '').trim().slice(0, 100);
+  if (storyId && !(editionId && articleId)) {
+    // a story forming in the current hour, proposed by the newsroom
+    const { stories, editionId: next } = formingStories(store, config, now);
+    story = stories.find((x) => x.id === storyId) || null;
+    if (!story) throw new DeskError(tr({ en: 'That story is no longer among the signals of the hour.', it: 'Questa storia non è più tra i segnali dell\'ora.' }), 404);
+    origin = { editionId: null, nextEditionId: next, articleId: null, headline: storyLabel(story), section: story.section, source: story.source, kind: story.kind, storyId: story.id };
+    subject ||= story.kind === 'site' ? story.topic : storyLabel(story);
+  }
   if (editionId && articleId) {
     const ed = load(store, editionId);
     const a = ed.articles[findArticle(ed, articleId)];
@@ -133,9 +147,16 @@ export async function createFeature(store, config, { editionId, articleId, topic
   const llm = await connectLLM(config);
   const asked = (llm ? await writtenQuestions(llm, config, subject, dossier, persona) : null)
     || [story ? templateQuestion(story) : null, ...genericQuestions(subject)].filter(Boolean).slice(0, 3);
+  // the signals behind the piece, for the "Sources" list when it goes into an edition
+  const evidence = [
+    ...(story?.events || []).slice(0, 25).map((e) => ({ ts: e.ts, kind: e.kind, title: e.title, detail: e.detail, host: e.meta?.host ?? null, url: e.source === 'safari' && /^https?:/.test(e.url || '') ? e.url : null, source: e.source })),
+    ...(d?.events || []).slice(-15).map((e) => ({ ts: e.ts, kind: e.kind, title: e.title, detail: e.detail, host: e.host, url: null, source: e.source })),
+  ].slice(0, 40);
+  const forEdition = target === 'edition';
   const f = save(store, {
     kind: KIND, status: 'brief', ts: now, ref: origin?.storyId || null,
-    mode: null, style: 'magazine', length: 'standard',
+    target: forEdition ? 'edition' : 'longread', format: forEdition ? 'article' : 'long', evidence,
+    mode: null, style: forEdition ? (persona?.house || 'daily') : 'magazine', length: 'standard',
     topic: subject, keywords, days: span, from, to: now,
     origin, dossier, numbers: d?.numbers || null, coverage: d?.coverage?.slice(-10) || [], timeline: tl,
     questions: asked.map((x) => ({ q: x, a: '' })), sources: [],
@@ -143,7 +164,9 @@ export async function createFeature(store, config, { editionId, articleId, topic
     outline: [], blocks: [], headline: '', dek: '', kicker: '', alternatives: [],
   });
   log(tr({ en: `[long piece] “${subject}”: dossier ready (${d?.numbers.total || 0} signals in the archive)`, it: `[approfondimento] «${subject}»: fascicolo pronto (${d?.numbers.total || 0} segnali in archivio)` }));
-  if (persona) say(store, persona.id, tr({ en: `${persona.name}: the Editor wants a long piece on ${q(subject)}. I've got questions for them.`, it: `${persona.name}: il Direttore vuole un approfondimento su ${q(subject)}. Ho qualche domanda per lui.` }), now);
+  if (persona) say(store, persona.id, forEdition
+    ? tr({ en: `${persona.name}: the Editor has commissioned a piece on ${q(subject)} for the next edition. I'm on it.`, it: `${persona.name}: il Direttore mi ha commissionato un pezzo su ${q(subject)} per la prossima edizione. Ci sono.` })
+    : tr({ en: `${persona.name}: the Editor wants a long piece on ${q(subject)}. I've got questions for them.`, it: `${persona.name}: il Direttore vuole un approfondimento su ${q(subject)}. Ho qualche domanda per lui.` }), now);
   return getFeature(store, f.id);
 }
 
@@ -177,9 +200,9 @@ function styleBlock(f) {
 
 function system(f, line, persona, what) {
   return tr({
-    en: `You are a writer of The Localhost Times, the paper that tells what happens on its owner's Mac, and you are working on a long piece: ${what}. Write like a good magazine: scenes, telling details, a thread that holds, sentences of different lengths; irony from the facts, never from adjectives. Third person ("the owner"), but don't repeat it: use it at most twice per section.
+    en: `You are a writer of The Localhost Times, the paper that tells what happens on its owner's Mac, and you are working on ${f.target === 'edition' ? 'an article the Editor commissioned for the next edition' : 'a long piece'}: ${what}. Write like a good ${f.target === 'edition' ? 'paper' : 'magazine'}: scenes, telling details, a thread that holds, sentences of different lengths; irony from the facts, never from adjectives. Third person ("the owner"), but don't repeat it: use it at most twice per section.
 Rules: every fact and every number must come from the dossier or from what the owner supplied; don't invent causes, feelings or outcomes; don't compute new numbers beyond the obvious; don't open sentences with the time over and over; no "perhaps…, perhaps…"; no absences nobody could know ("no likes"). Quote titles in curly quotes “like this”.`,
-    it: `Sei una firma del «The Localhost Times», il giornale di ciò che succede sul Mac del suo proprietario, e lavori a un pezzo lungo: ${what}. Scrivi come un buon magazine: scene, dettagli rivelatori, un filo che tiene, frasi di lunghezza diversa; l'ironia nasce dai fatti, mai dagli aggettivi. Terza persona («il proprietario»), ma senza ripeterlo: al massimo due volte per sezione.
+    it: `Sei una firma del «The Localhost Times», il giornale di ciò che succede sul Mac del suo proprietario, e lavori a ${f.target === 'edition' ? 'un articolo che il Direttore ha commissionato per la prossima edizione' : 'un pezzo lungo'}: ${what}. Scrivi come un buon ${f.target === 'edition' ? 'giornale' : 'magazine'}: scene, dettagli rivelatori, un filo che tiene, frasi di lunghezza diversa; l'ironia nasce dai fatti, mai dagli aggettivi. Terza persona («il proprietario»), ma senza ripeterlo: al massimo due volte per sezione.
 Regole: ogni fatto e ogni numero deve venire dal fascicolo o da ciò che il proprietario ha fornito; non inventare cause, sentimenti o esiti; non calcolare numeri nuovi salvo gli ovvi; non cominciare le frasi con l'orario una dopo l'altra; niente «forse…, forse…»; niente assenze che nessuno può sapere («nessun like»). Cita i titoli tra «caporali».`,
   }) + styleBlock(f) + (line ? `\n${linePrompt(line)}` : '') + personaPrompt(persona, 'editorial') + tastePrompt(line, persona);
 }
@@ -209,9 +232,9 @@ async function writeOutline(llm, config, f, line, persona) {
     {
       role: 'system',
       content: system(f, line, persona, tr({ en: 'first the outline', it: 'prima la scaletta' })) + tr({
-        en: `\nWrite the outline: a working headline, the angle (one sentence: what the piece is really about), and 4 or 5 sections. The first opens on a scene, the last closes on a line that stays. For each section a short heading and its point (one sentence: which facts it uses and what it says).
+        en: `\nWrite the outline: a working headline, the angle (one sentence: what the piece is really about), and ${f.format === 'article' ? '3' : '4 or 5'} sections. The first opens on a scene, the last closes on a line that stays. For each section a short heading and its point (one sentence: which facts it uses and what it says).
 Reply ONLY with JSON: {"headline": "...", "angle": "...", "sections": [{"heading": "...", "point": "..."}]}`,
-        it: `\nScrivi la scaletta: un titolo di lavoro, l'angolo (una frase: di cosa parla davvero il pezzo) e 4 o 5 sezioni. La prima apre su una scena, l'ultima chiude con una riga che resta. Per ogni sezione un titoletto breve e il suo punto (una frase: quali fatti usa e cosa dice).
+        it: `\nScrivi la scaletta: un titolo di lavoro, l'angolo (una frase: di cosa parla davvero il pezzo) e ${f.format === 'article' ? '3' : '4 o 5'} sezioni. La prima apre su una scena, l'ultima chiude con una riga che resta. Per ogni sezione un titoletto breve e il suo punto (una frase: quali fatti usa e cosa dice).
 Rispondi SOLO con JSON: {"headline": "...", "angle": "...", "sections": [{"heading": "...", "point": "..."}]}`,
       }),
     },
@@ -230,7 +253,8 @@ const splitParas = (raw) => String(raw || '').replace(/<think>[\s\S]*?<\/think>/
   .split(/\n\s*\n/).map((p) => p.replace(/\s*\n\s*/g, ' ').replace(/^["«“]|["»”]$/g, '').trim()).filter((p) => p.length > 20);
 
 function blockPrompt(f, i, line, persona, instruction = null) {
-  const [min, max] = BLOCK_WORDS[f.length] || BLOCK_WORDS.standard;
+  const table = f.format === 'article' ? ARTICLE_WORDS : BLOCK_WORDS;
+  const [min, max] = table[f.length] || table.standard;
   const sec = f.blocks[i];
   const plan = f.blocks.map((b, k) => `${k + 1}. ${b.heading}${b.point ? ` — ${b.point}` : ''}${k === i ? tr({ en: '   ← NOW', it: '   ← ORA' }) : ''}`).join('\n');
   const before = f.blocks.slice(0, i).filter((b) => b.paragraphs?.length);
@@ -348,7 +372,10 @@ async function writeAll(store, config, id, log) {
   f.dek ||= f.angle || '';
   Object.assign(f, checks(f), { status: 'draft', writer: llm?.model || 'typesetting', finishedAt: Date.now() });
   save(store, f);
-  if (f.persona) say(store, f.persona.id, tr({ en: `${f.persona.name}: the long piece on ${q(f.topic)} is on the Editor's desk.`, it: `${f.persona.name}: l'approfondimento su ${q(f.topic)} è sul tavolo del Direttore.` }));
+  if (f.persona) say(store, f.persona.id, f.target === 'edition'
+    ? tr({ en: `${f.persona.name}: the piece on ${q(f.topic)} is on the Editor's desk. Is it good enough for the next edition?`, it: `${f.persona.name}: il pezzo su ${q(f.topic)} è sul tavolo del Direttore. Va bene per la prossima edizione?` })
+    : tr({ en: `${f.persona.name}: the long piece on ${q(f.topic)} is on the Editor's desk.`, it: `${f.persona.name}: l'approfondimento su ${q(f.topic)} è sul tavolo del Direttore.` }));
+  ready(f);
   log(tr({ en: `[long piece] “${f.headline}”: ${wordsOf(f)} words`, it: `[approfondimento] «${f.headline}»: ${wordsOf(f)} parole` }));
 }
 
@@ -376,7 +403,7 @@ async function plan(store, config, id, log) {
  * The Editor briefs the newsroom: answers, own facts, tips, mode, style and length.
  * desk and together start working at once (in the background); yours opens the editor.
  */
-export function briefFeature(store, config, id, { answers = [], sources = [], tips = [], mode, style, length } = {}, log = console.log) {
+export function briefFeature(store, config, id, { answers = [], sources = [], tips = [], mode, style, length, format } = {}, log = console.log) {
   const f = getFeature(store, id);
   if (!['brief', 'outline', 'draft'].includes(f.status) && f.status !== 'failed') throw new DeskError(tr({ en: 'The piece is already being written.', it: 'Il pezzo è già in scrittura.' }), 409);
   if (!MODES.includes(mode)) throw new DeskError(tr({ en: 'Choose how to write it.', it: 'Scegli come scriverlo.' }), 400);
@@ -388,6 +415,7 @@ export function briefFeature(store, config, id, { answers = [], sources = [], ti
   f.mode = mode;
   f.style = isStyle(style) ? style : f.style || 'magazine';
   f.length = LENGTHS[length] ? length : f.length || 'standard';
+  if (['article', 'long'].includes(format)) f.format = format;
   if (mode === 'yours') {
     const line = getLine(store);
     f.byline = directorByline(line);
@@ -585,6 +613,17 @@ export function interruptedFeatures(store) {
   }
 }
 
+/** Write the whole piece again (after new tips or answers); the Editor's own sections stay. */
+export function rewriteAllFeature(store, config, id, log = console.log) {
+  const f = getFeature(store, id);
+  if (!f.blocks.length || f.mode === 'yours') throw new DeskError(tr({ en: 'There is nothing for the newsroom to rewrite.', it: 'Non c\'è niente che la redazione possa riscrivere.' }), 409);
+  if (f.status === 'published') throw new DeskError(tr({ en: 'This piece is already in the paper.', it: 'Questo pezzo è già in pagina.' }), 409);
+  f.blocks = f.blocks.map((b) => (b.by === 'director' ? b : { ...b, status: 'pending' }));
+  save(store, { ...f, status: 'draft', placement: null, forEdition: null });
+  job(store, f.id, log, () => writeAll(store, config, f.id, log));
+  return { ...getFeature(store, f.id), busy: true };
+}
+
 /** Stop a piece being written (it stays a draft with what was written so far). */
 export function stopFeature(store, id) {
   const f = getFeature(store, id);
@@ -592,3 +631,150 @@ export function stopFeature(store, id) {
 }
 
 export { wordsOf };
+
+// ───────────────────────── Commissioned pieces: into the next edition ─────────────────────────
+
+let notifier = null;
+/** The server hands over its notifier: a commissioned piece ready for review sends a notification. */
+export const setNotifier = (n) => { notifier = n; };
+
+/** The Editor approves the piece for the next edition, at the top or inside. */
+export function approveFeature(store, id, { placement = 'inside' } = {}, now = Date.now()) {
+  const f = getFeature(store, id);
+  if (running.has(f.id)) throw new DeskError(tr({ en: 'Wait: the newsroom is still writing.', it: 'Aspetta: la redazione sta ancora scrivendo.' }), 409);
+  if (!f.blocks.some((b) => b.paragraphs?.length)) throw new DeskError(tr({ en: 'There is nothing to print yet.', it: 'Non c\'è ancora niente da stampare.' }), 409);
+  if (f.status === 'published' && f.printedIn) throw new DeskError(tr({ en: 'This piece has already been printed.', it: 'Questo pezzo è già stato stampato.' }), 409);
+  f.headline ||= f.workingHeadline || f.topic;
+  Object.assign(f, checks(f), { status: 'approved', placement: placement === 'lead' ? 'lead' : 'inside', approvedAt: now, forEdition: nextEditionId(now) });
+  save(store, f);
+  say(store, 'desk', tr({ en: `Desk: the Editor approved ${q(f.headline)} for the next edition${f.placement === 'lead' ? ', as the lead' : ''}.`, it: `Desk: il Direttore ha approvato ${q(f.headline)} per la prossima edizione${f.placement === 'lead' ? ', in apertura' : ''}.` }), now);
+  return getFeature(store, f.id);
+}
+
+/** Back to draft: not in the next edition after all. */
+export function withdrawFeature(store, id) {
+  const f = getFeature(store, id);
+  if (f.status !== 'approved') throw new DeskError(tr({ en: 'This piece is not waiting for the press.', it: 'Questo pezzo non è in attesa di stampa.' }), 409);
+  return getFeature(store, save(store, { ...f, status: 'draft', placement: null, forEdition: null }).id);
+}
+
+/** A tip or a fact added while the piece is being written: the next rewrite uses it. */
+export function addSource(store, id, { text, via = 'tip' } = {}) {
+  const f = getFeature(store, id);
+  const t = String(text || '').trim().slice(0, 1200);
+  if (!t) throw new DeskError(tr({ en: 'The tip is empty.', it: 'La soffiata è vuota.' }), 400);
+  f.sources = [...(f.sources || []), { text: t, via: via === 'editor' ? 'editor' : 'tip', at: Date.now() }];
+  say(store, f.persona?.id || 'tips', tr({ en: `${f.persona?.name || 'The desk'}: a new tip for the piece on ${q(f.topic)}. Rewriting with it.`, it: `${f.persona?.name || 'Il desk'}: una soffiata nuova per il pezzo su ${q(f.topic)}. La metto dentro.` }));
+  return getFeature(store, save(store, f).id);
+}
+
+/** The section of the paper a commissioned piece belongs to. */
+function sourceOf(f) {
+  if (f.origin?.source && SECTIONS[f.origin.source]) return f.origin.source;
+  const by = Object.entries(f.numbers?.bySource || {}).sort((a, b) => b[1] - a[1])[0]?.[0];
+  return SECTIONS[by] ? by : 'notes';
+}
+
+/** The piece as an article of the edition (the sections read as one text; headings only for long ones). */
+export function asArticle(f, now = Date.now()) {
+  const source = sourceOf(f);
+  const body = f.blocks.flatMap((b) => (f.format === 'long' && b.heading ? [`${b.heading}: ${(b.paragraphs || [])[0] || ''}`, ...(b.paragraphs || []).slice(1)] : b.paragraphs || [])).filter(Boolean);
+  const ts = (f.evidence || []).map((e) => e.ts).filter(Number.isFinite);
+  return {
+    id: `feature:${f.id}`,
+    featureId: f.id,
+    series: null,
+    source,
+    section: SECTIONS[source].name,
+    slug: SECTIONS[source].slug,
+    kind: 'commissioned',
+    weight: 99,
+    size: f.placement === 'lead' ? 'lead' : 'article',
+    first: ts.length ? Math.min(...ts) : now,
+    last: ts.length ? Math.max(...ts) : now,
+    kicker: f.kicker || '',
+    headline: f.headline || f.topic,
+    dek: f.dek || f.angle || '',
+    body,
+    writer: f.mode === 'yours' ? 'editor' : `${f.writer || 'typesetting'} + editor`,
+    byline: f.byline || null,
+    commissioned: { featureId: f.id, mode: f.mode, approvedAt: f.approvedAt },
+    quotes: f.questions.filter((x) => x.a?.trim()).map((x) => ({ question: x.q, answer: x.a.trim(), at: f.ts })),
+    tipped: f.sources.some((x) => x.via === 'tip') || undefined,
+    check: f.check || null,
+    lint: f.lint || null,
+    image: null,
+    sources: (f.evidence || []).slice(0, 40),
+  };
+}
+
+/**
+ * At print: the pieces approved for the press (and those this same edition printed already,
+ * for a reprint), as articles; the approved ones are marked as printed in this edition.
+ */
+export function commissionedFor(store, editionId, now = Date.now()) {
+  const list = [
+    ...store.items(KIND, { status: 'published', limit: 40 }).filter((f) => f.printedIn === editionId),
+    ...store.items(KIND, { status: 'approved', limit: 20, oldest: true }),
+  ];
+  return list.map((f) => {
+    const a = asArticle(f, now);
+    if (f.status === 'approved') {
+      store.saveItem({ ...f, status: 'published', printedIn: editionId, publishedAt: f.publishedAt || now });
+      say(store, f.persona?.id || 'desk', tr({ en: `${f.persona?.name || 'The desk'}: my piece is in the paper. Thank you, Chief.`, it: `${f.persona?.name || 'Il desk'}: il mio pezzo è in pagina. Grazie, Direttore.` }), now);
+    }
+    return { article: a, placement: f.placement || 'inside' };
+  });
+}
+
+/** What's waiting for the press (for the preview of the next edition). */
+export const approvedPieces = (store) => store.items(KIND, { status: 'approved', limit: 20, oldest: true })
+  .map((f) => ({ id: f.id, headline: f.headline || f.topic, placement: f.placement || 'inside', byline: f.byline || null }));
+
+/** The commissioned pieces still in the works (for the newsroom). */
+export const piecesInWork = (store) => store.items(KIND, { status: ['brief', 'planning', 'outline', 'writing', 'draft', 'approved'], limit: 30 })
+  .filter((f) => f.target === 'edition')
+  .map((f) => ({ id: f.id, ts: f.ts, status: f.status, busy: running.has(f.id), topic: f.topic, headline: f.headline || f.workingHeadline || f.topic, mode: f.mode, placement: f.placement || null, byline: f.byline || f.persona || null, words: wordsOf(f) }));
+
+/** Tell the Editor a commissioned piece is waiting for review. */
+function ready(f) {
+  if (f.target === 'edition') notifier?.piece?.(f);
+}
+
+// ───────────────────────── What the newsroom proposes ─────────────────────────
+
+/**
+ * Subjects for a new article, found in the signals: the stories forming this hour, the ones that
+ * keep coming back this week, the Spotlight's open leads. Each says why it's worth a piece.
+ */
+export function topicProposals(store, config, now = Date.now()) {
+  const inWork = new Set(store.items(KIND, { status: ['brief', 'planning', 'outline', 'writing', 'draft', 'approved'], limit: 50 }).map((f) => (f.ref || f.topic || '').toLowerCase()));
+  const out = [];
+  const seen = new Set();
+  const push = (p) => {
+    const k = p.topic.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push({ ...p, inWork: inWork.has((p.storyId || '').toLowerCase()) || inWork.has(k) });
+  };
+  try {
+    const { stories } = formingStories(store, config, now);
+    for (const st of stories.filter((x) => x.source !== 'journal' && !isSensitive([x.topic, ...(x.events || []).slice(0, 10).map((e) => e.title)].join(' '))).slice(0, 6)) {
+      const n = st.events.length;
+      push({
+        kind: 'now', storyId: st.id, topic: storyLabel(st), section: st.section,
+        why: tr({ en: `${n} signal${n === 1 ? '' : 's'} this hour · ${st.section}`, it: `${n} ${n === 1 ? 'segnale' : 'segnali'} in quest'ora · ${st.section}` }),
+      });
+    }
+  } catch { /* no hour yet */ }
+  try {
+    for (const x of suggestions(store, now).slice(0, 6)) push({ kind: 'recurring', topic: x.topic, why: x.why });
+  } catch { /* no history */ }
+  try {
+    for (const l of store.leads({ status: ['open', 'review'], limit: 5 })) {
+      if (!l.subject || isSensitive(l.subject)) continue;
+      push({ kind: 'lead', topic: l.subject, why: tr({ en: 'a Spotlight lead', it: 'una pista di Spotlight' }) });
+    }
+  } catch { /* no leads */ }
+  return out;
+}

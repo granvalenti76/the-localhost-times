@@ -22,6 +22,7 @@ import { flashesBetween } from './flash.js';
 import { featureOn } from './line.js';
 import { lint } from './lint.js';
 import { say } from './chatter.js';
+import { commissionedFor } from './features.js';
 import { editionId, hhmm, mapLimit, isSelfUrl, hourStart } from '../util.js';
 import { tr } from '../i18n.js';
 
@@ -289,12 +290,20 @@ export async function printEdition({ store, config, start, final = true, force =
   }));
 
   const articles = await mapLimit(main, llm ? config.llm.concurrency : 8, (s, i) => writeArticle(s, i, ctx));
+  const written = articles.slice(); // the photos follow the stories, whatever comes in front of them
   const briefs = rest.map((s) => ({ section: s.section, slug: SECTIONS[s.source].slug, ts: s.last, text: fallbackBrief(s) }));
+
+  // the pieces the Editor commissioned and approved for this edition: at the top or right after it
+  for (const c of safely(() => commissionedFor(store, id), [], log)) {
+    if (articles.some((a) => a.id === c.article.id)) continue;
+    if (c.placement === 'lead') articles.unshift(c.article);
+    else articles.splice(Math.min(1, articles.length), 0, c.article);
+  }
 
   // Photos: in parallel with the Punto and the Borsa
   const photosJob = line.photos && !config.demo
     ? mapLimit(main.slice(0, PHOTO_SLOTS), 3, async (s, i) => {
-      try { articles[i].image = await illustrate(s, { store, config }); } catch { /* no photo */ }
+      try { written[i].image = await illustrate(s, { store, config }); } catch { /* no photo */ }
     })
     : Promise.resolve();
 
@@ -479,6 +488,7 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   const i = findArticle(ed, aid);
   const prev = ed.articles[i];
   const ctx = await ctxFor(store, config, ed, log);
+  if (prev.kind === 'commissioned') throw new DeskError(tr({ en: 'A commissioned piece is rewritten from its own page (Newsroom → New article).', it: 'Un pezzo su commissione si riscrive dalla sua pagina (Redazione → Nuovo articolo).' }), 409);
   const story = buildStories(cleanEvents(store.eventsBetween(ed.start, ed.end), config)).find((s) => s.id === aid);
   if (!story) throw new DeskError(tr({ en: 'The facts behind this article are no longer available.', it: 'Non trovo più i fatti di questo articolo.' }), 409);
   story.series = prev.series || null;

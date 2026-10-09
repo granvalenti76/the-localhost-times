@@ -297,3 +297,43 @@ test('the menu bar shows the calls with one-click answers, and the flash', () =>
   assert.match(txt, /api\/calls\/7\/answer\?option=s0/);
   assert.match(txt, /#\/calls\/8/);
 });
+
+test('a new article: proposed from the signals, commissioned, tipped, approved, printed in the next edition', async () => {
+  const { config, store, cleanup } = sandbox();
+  try {
+    const { topicProposals, approveFeature, withdrawFeature, addSource } = await import('../server/newsroom/features.js');
+    const now = Date.now();
+    const h = hourStart(now);
+    store.insertEvents([...hourOfChess(h - 24 * HOUR), ...hourOfChess(h).map((e) => ({ ...e, ts: Math.min(e.ts, now - 1000) }))]);
+    const props = topicProposals(store, config, now);
+    const p = props.find((x) => x.kind === 'now' && x.topic === 'chess.com');
+    assert.ok(p, `no proposal from the signals: ${JSON.stringify(props.map((x) => x.topic))}`);
+    let f = await createFeature(store, config, { storyId: p.storyId, target: 'edition', now }, quiet);
+    assert.equal(f.target, 'edition');
+    assert.equal(f.format, 'article');
+    assert.ok(f.evidence.length > 0);
+    assert.ok(topicProposals(store, config, now).find((x) => x.storyId === p.storyId).inWork, 'not marked as in the works');
+    f = briefFeature(store, config, f.id, { answers: ['bob is a machine'], tips: [], mode: 'desk' }, quiet);
+    await wait(() => getFeature(store, f.id).status === 'draft');
+    f = addSource(store, f.id, { text: 'he plays every evening after dinner' });
+    assert.equal(f.sources.at(-1).via, 'tip');
+    f = approveFeature(store, f.id, { placement: 'lead' }, now);
+    assert.equal(f.status, 'approved');
+    f = withdrawFeature(store, f.id);
+    assert.equal(f.status, 'draft');
+    approveFeature(store, f.id, { placement: 'lead' }, now);
+    const ed = await printEdition({ store, config, start: h, final: false, force: true, log: quiet });
+    assert.equal(ed.articles[0].kind, 'commissioned', 'not at the top');
+    assert.equal(ed.articles[0].featureId, f.id);
+    assert.ok(ed.articles[0].body.length > 0);
+    assert.ok(ed.articles[0].quotes.length === 1);
+    assert.equal(getFeature(store, f.id).status, 'published');
+    assert.equal(getFeature(store, f.id).printedIn, ed.id);
+    // the final print of the same hour keeps it, once
+    const again = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
+    assert.equal(again.articles.filter((a) => a.kind === 'commissioned').length, 1);
+    assert.doesNotMatch(again.articles[0].body.join(' '), BROKEN);
+    // and it can't be approved twice
+    assert.throws(() => approveFeature(store, f.id, {}), /already|già/);
+  } finally { cleanup(); }
+});

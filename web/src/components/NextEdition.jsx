@@ -10,7 +10,7 @@ const T = tr({
     lead: 'Lead', unlead: 'Lead ✓', out2: 'Leave out', back: 'Put back', briefs: 'briefs', buried: 'Left out',
     notes: 'Instructions for this edition only', notePh: 'e.g. “more irony on the mail”, “no social media”', add: 'Add',
     print: 'Print now', printing: 'Printing…', hint: 'Your choices apply to this edition only, then they are cleared. The paper collects every 5 minutes.',
-    lastCollect: 'last collection',
+    lastCollect: 'last collection', commissioned: 'Your approved pieces, going in',
   },
   it: {
     title: 'La prossima edizione', out: (t, m) => `Esce verso le ${t} (tra ${m} min)`, signals: 'segnali finora', since: 'dalle',
@@ -19,7 +19,7 @@ const T = tr({
     lead: 'Apertura', unlead: 'Apertura ✓', out2: 'Fuori', back: 'Rimetti', briefs: 'in breve', buried: 'Lasciate fuori',
     notes: 'Indicazioni solo per questa edizione', notePh: 'es. «più ironia sulla posta», «niente social»', add: 'Aggiungi',
     print: 'Stampa ora', printing: 'In stampa…', hint: 'Le tue scelte valgono solo per questa edizione, poi si azzerano. Il giornale raccoglie ogni 5 minuti.',
-    lastCollect: 'ultima raccolta',
+    lastCollect: 'ultima raccolta', commissioned: 'I suoi pezzi approvati, in uscita',
   },
 });
 
@@ -72,6 +72,16 @@ export default function NextEdition({ onPrinted, setError }) {
       </div>
       {p.willMerge && p.total > 0 && <p className="next-warn">{T.merge(p.minEvents)}</p>}
 
+      {p.commissioned?.length > 0 && (
+        <div className="next-commissioned">
+          <span className="lbl">{T.commissioned}</span>
+          <ul>
+            {p.commissioned.map((c) => (
+              <li key={c.id}><a href={href.feature(c.id)}>{c.headline}</a>{c.placement === 'lead' && <em> · {T.lead}</em>}{c.byline && <span className="muted"> · {c.byline.name}</span>}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <span className="lbl">{T.forming}</span>
       {!p.stories.length && <p className="hint-small">{T.none}</p>}
       <ol className="next-stories">
