@@ -682,6 +682,8 @@ export default function Newsroom({ editionId: requested, onPublished }) {
             <button role="tab" aria-selected={tab === 'viva'} className={tab === 'viva' ? 'on' : ''} onClick={() => setTab('viva')}>{T.viva}</button>
             <button role="tab" aria-selected={tab === 'tips'} className={tab === 'tips' ? 'on' : ''} onClick={() => setTab('tips')}>{T.tipsTab}</button>
           </div>
+          {/* the panel scrolls inside the column: a long board never spills over the page */}
+          <div className="side-body">
           {tab === 'meeting' ? (
             (isEvening ? evening : ed) ? (
               <Meeting
@@ -704,6 +706,7 @@ export default function Newsroom({ editionId: requested, onPublished }) {
           ) : (
             <LinePanel key={lineKey} />
           )}
+          </div>
         </aside>
       </div>
     </div>

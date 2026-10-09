@@ -262,12 +262,12 @@ function Lead({ l, onAct, others = [] }) {
       </div>
       <h4 className="lead-subject">{l.subject}</h4>
       <p className="lead-hyp">{l.hypothesis}</p>
-      {(l.chief || l.tips?.length > 0 || l.links?.length > 0 || l.keywords?.length > 0) && (
+      {(l.chief || l.tips?.length > 0 || l.links?.length > 0 || l.keywords?.some((k) => k.split(/\s+/).length <= 3)) && (
         <p className="lead-badges">
           {l.chief && <span className="lead-badge chief">{T.yourTip}</span>}
           {l.tips?.length > 0 && <span className="lead-badge tip" title={l.tips.map((t) => t.text).join(' · ')}>{T.witnesses(l.tips.length)}</span>}
           {l.links?.length > 0 && <span className="lead-badge link">{T.crosses}: {l.links.map((x) => x.subject).join(' × ')}</span>}
-          {l.keywords?.length > 0 && <span className="lead-badge kw">{T.searched}: {l.keywords.join(', ')}</span>}
+          {l.keywords?.some((k) => k.split(/\s+/).length <= 3) && <span className="lead-badge kw" title={l.keywords.join(', ')}>{T.searched}: {l.keywords.filter((k) => k.split(/\s+/).length <= 3).slice(0, 5).join(', ')}</span>}
         </p>
       )}
       {active && (

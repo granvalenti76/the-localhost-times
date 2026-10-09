@@ -1358,3 +1358,11 @@ a.btn-ghost { display: inline-block; }
 .editor-note .lbl { display: block; margin-bottom: 4px; }
 .editor-note p { margin: 0; font: 400 14px/1.45 var(--f-sans) !important; font-style: normal !important; }
 .editor-note a { font-weight: 700; white-space: nowrap; }
+
+/* the newsroom's side column: tabs fixed on top, the panel scrolls inside */
+.side-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; }
+.side-body .line-panel { overflow: visible; }
+
+.side-body .chatter-feed, .side-body .tip-list { max-height: none; }
+@media screen and (max-width: 980px) { .side-body { overflow: visible; } }
+.lead-badge.kw { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

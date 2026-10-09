@@ -180,8 +180,8 @@ async function review(store, config, lead, ctx, now) {
     lead.status = 'open';
     lead.goal = Math.min(95, lead.goal + 8); // ask for more before looking again
     note(lead, 'editor', tr({
-      en: `Not yet (${verdict.confidence}%).${verdict.missing ? ` Missing: ${verdict.missing}` : ''}`,
-      it: `Non ancora (${verdict.confidence}%).${verdict.missing ? ` Manca: ${verdict.missing}` : ''}`,
+      en: `Not yet (${verdict.confidence}%).${verdict.missing ? ` Missing: ${verdict.missing.replace(/^(missing|manca)\s*:?\s*/i, '')}` : ''}`,
+      it: `Non ancora (${verdict.confidence}%).${verdict.missing ? ` Manca: ${verdict.missing.replace(/^(manca|missing)\s*:?\s*/i, '')}` : ''}`,
     }), now);
   }
   lead.updatedAt = now;
@@ -284,6 +284,12 @@ export async function spotlightRound(store, config, { log = console.log, notify 
   const result = { changes: null, reviewed: null, published: null };
   if (!light) {
     const events = cleanEvents(store.eventsBetween(now - HISTORY_DAYS * DAY, now), config);
+    // delicate tips and words left in a file (by an older version) are cleaned out at every round
+    for (const l of store.leads({ status: ACTIVE })) {
+      const before = JSON.stringify([l.tips, l.keywords, l.evidence.length]);
+      sanitize(l);
+      if (JSON.stringify([l.tips, l.keywords, l.evidence.length]) !== before) store.saveLead(l);
+    }
     const live = store.leads({ status: ACTIVE });
     // the detectors, the crossings between open leads, the leads searched by words (the Editor's tips)
     const candidates = [...detect(events, now), ...linkCandidates(live), ...searchCandidates(store, live, now)];
@@ -337,7 +343,7 @@ export function board(store, config) {
       log: (l.log || []).slice(-12),
       scoopId: l.scoopId || null,
       chief: !!l.chief,
-      keywords: l.keywords || [],
+      keywords: (l.keywords || []).filter((k) => k.trim().split(/\s+/).length <= 3 && !isSensitive(k)),
       tips: (l.tips || []).map((t) => ({ text: t.text, ts: t.ts })),
       links: (l.links || []).map((id) => { const p = store.getLead(id); return p ? { id, subject: p.subject, status: p.status } : null; }).filter(Boolean),
     }));
