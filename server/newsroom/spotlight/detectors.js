@@ -484,7 +484,7 @@ export function detectHabits(w) {
   }
   // how the time is split: an app whose share doubled or halved
   // (time and power are measurements, not activities: they stay out of the shares)
-  const act = (evs) => evs.filter((e) => e.source !== 'apps' && e.source !== 'power');
+  const act = (evs) => evs.filter((e) => e.source !== 'apps' && e.source !== 'power' && e.source !== 'calendar');
   if (act(recent).length >= 150 && act(before).length >= 300) {
     const share = (evs) => { const c = {}; for (const e of evs) c[e.source] = (c[e.source] || 0) + 1; return Object.fromEntries(Object.entries(c).map(([k, v]) => [k, v / evs.length])); };
     const sNow = share(act(recent));

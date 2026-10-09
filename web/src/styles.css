@@ -1366,3 +1366,113 @@ a.btn-ghost { display: inline-block; }
 .side-body .chatter-feed, .side-body .tip-list { max-height: none; }
 @media screen and (max-width: 980px) { .side-body { overflow: visible; } }
 .lead-badge.kw { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ───────── The paper: type ───────── */
+p, li { hyphenate-limit-chars: 7 3 3; }
+.story-body p, .lead-body p, .excerpt, .briefs li { hyphens: auto; -webkit-hyphens: auto; }
+.story-body, .lead-body, .excerpt { font-variant-numeric: oldstyle-nums proportional-nums; }
+.hl-xl.fit-short { font-size: clamp(40px, 5.2vw, 68px); }
+.hl-xl.fit-long { font-size: clamp(28px, 3vw, 40px); line-height: 1.08; }
+.hl-lg.fit-short { font-size: clamp(28px, 2.9vw, 38px); }
+.hl-lg.fit-long { font-size: clamp(21px, 1.9vw, 25px); }
+
+/* ───────── The front page: one shape per hour ───────── */
+.lead-banner { padding-bottom: 24px; }
+.lead-banner .hl-xl { font-size: clamp(42px, 5.6vw, 74px); line-height: .98; letter-spacing: -.025em; max-width: 15ch; }
+.lead-banner .hl-xl.fit-long { font-size: clamp(36px, 4.4vw, 58px); max-width: 20ch; }
+.lead-banner .dek-lg { font-size: 22px; max-width: 46ch; }
+.lead-body.three { column-count: 3; column-gap: 26px; column-rule: 1px solid var(--hair); max-width: none; }
+
+.front-twin { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding-bottom: 6px; }
+.front-twin .lead { padding: 0 24px 22px 0; }
+.front-twin .lead + .lead { padding: 0 0 22px 24px; border-left: 1px solid var(--hair); }
+.front-twin .hl-xl { font-size: clamp(28px, 2.9vw, 38px); line-height: 1.06; }
+.front-twin .hl-xl.fit-short { font-size: clamp(32px, 3.4vw, 46px); }
+.front-twin .dek-lg { font-size: 18px; }
+.front-twin .lead-body.two { column-count: 1; }
+.front-twin .photo, .front-stack .lead .photo { margin: 14px 0 0; }
+
+.front-stack { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); padding-bottom: 6px; }
+.front-stack .lead { padding: 0 24px 22px 0; }
+.front-stack .lead-body.two { column-count: 1; }
+.stack-side { border-left: 1px solid var(--hair); padding-left: 24px; }
+.stack-side .card { padding: 0; }
+
+.digest-note { font: italic 400 15px/1.4 var(--f-display); color: var(--muted); margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+.front-digest { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.front-digest .card { padding: 0 20px 22px; border-right: 1px solid var(--hair); }
+.front-digest .card:nth-child(3n+1) { padding-left: 0; }
+.front-digest .card:nth-child(3n) { border-right: 0; padding-right: 0; }
+.front-digest .card:nth-child(n+4) { padding-top: 20px; border-top: 1px solid var(--hair); }
+.front-digest .hl-lg, .front-digest .hl-lg.fit-short { font-size: clamp(21px, 1.75vw, 25px); line-height: 1.12; }
+.front-digest .hl-lg.fit-long { font-size: 19px; }
+.front-digest .dek { font-size: 15.5px; }
+.front-digest .excerpt { font-size: 15px; display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }
+.front-digest .kicker .sub { display: none; }
+
+@media screen and (max-width: 980px) {
+  .front-digest { grid-template-columns: 1fr 1fr; }
+  .front-digest .card:nth-child(n) { padding: 18px 18px 18px 0; border-right: 0; border-top: 1px solid var(--hair); }
+  .lead-body.three { column-count: 2; }
+}
+@media screen and (max-width: 720px) {
+  .front-twin, .front-stack, .front-digest { grid-template-columns: 1fr; }
+  .front-twin .lead, .front-twin .lead + .lead, .front-stack .lead { padding: 0 0 18px; border-left: 0; }
+  .front-twin .lead + .lead { padding-top: 18px; border-top: 1px solid var(--hair); }
+  .stack-side { border-left: 0; padding: 18px 0 0; border-top: 1px solid var(--hair); }
+  .lead-body.three { column-count: 1; }
+}
+
+/* ───────── The article, as a magazine page ───────── */
+.story-wrap { max-width: 680px; }
+.story > .kicker { text-align: center; margin: 18px 0 18px; }
+.story .hl-story {
+  text-align: center; font-weight: 500; font-size: clamp(38px, 5.4vw, 64px); line-height: 1.04;
+  letter-spacing: -.004em; font-variation-settings: 'SOFT' 50, 'WONK' 0, 'opsz' 144; margin: 0 auto 18px; max-width: 18ch;
+}
+.story .dek-story { text-align: center; font-size: 21px; line-height: 1.4; max-width: 36em; margin: 0 auto; }
+.story .byline { text-align: center; border: 0; padding: 0; margin: 22px 0 34px; }
+.story .byline strong { font: 600 13px/1 var(--f-sans); letter-spacing: .1em; text-transform: uppercase; }
+.story .byline::after { content: ''; display: block; width: 44px; margin: 22px auto 0; border-top: 1px solid var(--rule); }
+.story-body p { font-size: 19.5px; line-height: 1.64; margin: 0 0 1.05em; }
+.story-body p.dropcap::first-letter { font-weight: 500; font-size: 4.9em; line-height: .78; padding: .06em .1em 0 0; font-variation-settings: 'SOFT' 50, 'opsz' 144; }
+.story-body .lede-caps { font-variant-caps: all-small-caps; letter-spacing: .05em; }
+.story-body p.end::after { content: '♦'; display: inline-block; margin-left: .45em; font-size: .7em; vertical-align: .08em; color: var(--ink); }
+.pullquote {
+  margin: 1.4em 0 1.5em; padding: 18px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  font: italic 400 26px/1.32 var(--f-display); font-variation-settings: 'SOFT' 50, 'opsz' 72; text-align: center; text-wrap: balance; color: var(--ink);
+}
+.desk-credits { font: 500 11.5px/1.4 var(--f-sans) !important; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 26px 0 0 !important; text-align: center; }
+.evidence summary { cursor: pointer; list-style: none; }
+.evidence summary::-webkit-details-marker { display: none; }
+.evidence summary .box-title { display: flex; justify-content: space-between; align-items: baseline; margin: 0; padding-bottom: 10px; }
+.evidence summary .count { font-weight: 500; letter-spacing: .02em; text-transform: none; color: var(--muted); }
+.evidence summary .count::after { content: ' ▾'; }
+.evidence details[open] summary .count::after { content: ' ▴'; }
+
+/* ───────── How the piece got here (in the X-ray) ───────── */
+.passage { border: 1px solid var(--hair); background: var(--paper-2, rgba(0,0,0,.025)); padding: 14px 16px 12px; margin: 0 0 18px; }
+.passage ol { list-style: none; margin: 8px 0 4px; padding: 0; counter-reset: step; }
+.passage .step { position: relative; padding: 6px 0 8px 30px; border-top: 1px solid var(--hair); font: 400 14px/1.45 var(--f-sans); counter-increment: step; }
+.passage .step:first-child { border-top: 0; }
+.passage .step::before { content: counter(step); position: absolute; left: 0; top: 7px; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--rule); font: 700 11px/18px var(--f-sans); text-align: center; }
+.passage .step.sent-back::before { background: var(--accent); border-color: var(--accent); color: #fff; }
+.passage .step-who { font-weight: 700; margin-right: 8px; }
+.passage .step-who em { font-style: normal; font-weight: 500; color: var(--muted); }
+.passage .step-notes { margin: 6px 0 0; padding-left: 18px; font: italic 400 15px/1.45 var(--f-display); }
+.passage .step-praise { margin: 4px 0 0; font: italic 400 14.5px/1.4 var(--f-display); color: var(--muted); }
+.passage .step-fixes { list-style: none; margin: 6px 0 0; padding: 0; font: 400 14px/1.45 var(--f-serif); }
+.passage .step-fixes li { padding: 3px 0; }
+.passage .fix-how { font: 700 10.5px/1 var(--f-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.passage del { color: var(--muted); }
+.passage ins { text-decoration: none; background: rgba(47, 143, 78, .12); }
+.passage .fix-figs { font: 400 12px/1 var(--f-sans); color: var(--muted); }
+.passage .linkish { margin-top: 8px; font: 600 12.5px/1.2 var(--f-sans); }
+.first-draft { margin-top: 10px; padding: 12px 14px; border-left: 3px solid var(--rule); background: var(--card, #fff); }
+.first-draft h3 { font: 600 20px/1.2 var(--f-display); margin: 6px 0; }
+.first-draft p { font: 400 15.5px/1.55 var(--f-serif); margin: 0 0 10px; color: var(--ink-2); }
+
+.story-top { align-items: center; margin-bottom: 4px; }
+.story-top .back { margin-bottom: 0; }
+.hl-xl, .hl-lg, .hl-md, .hl-sm, .hl-story { overflow-wrap: break-word; }
+.stack-side .hl-lg, .front-digest .hl-lg, .front-twin .hl-xl { overflow-wrap: anywhere; }

@@ -264,10 +264,40 @@ function photosStories(evs) {
   })];
 }
 
+/** Git: one story per repository with something done in it (commits, merges, branch switches). */
+function gitStories(evs) {
+  const out = [];
+  for (const [repo, list] of groupBy(evs, (e) => e.meta?.repo || e.detail)) {
+    const commits = list.filter((e) => ['commit', 'amend', 'merge'].includes(e.kind));
+    const added = commits.reduce((t, e) => t + (e.meta.added || 0), 0);
+    const removed = commits.reduce((t, e) => t + (e.meta.removed || 0), 0);
+    const sized = commits.some((e) => e.meta.added != null);
+    const branches = [...new Set(list.map((e) => e.meta.branch).filter(Boolean))];
+    const weight = commits.length
+      ? 2.4 + log2(commits.length + 1) * 1.4 + Math.min(1.5, log2((added + removed) / 80 + 1) * 0.5) + (list.some((e) => e.kind === 'merge') ? 0.5 : 0)
+      : 0.9 + list.length * 0.2;
+    out.push(story('terminal', 'commits', `git-${repo}`, list, weight, {
+      topic: repo, repo, commits: commits.length, branches,
+      lines: sized ? { added, removed, files: commits.reduce((t, e) => t + (e.meta.files || 0), 0) } : null,
+    }));
+  }
+  return out;
+}
+
+/** Reminders: what was ticked off and what was added, in one story. */
+function remindersStories(evs) {
+  const done = evs.filter((e) => e.kind === 'done');
+  const added = evs.filter((e) => e.kind === 'added');
+  if (!done.length && added.length < 2) return [];
+  return [story('notes', 'todo', 'reminders', [...evs].sort((a, b) => a.ts - b.ts), 1.4 + done.length * 0.7 + log2(added.length + 1) * 0.4, {
+    topic: tr({ en: 'reminders', it: 'promemoria' }), done: done.length, added: added.length,
+  })];
+}
+
 const BUILDERS = {
   safari: safariStories, mail: mailStories, terminal: terminalStories, notes: notesStories,
   journal: journalStories, podcasts: podcastStories, books: bookStories, files: filesStories,
-  apps: appsStories, photos: photosStories,
+  apps: appsStories, photos: photosStories, git: gitStories, reminders: remindersStories,
 };
 
 export function buildStories(events) {
@@ -420,6 +450,32 @@ export function factSheet(s) {
       L.push(T('The pictures themselves, the places and the people are never seen: only what kind of shot and when.', 'Le immagini, i luoghi e le persone non si vedono mai: solo il tipo di scatto e l\'ora.'));
       break;
     }
+    case 'commits': {
+      const commits = s.events.filter((e) => ['commit', 'amend', 'merge'].includes(e.kind));
+      L.push(T(
+        `Git repository ${q(s.repo)}${s.branches.length ? ` (branch ${s.branches.map(q).join(', ')})` : ''}: ${commits.length} commit${commits.length === 1 ? '' : 's'} made on this Mac.`,
+        `Repository git ${q(s.repo)}${s.branches.length ? ` (ramo ${s.branches.map(q).join(', ')})` : ''}: ${commits.length} commit fatti su questo Mac.`,
+      ));
+      if (s.lines) L.push(T(`Size: +${s.lines.added} lines added, −${s.lines.removed} removed, ${s.lines.files} file changes in all.`, `Dimensione: +${s.lines.added} righe aggiunte, −${s.lines.removed} tolte, ${s.lines.files} modifiche a file in tutto.`));
+      L.push(T('In order (time, what, message):', 'In ordine (ora, cosa, messaggio):'));
+      const what = { commit: T('commit', 'commit'), amend: T('commit corrected', 'commit corretto'), merge: T('merge', 'merge'), checkout: T('switched branch', 'cambio di ramo'), pull: 'pull', rebase: 'rebase', reset: 'reset' };
+      s.events.slice(-25).forEach((e) => L.push(`- ${t(e)} ${what[e.kind] || e.kind}: ${q(e.title)}${e.meta.added != null ? ` (+${e.meta.added} −${e.meta.removed})` : ''}`));
+      L.push(T('Commit messages are written by the owner (or by the tools working for him): quote them as they are.', 'I messaggi di commit li scrive il proprietario (o gli strumenti che lavorano per lui): citali così come sono.'));
+      break;
+    }
+    case 'todo': {
+      const done = s.events.filter((e) => e.kind === 'done');
+      const added = s.events.filter((e) => e.kind === 'added');
+      if (done.length) {
+        L.push(T(`Reminders ticked off (${done.length}):`, `Promemoria spuntati (${done.length}):`));
+        done.slice(0, 15).forEach((e) => L.push(`- ${t(e)} ${q(e.title)}${e.meta.list ? ` [${e.meta.list}]` : ''}`));
+      }
+      if (added.length) {
+        L.push(T(`Reminders added (${added.length}):`, `Promemoria aggiunti (${added.length}):`));
+        added.slice(0, 15).forEach((e) => L.push(`- ${t(e)} ${q(e.title)}${e.meta.list ? ` [${e.meta.list}]` : ''}`));
+      }
+      break;
+    }
     case 'book': {
       const e = s.events[0];
       const opened = s.events.filter((x) => x.kind === 'opened').at(-1);
@@ -430,4 +486,38 @@ export function factSheet(s) {
     }
   }
   return L.join('\n');
+}
+
+/**
+ * What the other sources say about the same minutes: the apps in front, the appointments in the
+ * calendar, the commits. A story about YouTube reads differently when it ran through a meeting.
+ * Lines for the writer, empty when there is nothing to cross.
+ */
+export function crossFacts(s, events) {
+  if (!s?.first || !events?.length) return '';
+  const en = lang() === 'en';
+  const q = (x) => (en ? `“${x}”` : `«${x}»`);
+  const T = (e, i) => (en ? e : i);
+  const from = s.first - 5 * 60e3;
+  const to = Math.max(s.last || s.first, s.first + 10 * 60e3) + 5 * 60e3;
+  const L = [];
+  const own = new Set((s.events || []).map((e) => e.source));
+  if (s.kind !== 'timesheet') {
+    const tm = computeTime(events, from, to);
+    if (tm?.apps?.length && tm.active >= 3) L.push(`${T('Apps in front in those minutes', 'App in primo piano in quei minuti')}: ${tm.apps.slice(0, 3).map((a) => `${a.name} ${a.minutes} min`).join(', ')}${tm.away >= 5 ? T(`; ${tm.away} min away from the Mac`, `; ${tm.away} min lontano dal Mac`) : ''}.`);
+  }
+  const agenda = events.filter((e) => e.source === 'calendar' && e.kind === 'appointment' && e.ts < to && (e.meta?.end ?? e.ts) > from);
+  for (const e of agenda.slice(0, 3)) L.push(`${T('In the calendar', 'In agenda')}: ${q(e.title)} ${hhmm(e.ts)}–${hhmm(e.meta?.end ?? e.ts)}.`);
+  const day = events.find((e) => e.source === 'calendar' && e.kind === 'day');
+  if (day) L.push(`${T('All-day in the calendar', 'Tutto il giorno in agenda')}: ${q(day.title)}.`);
+  if (!own.has('git')) {
+    const commits = events.filter((e) => e.source === 'git' && ['commit', 'amend', 'merge'].includes(e.kind) && e.ts >= from && e.ts <= to);
+    if (commits.length) L.push(`${T('Meanwhile, git commits', 'Intanto, commit git')}: ${commits.slice(0, 3).map((e) => `${hhmm(e.ts)} ${e.meta?.repo}: ${q(e.title.slice(0, 80))}`).join('; ')}${commits.length > 3 ? ` (+${commits.length - 3})` : ''}.`);
+  }
+  if (!own.has('reminders')) {
+    const done = events.filter((e) => e.source === 'reminders' && e.kind === 'done' && e.ts >= from && e.ts <= to);
+    if (done.length) L.push(`${T('Reminders ticked off meanwhile', 'Promemoria spuntati intanto')}: ${done.slice(0, 3).map((e) => q(e.title)).join(', ')}.`);
+  }
+  if (!L.length) return '';
+  return `\n${T('THE SAME MINUTES, FROM THE OTHER SOURCES (use them only if they add something; never as the subject)', 'GLI STESSI MINUTI, DALLE ALTRE FONTI (usali solo se aggiungono qualcosa; mai come soggetto)')}:\n${L.map((l) => `- ${l}`).join('\n')}\n`;
 }

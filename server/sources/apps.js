@@ -18,13 +18,19 @@ const AWAY_AFTER = 5 * 60; // seconds without keyboard or trackpad
 const NOT_APPS = /^(loginwindow|ScreenSaverEngine|UserNotificationCenter|Dock)$/i;
 
 // one shell, two tiny commands: the app in front, and the seconds since the last input
-const PROBE = `${LSAPPINFO} info -only name "$(${LSAPPINFO} front)"; ${IOREG} -c IOHIDSystem -d 4 | /usr/bin/awk '/HIDIdleTime/ {print "IDLE=" int($NF/1000000000); exit}'`;
+const IDLE = `${IOREG} -c IOHIDSystem -d 4 | /usr/bin/awk '/HIDIdleTime/ {print "IDLE=" int($NF/1000000000); exit}'`;
+const PROBE = `${LSAPPINFO} info -only name "$(${LSAPPINFO} front)"; ${IDLE}`;
+// the same question asked to AppKit (no permission needed: it isn't an Apple Event). Some Macs
+// answer lsappinfo only for the session that opened the app, never for a background agent:
+// then the paper saw "away" all day long.
+const JXA = 'ObjC.import("AppKit"); var a = $.NSWorkspace.sharedWorkspace.frontmostApplication; a.isNil() ? "" : "\\"LSDisplayName\\"=\\"" + ObjC.unwrap(a.localizedName) + "\\""';
+const PROBE_APPKIT = `/usr/bin/osascript -l JavaScript -e '${JXA}'; ${IDLE}`;
 
 const hourStart = (ms) => { const d = new Date(ms); d.setMinutes(0, 0, 0); return d.getTime(); };
 
 /** One sample of the probe's output → { app, idle }. Exported for the tests. */
 export function parseProbe(out) {
-  const app = (/"(?:LSDisplayName|name)"="([^"]*)"/.exec(out) || [])[1] || null;
+  const app = (/"?(?:LSDisplayName|name)"?\s*=\s*"([^"]*)"/.exec(out) || [])[1]?.trim() || null;
   const idle = Number((/IDLE=(\d+)/.exec(out) || [])[1]);
   return { app, idle: Number.isFinite(idle) ? idle : 0 };
 }
@@ -98,14 +104,30 @@ export function startSampler(config, log = console.log) {
   const interval = Math.max(15, Number(config.apps?.sampleSeconds) || 60) * 1000;
   timeline = createTimeline({ interval, exclude: config.apps?.exclude || [] });
   let failures = 0;
-  const tick = () => execFile('/bin/sh', ['-c', PROBE], { timeout: 10e3 }, (err, stdout) => {
-    if (err) {
+  let probe = PROBE;
+  let blind = 0; // samples in a row with someone at the keyboard but no app in front
+  const run = (cmd) => new Promise((resolve, reject) => execFile('/bin/sh', ['-c', cmd], { timeout: 10e3 }, (err, out) => (err ? reject(err) : resolve(out))));
+  const tick = async () => {
+    try {
+      let s = parseProbe(await run(probe));
+      const suspect = s.idle < AWAY_AFTER && (!s.app || NOT_APPS.test(s.app));
+      if (suspect && probe === PROBE) {
+        // lsappinfo says nobody is in front while someone is typing: ask AppKit instead
+        const alt = parseProbe(await run(PROBE_APPKIT).catch(() => ''));
+        if (alt.app && !NOT_APPS.test(alt.app)) {
+          probe = PROBE_APPKIT;
+          s = { ...s, app: alt.app };
+          log(tr({ en: '[time] lsappinfo doesn\'t see the app in front: asking AppKit from now on', it: '[tempo] lsappinfo non vede l\'app in primo piano: da ora chiedo ad AppKit' }));
+        }
+      }
+      blind = s.idle < AWAY_AFTER && !s.app ? blind + 1 : 0;
+      if (blind === 10) log(tr({ en: '[time] for ten minutes someone has been at the Mac but no app is in front: the Time section stays empty', it: '[tempo] da dieci minuti c\'è qualcuno al Mac ma nessuna app risulta in primo piano: la sezione Tempo resta vuota' }));
+      failures = 0;
+      timeline.sample(Date.now(), s);
+    } catch (err) {
       if (++failures === 3) log(tr({ en: `[time] the app sampler fails: ${err.message}`, it: `[tempo] il campionatore delle app non funziona: ${err.message}` }));
-      return;
     }
-    failures = 0;
-    timeline.sample(Date.now(), parseProbe(stdout));
-  });
+  };
   tick();
   timer = setInterval(tick, interval);
   timer.unref?.();

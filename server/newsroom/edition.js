@@ -1,4 +1,5 @@
-import { buildStories, factSheet } from './cluster.js';
+import { buildStories, factSheet, crossFacts } from './cluster.js';
+import { deskChain, chainFor } from './chain.js';
 import { SECTIONS, SECTION_ORDER } from './sections.js';
 import { fallbackArticle, fallbackBrief, fallbackSummary } from './fallback.js';
 import { autoScene, validScene, sceneCaption } from './scenes.js';
@@ -98,6 +99,8 @@ async function writeArticle(story, rank, ctx) {
       const raw = await chat(llm, config, msgs, maxTokensFor(size));
       text = fromLLM(parseJson(raw), story, llm.model);
       text = await ensureLength(text, msgs, story, size, { ...ctx, chat });
+      // the managing editor reads it, the reporter rewrites if sent back, the copy desk checks the figures
+      if (chainFor(config, rank)) text = await deskChain(text, { facts, msgs, size, ctx, chat, maxTokens: maxTokensFor(size), fromLLM, story, writer });
       text.check = numbersCheck(text, facts); // figures the facts don't contain
       text.byline = byline(writer);
     } catch (e) {
@@ -279,7 +282,7 @@ export async function printEdition({ store, config, start, final = true, force =
     s.quotes = iv.quotes;
     s.records = records.filter((r) => metricList.find((m) => m.key === r.key)?.story(s));
     s.tipped = tipped.facts.has(s.id);
-    s.extra = iv.facts + (tipped.facts.get(s.id) || '') + s.records.map(recordFact).join('');
+    s.extra = iv.facts + (tipped.facts.get(s.id) || '') + s.records.map(recordFact).join('') + safely(() => crossFacts(s, events), '', log);
   }
 
   const llm = await connectLLM(config);

@@ -9,5 +9,9 @@ import '@fontsource/libre-caslon-text/700.css';
 import '@fontsource-variable/libre-franklin';
 import './styles.css';
 import App from './App.jsx';
+import { lang } from './i18n.js';
+
+// the paper's language on the page: hyphenation and quotation follow it
+document.documentElement.lang = lang;
 
 createRoot(document.getElementById('root')).render(<App />);

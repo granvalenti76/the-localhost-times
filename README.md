@@ -156,14 +156,21 @@ Your editions, settings and `config.json` are kept. New features that need new s
 | Podcasts | Radio | Episodes played, and how far |
 | Books | Culture | Books opened, progress, highlighted passages |
 | Files | Local | Folders you worked in (via Spotlight) and downloads with the site they came from. **Not** file names (unless you enable them) or contents. |
-| Apps | Time | The app in front, noted once a minute (`lsappinfo`), and when you're away from the keyboard. **Only app names**: never window titles or what's on screen. |
+| Apps | Time | The app in front, noted once a minute (`lsappinfo`, or AppKit when `lsappinfo` can't see it from the background service), and when you're away from the keyboard. **Only app names**: never window titles or what's on screen. |
 | The Mac | (front page) | When the Mac wakes, sleeps and runs on battery (`pmset -g log`). |
 | Photos | The Photographer | How many photos, videos and screenshots, and when (Photos library and the Mac's screenshots). **Never** the pictures, places, people or file names. |
+| Git | Workshop | The reflog of each repository under the Files folders: commits (with their message and size), merges, pulls, branch switches. Only what was done on this Mac. |
+| Calendar | (context) | The appointments of the hour (experimental). They don't make stories: they tell the writer that the hour of YouTube was the hour of the meeting. Delicate titles become "a private appointment"; birthdays and holidays are left out. |
+| Reminders | Notebook | Reminders ticked off and added (experimental). Delicate titles become "a private reminder". |
+
+Each story's facts end with **the same minutes from the other sources**: the apps in front, the appointments, the commits and the reminders of those minutes, so the writer can cross them.
 
 Every hour:
 
 - **The front page.** A lead story, sections, briefs and *The Brief*, a two-line summary. Stories that keep coming back become **continuing stories**, with links to the earlier instalments.
 - **The cartoon.** The model writes a New Yorker-style caption and picks one of 18 original line drawings to go with it.
+- **Three hands on every piece.** The first three articles of each edition pass through the desk: the managing editor reads the draft against its facts and either passes it or sends it back with at most three notes; the reporter rewrites it once; the copy desk checks every figure against the signals (the model fixes the sentences that quote one that isn't there, or the sentence goes) and tidies the small things. *How it's built* on each article shows the passages and the first draft.
+- **A front page shaped by the hour.** No story dominating: the news side by side. Two of the same weight: two leads. One far above the rest: a banner across the page. Otherwise the lead, with the second story beside it or below.
 - **Fact check.** The model, as a fact-checker, rates the boldest claims of the edition (true, mostly true, false, unverifiable) against the hour's data. In the newsroom, every figure an article quotes that is *not* in its facts gets flagged.
 - **The website market.** Every site you visit is a listed stock, its visits are the price, with change and a 12-hour trend.
 - **Photos.** Preview images of public pages and YouTube thumbnails. Private, local and webmail pages are never fetched.
@@ -269,6 +276,9 @@ The paper is written in **English or Italian** (`"language": "en"` or `"it"`).
 | `files.folders` | Desktop, Documents, Downloads, Work, Developer, Projects, Code… | Folders the Local section watches |
 | `files.exclude` | `[]` | Parts of paths to leave out, e.g. `"Documents/Medical"` |
 | `files.includeNames` | `false` | Put file names in the paper (otherwise only folders, types and counts) |
+| `git.folders` | the Files folders | Where to look for git repositories |
+| `git.exclude` | `[]` | Parts of paths to leave out |
+| `desk.chain` | `"top"` | Which articles the managing editor and the copy desk read: `"top"` (the first three), `"all"`, `"lead"`, `"off"`. Each costs one to three more model calls. |
 | `privacy.*` | | See [Privacy](#privacy) |
 | `edition.maxArticles` | `9` | Articles per edition |
 | `edition.minEvents` | `8` | Quieter hours merge into the next edition… |
@@ -349,6 +359,7 @@ app databases (read from a copy) ─► collected every 5 min ─► data/*.sqli
 | `server/newsroom/archive.js` | Search (SQLite FTS5) and "Ask the archive" |
 | `server/newsroom/investigations.js` | Investigations: gathering, numbers, timeline, writing |
 | `server/newsroom/factcheck.js` | The fact check and the figures check |
+| `server/newsroom/chain.js` | The desk: managing editor, rewrite, copy desk |
 | `server/newsroom/spotlight/` | Spotlight: the detectors, the leads' lifecycle, the writing |
 | `server/service.js` | The macOS background service |
 | `web/` | The paper: front page, articles, sections, newsroom |

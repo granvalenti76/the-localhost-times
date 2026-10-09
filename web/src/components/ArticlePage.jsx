@@ -4,22 +4,51 @@ import Para from './Para.jsx';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
 import { DeepenButton } from './Features.jsx';
-import { Xray, xrayLabels } from './Craft.jsx';
+import { Xray, xrayLabels, DeskCredits } from './Craft.jsx';
 
 const KIND = tr({
   en: {
     visit: 'visit', search: 'search', received: 'received', sent: 'sent', command: '$', read: 'read', inbox: 'inbox',
     created: 'created', edited: 'edited', entry: 'entry', listened: 'listened', opened: 'opened', highlight: 'highlight',
+    commit: 'commit', amend: 'amend', merge: 'merge', checkout: 'branch', pull: 'pull', done: 'done', added: 'to do',
   },
   it: {
     visit: 'visita', search: 'ricerca', received: 'ricevuta', sent: 'inviata', command: '$', read: 'letta', inbox: 'casella',
     created: 'creata', edited: 'modificata', entry: 'voce', listened: 'ascolto', opened: 'aperto', highlight: 'evidenziato',
+    commit: 'commit', amend: 'correzione', merge: 'merge', checkout: 'ramo', pull: 'pull', done: 'fatto', added: 'da fare',
   },
 });
+
+/**
+ * The pull quote: one sentence from the middle of a long piece, set large between paragraphs,
+ * the way magazines do. A sentence with a quotation or a figure, not too long, never a hedge.
+ */
+export function pullQuote(body = []) {
+  if (body.length < 4) return null;
+  let best = null;
+  body.slice(1, -1).forEach((p, k) => {
+    for (const raw of p.split(/(?<=[.!?…])\s+(?=[A-ZÀ-Ý«“])/)) {
+      const t = raw.trim();
+      if (t.length < 50 || t.length > 150 || /^(alle|verso le|at|around)\s+\d/i.test(t) || /\b(forse|perhaps|maybe|probabilmente)\b/i.test(t)) continue;
+      const score = (/[«“]/.test(t) ? 2 : 0) + (/\d/.test(t) ? 1 : 0) + (t.length <= 110 ? 1 : 0) + (/[:;]/.test(t) ? 0 : 0.5);
+      if (!best || score > best.score) best = { text: t, para: k + 1, score };
+    }
+  });
+  if (!best) return null;
+  // set it away from its own paragraph: after the next one
+  return { text: best.text, after: Math.min(body.length - 2, best.para + 1) };
+}
+
+/** The first paragraph: a drop cap, and its first words in small capitals. */
+function Lede({ p, last }) {
+  const m = /^(\S+(?:\s+\S+){0,3})(\s[\s\S]*)$/.exec(p);
+  return <p className={`dropcap lede${last ? ' end' : ''}`}>{m ? <><span className="lede-caps">{m[1]}</span>{m[2]}</> : p}</p>;
+}
 
 export default function ArticlePage({ edition, article: a, xray: xrayAtStart = false }) {
   const [xray, setXray] = useState(xrayAtStart);
   const others = edition.articles.filter((x) => x.id !== a.id).slice(0, 4);
+  const pq = pullQuote(a.body);
   return (
     <div className="story-wrap">
       <div className="story-top">
@@ -56,7 +85,13 @@ export default function ArticlePage({ edition, article: a, xray: xrayAtStart = f
         <Photo image={a.image} size="lg" />
         {xray ? <Xray a={a} /> : (
           <div className="story-body">
-            {a.body.map((p, i) => <Para key={i} a={a} p={p} className={i === 0 && p.length > 160 ? 'dropcap' : ''} />)}
+            {a.body.map((p, i) => (
+              <React.Fragment key={i}>
+                {i === 0 && p.length > 160 ? <Lede p={p} last={a.body.length === 1} /> : <Para a={a} p={p} className={i === a.body.length - 1 ? 'end' : ''} />}
+                {pq && pq.after === i && <blockquote className="pullquote" aria-hidden="true">{pq.text}</blockquote>}
+              </React.Fragment>
+            ))}
+            <DeskCredits a={a} />
           </div>
         )}
 
@@ -78,7 +113,8 @@ export default function ArticlePage({ edition, article: a, xray: xrayAtStart = f
         )}
 
         <section className="evidence">
-          <h3 className="box-title">{tr({ en: 'Sources', it: 'Le fonti' })}</h3>
+          <details open={a.sources.length <= 6}>
+          <summary><h3 className="box-title">{tr({ en: 'Sources', it: 'Le fonti' })} <span className="count">{a.sources.length} {tr({ en: a.sources.length === 1 ? 'signal' : 'signals', it: a.sources.length === 1 ? 'segnale' : 'segnali' })}</span></h3></summary>
           <ol>
             {a.sources.map((s, i) => (
               <li key={i}>
@@ -89,6 +125,7 @@ export default function ArticlePage({ edition, article: a, xray: xrayAtStart = f
               </li>
             ))}
           </ol>
+          </details>
         </section>
       </article>
 

@@ -33,6 +33,9 @@ function answer(messages) {
   if (/Fix these problems|Correggi questi difetti/.test(last)) return 'A cleaner version of the section, with the facts unchanged and the tics gone from every sentence.';
   if (/"alternatives"/.test(sys)) return JSON.stringify({ kicker: 'Chess', headline: 'The knight shift.', dek: 'An evening against bob.', alternatives: ['Bob, again', 'Thirty moves'] });
   if (/"claims"/.test(sys)) return JSON.stringify({ claims: [{ text: 'I played 999 games', why: 'The archive has 30 visits' }], kicker: 'Chess', headlines: ['Mine', 'Yours', 'Ours'], dek: 'A dek.' });
+  if (/"verdict"/.test(sys)) return JSON.stringify({ verdict: 'rework', notes: ['Open on bob, the rival, not on the hour.'], praise: 'The second paragraph moves.' });
+  if (/"fixes"/.test(sys)) return JSON.stringify({ fixes: [] });
+  if (/sends the piece back|ti rimanda indietro il pezzo/.test(last)) return JSON.stringify({ kicker: 'Chess', headline: 'Bob, again', dek: 'Thirty visits, one rival.', body: ['Bob was the opponent of the hour, game after game, on chess.com.', 'The owner kept playing, with a short break for the terminal and the tests.', 'Nobody commented.'] });
   if (/"lines": \{/.test(sys)) return JSON.stringify({ lines: { 'site:chess.com': 'Runs the midfield like a grandmaster.' } });
   if (/"lines": \[/.test(sys)) return JSON.stringify({ lines: ['We hear the cat has taken up typing.'] });
   if (/"headlines"/.test(sys)) return JSON.stringify({ headlines: ['Bob wins again', 'Thirty visits, one rival', 'The board never sleeps'] });
@@ -97,6 +100,12 @@ test('with a writer: interview question, quote in the piece, extras after the pr
     assert.equal(a.body.filter((p) => p.includes('Bob is a machine')).length, 1, 'the quote was added twice');
     assert.ok(calls.some((m) => /STATEMENT BY THE OWNER/.test(m.map((x) => x.content).join('\n'))), 'the statement never reached the writer');
     assert.ok(!openCalls(store, h + 2 * HOUR).some((c) => c.id === call.id));
+    // the desk: sent back by the managing editor, rewritten, read by the copy desk
+    assert.deepEqual(a.chain.map((x) => x.who), ['reporter', 'editor', 'reporter', 'copy']);
+    assert.equal(a.chain[1].verdict, 'rework');
+    assert.equal(a.chain[2].rewrote, true);
+    assert.equal(a.headline, 'Bob, again');
+    assert.equal(a.draft.headline, 'An evening of chess');
 
     // after the press: report cards, gossip column, the serial's first episode and its fork
     const rich = await enrichEdition(store, config, ed.id, { log: quiet });

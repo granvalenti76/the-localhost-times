@@ -287,6 +287,41 @@ const W = {
     };
   },
 
+  commits(s, P) {
+    const commits = s.events.filter((e) => ['commit', 'amend', 'merge'].includes(e.kind));
+    const last = commits.at(-1);
+    const size = s.lines ? `+${s.lines.added} −${s.lines.removed} righe` : null;
+    const moves = s.events.filter((e) => e.kind === 'checkout');
+    return {
+      kicker: 'Officina',
+      headline: commits.length
+        ? commits.length === 1 ? `${q(s.repo)}: ${q(short(last.title, 60))}` : P([`${commits.length} commit su ${q(s.repo)}`, `${q(s.repo)} cresce di ${commits.length} commit`])
+        : `${q(s.repo)} cambia ramo: ${moves.at(-1)?.title || ''}`,
+      dek: `${cap(span(s))}${s.branches.length ? `, sul ramo ${list(s.branches.map(q))}` : ''}${size ? `; ${size}` : ''}.`,
+      body: [
+        commits.length ? `I messaggi, in ordine: ${list(commits.slice(-5).map((e) => q(short(e.title, 90))))}.` : '',
+        size ? `Il conto delle righe: ${size}, su ${s.lines.files} file.` : '',
+        moves.length ? `Cambi di ramo: ${list(moves.map((e) => e.title))}.` : '',
+      ].filter(Boolean),
+    };
+  },
+
+  todo(s, P) {
+    const done = s.events.filter((e) => e.kind === 'done');
+    const added = s.events.filter((e) => e.kind === 'added');
+    return {
+      kicker: 'Promemoria',
+      headline: done.length
+        ? done.length === 1 ? `Spuntato: ${q(short(done[0].title, 60))}` : P([`${done.length} promemoria spuntati`, `La lista si accorcia di ${done.length}`])
+        : `${added.length} cose nuove da fare`,
+      dek: `${cap(span(s))}${added.length && done.length ? `; ${added.length} aggiunti` : ''}.`,
+      body: [
+        done.length ? `Fatto: ${list(done.slice(0, 6).map((e) => q(short(e.title, 70))))}.` : '',
+        added.length ? `Da fare: ${list(added.slice(0, 6).map((e) => q(short(e.title, 70))))}.` : '',
+      ].filter(Boolean),
+    };
+  },
+
   shots(s, P) {
     const c = s.counts;
     const n = (x, one, many) => `${x} ${x === 1 ? one : many}`;

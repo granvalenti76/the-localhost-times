@@ -163,3 +163,31 @@ const STYLE_NAMES = {
   it: { daily: 'Quotidiano', magazine: 'Magazine letterario', essay: 'Saggio', tech: 'Tech news', newsletter: 'Newsletter', explainer: 'Spiegone', economist: 'The Economist', noir: 'Noir' },
 };
 export const styleName = (id) => tr(STYLE_NAMES)[id || 'daily'] || '';
+
+const wordsIn = (s) => String(s || '').split(/\s+/).filter(Boolean).length;
+
+/**
+ * The shape of the front page, from the shape of the hour (no two hours are laid out alike):
+ *   digest   no story dominates: the news side by side, all at the same size
+ *   twin     two stories of the same weight: two leads, shoulder to shoulder
+ *   banner   one story far above the rest, with a short headline: it takes the width
+ *   stack    the lead with the second story in a column beside it
+ *   classic  the lead, then the others below
+ */
+export function layoutOf(ed) {
+  const a = (ed?.articles || []).filter((x) => x?.body?.length);
+  if (a.length < 2) return 'classic';
+  const w = (x) => Math.max(0.1, Number(x?.weight) || 1);
+  const [l, s] = a;
+  if (l.commissioned) return wordsIn(l.headline) <= 9 ? 'banner' : 'classic';
+  if (a.length >= 5 && w(l) / w(a[4]) < 1.35) return 'digest';
+  if (w(s) / w(l) >= 0.85 && l.body.length >= 2 && s.body.length >= 2 && !l.image && !s.commissioned) return 'twin';
+  if (wordsIn(l.headline) <= 8 && (w(l) / w(s) >= 1.5 || l.record)) return 'banner';
+  return new Date(edHour(ed) || 0).getHours() % 2 ? 'stack' : 'classic';
+}
+
+/** Short headlines are set bigger, long ones smaller: the line fills the column either way. */
+export function fitOf(headline) {
+  const n = wordsIn(headline);
+  return n <= 4 ? 'fit-short' : n >= 14 ? 'fit-long' : '';
+}

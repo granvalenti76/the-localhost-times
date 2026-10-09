@@ -31,12 +31,19 @@ const NAMES = {
 
 export const SECTION_ORDER = ['safari', 'mail', 'terminal', 'files', 'apps', 'notes', 'journal', 'podcasts', 'books', 'photos'];
 
-export const SECTIONS = Object.fromEntries(SECTION_ORDER.map((id) => [id, {
+// sources without a section of their own: their news goes in a neighbour's pages
+export const SECTION_OF = { git: 'terminal', reminders: 'notes', calendar: 'notes' };
+
+const section = (id) => ({
   id,
   get slug() { return L(NAMES)[id].slug; },
   get name() { return L(NAMES)[id].name; },
   get tag() { return L(NAMES)[id].tag; },
-}]));
+});
+export const SECTIONS = Object.fromEntries([
+  ...SECTION_ORDER.map((id) => [id, section(id)]),
+  ...Object.entries(SECTION_OF).map(([src, id]) => [src, section(id)]),
+]);
 
 /** Any slug, in any language (old editions keep the slugs they were printed with). */
 export function sectionBySlug(slug) {

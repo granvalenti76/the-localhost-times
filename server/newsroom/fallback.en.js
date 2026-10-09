@@ -288,6 +288,41 @@ const W = {
     };
   },
 
+  commits(s, P) {
+    const commits = s.events.filter((e) => ['commit', 'amend', 'merge'].includes(e.kind));
+    const last = commits.at(-1);
+    const size = s.lines ? `+${s.lines.added} −${s.lines.removed} lines` : null;
+    const moves = s.events.filter((e) => e.kind === 'checkout');
+    return {
+      kicker: 'Workshop',
+      headline: commits.length
+        ? commits.length === 1 ? `${q(s.repo)}: ${q(short(last.title, 60))}` : P([`${commits.length} commits on ${q(s.repo)}`, `${q(s.repo)} grows by ${commits.length} commits`])
+        : `${q(s.repo)} switches branch: ${moves.at(-1)?.title || ''}`,
+      dek: `${cap(span(s))}${s.branches.length ? `, on the branch ${list(s.branches.map(q))}` : ''}${size ? `; ${size}` : ''}.`,
+      body: [
+        commits.length ? `The messages, in order: ${list(commits.slice(-5).map((e) => q(short(e.title, 90))))}.` : '',
+        size ? `The line count: ${size}, across ${s.lines.files} files.` : '',
+        moves.length ? `Branch switches: ${list(moves.map((e) => e.title))}.` : '',
+      ].filter(Boolean),
+    };
+  },
+
+  todo(s, P) {
+    const done = s.events.filter((e) => e.kind === 'done');
+    const added = s.events.filter((e) => e.kind === 'added');
+    return {
+      kicker: 'Reminders',
+      headline: done.length
+        ? done.length === 1 ? `Ticked off: ${q(short(done[0].title, 60))}` : P([`${done.length} reminders ticked off`, `The list gets ${done.length} shorter`])
+        : `${added.length} new things to do`,
+      dek: `${cap(span(s))}${added.length && done.length ? `; ${added.length} added` : ''}.`,
+      body: [
+        done.length ? `Done: ${list(done.slice(0, 6).map((e) => q(short(e.title, 70))))}.` : '',
+        added.length ? `To do: ${list(added.slice(0, 6).map((e) => q(short(e.title, 70))))}.` : '',
+      ].filter(Boolean),
+    };
+  },
+
   shots(s, P) {
     const c = s.counts;
     const what = list([

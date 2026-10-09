@@ -6,7 +6,7 @@
  */
 
 /** Sources that measure rather than report: they don't count as the hour's "signals". */
-export const AMBIENT = new Set(['power', 'apps']);
+export const AMBIENT = new Set(['power', 'apps', 'calendar']);
 export const isAmbient = (e) => AMBIENT.has(e.source);
 
 const overlap = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));

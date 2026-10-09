@@ -1,5 +1,5 @@
 import React from 'react';
-import { href, hhmm, SECTIONS, episodeLabel, readingTime } from '../lib.js';
+import { href, hhmm, SECTIONS, episodeLabel, readingTime, layoutOf, fitOf } from '../lib.js';
 import Para from './Para.jsx';
 import { TimeBox, MacLine } from './TimeBox.jsx';
 import { SpotlightBand, SpotlightBox } from './Spotlight.jsx';
@@ -86,73 +86,130 @@ function Numbers({ stats }) {
   );
 }
 
-export default function FrontPage({ edition }) {
-  const [lead, ...rest] = edition.articles;
-  const second = rest.slice(0, 2);
-  const third = rest.slice(2);
-  const link = (a) => href.article(edition.id, a.id);
+const more = () => tr({ en: 'Continue reading', it: 'Continua a leggere' });
 
-  const leadParas = lead ? lead.body.slice(0, 3) : [];
-  const longLead = leadParas.join(' ').length > 480;
-
+/** The lead story, in one of its cuts: classic (two columns), banner (the full width), side (narrower). */
+function Lead({ a, edition, link, cut = 'classic' }) {
+  const paras = a.body.slice(0, cut === 'banner' ? 4 : 3);
+  const long = paras.join(' ').length > (cut === 'side' ? 900 : 480);
   return (
-    <div className="front">
+    <article className={`lead lead-${cut}`}>
+      <Kicker a={a} chosen={edition.closing?.storyId === a.id} />
+      <h2 className={`hl-xl ${fitOf(a.headline)}`}><a href={link(a)}>{a.headline}</a></h2>
+      {a.dek && <p className="dek dek-lg">{a.dek}</p>}
+      <Meta a={a} />
+      {a.image && (cut === 'twin' || cut === 'side') && <Photo image={a.image} size="md" />}
+      {a.image && cut !== 'twin' && cut !== 'side' ? (
+        <div className="lead-split">
+          <Photo image={a.image} size="md" />
+          <div className="lead-body">
+            {paras.map((p, i) => <Para key={i} a={a} p={p} className={i === 0 && p.length > 120 ? 'dropcap' : ''} />)}
+            <a className="more" href={link(a)}>{more()} →</a>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className={`lead-body ${cut === 'banner' && long ? 'three' : long ? 'two' : ''}`}>
+            {paras.map((p, i) => <Para key={i} a={a} p={p} className={i === 0 && p.length > 160 ? 'dropcap' : ''} />)}
+          </div>
+          <a className="more" href={link(a)}>{more()} →</a>
+        </>
+      )}
+    </article>
+  );
+}
+
+/** A story with its opening paragraph: the second tier of the page. */
+function Card({ a, link, excerpt = true, size = 'lg' }) {
+  return (
+    <article className={`card card-md ${a.image ? 'has-photo' : ''}`}>
+      <Photo image={a.image} size="md" caption={false} />
+      <Kicker a={a} />
+      <h2 className={`hl-${size} ${fitOf(a.headline)}`}><a href={link(a)}>{a.headline}</a></h2>
+      {a.dek && <p className="dek">{a.dek}</p>}
+      {excerpt && <Para a={a} p={a.body[0]} className="excerpt" />}
+      <Meta a={a} />
+    </article>
+  );
+}
+
+function Grid({ list, link }) {
+  if (!list.length) return null;
+  return (
+    <section className="front-grid">
+      {list.map((a) => (
+        <article key={a.id} className={`card ${a.image ? 'has-photo' : ''}`}>
+          <Photo image={a.image} size="sm" caption={false} />
+          <Kicker a={a} />
+          <h2 className="hl-md"><a href={link(a)}>{a.headline}</a></h2>
+          {a.dek && <p className="dek dek-sm">{a.dek}</p>}
+          <Meta a={a} />
+        </article>
+      ))}
+    </section>
+  );
+}
+
+/** The main column, cut to the shape of the hour. */
+function MainNews({ edition, link }) {
+  const all = edition.articles;
+  const layout = layoutOf(edition);
+  if (!all.length) return null;
+  if (layout === 'digest') {
+    const top = all.slice(0, 6);
+    return (
+      <>
+        <p className="digest-note">{tr({ en: `No story led this hour: ${all.length} pieces of news, side by side.`, it: `Nessuna storia ha dominato l'ora: ${all.length} notizie, alla pari.` })}</p>
+        <section className="front-digest">{top.map((a) => <Card key={a.id} a={a} link={link} size="lg" />)}</section>
+        <Grid list={all.slice(6)} link={link} />
+      </>
+    );
+  }
+  if (layout === 'twin') {
+    const [a, b, ...rest] = all;
+    return (
+      <>
+        <section className="front-twin">
+          {[a, b].map((x) => <Lead key={x.id} a={x} edition={edition} link={link} cut="twin" />)}
+        </section>
+        {rest.length > 0 && <section className="front-second">{rest.slice(0, 2).map((x) => <Card key={x.id} a={x} link={link} />)}</section>}
+        <Grid list={rest.slice(2)} link={link} />
+      </>
+    );
+  }
+  if (layout === 'stack') {
+    const [lead, side, ...rest] = all;
+    return (
+      <>
+        <section className="front-stack">
+          <Lead a={lead} edition={edition} link={link} cut="side" />
+          <div className="stack-side"><Card a={side} link={link} size="lg" /></div>
+        </section>
+        {rest.length > 0 && <section className="front-second">{rest.slice(0, 2).map((x) => <Card key={x.id} a={x} link={link} />)}</section>}
+        <Grid list={rest.slice(2)} link={link} />
+      </>
+    );
+  }
+  const [lead, ...rest] = all;
+  return (
+    <>
+      <Lead a={lead} edition={edition} link={link} cut={layout === 'banner' ? 'banner' : 'classic'} />
+      {rest.length > 0 && <section className="front-second">{rest.slice(0, 2).map((x) => <Card key={x.id} a={x} link={link} />)}</section>}
+      {/* the rest of the paper stays in the main column, next to the rail: no empty space beside it */}
+      <Grid list={rest.slice(2)} link={link} />
+    </>
+  );
+}
+
+export default function FrontPage({ edition }) {
+  const link = (a) => href.article(edition.id, a.id);
+  return (
+    <div className={`front layout-${layoutOf(edition)}`}>
       <FlashBand />
       <SpotlightBand scoop={edition.spotlight} />
       <section className="front-top">
         <div className="front-main">
-          {lead && (
-            <article className="lead">
-              <Kicker a={lead} chosen={edition.closing?.storyId === lead.id} />
-              <h2 className="hl-xl"><a href={link(lead)}>{lead.headline}</a></h2>
-              {lead.dek && <p className="dek dek-lg">{lead.dek}</p>}
-              <Meta a={lead} />
-              {lead.image ? (
-                <div className="lead-split">
-                  <Photo image={lead.image} size="md" />
-                  <div className="lead-body">
-                    {leadParas.map((p, i) => <Para key={i} a={lead} p={p} className={i === 0 && p.length > 120 ? 'dropcap' : ''} />)}
-                    <a className="more" href={link(lead)}>{tr({ en: 'Continue reading', it: 'Continua a leggere' })} →</a>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className={`lead-body ${longLead ? 'two' : ''}`}>
-                    {leadParas.map((p, i) => <Para key={i} a={lead} p={p} className={i === 0 && p.length > 160 ? 'dropcap' : ''} />)}
-                  </div>
-                  <a className="more" href={link(lead)}>{tr({ en: 'Continue reading', it: 'Continua a leggere' })} →</a>
-                </>
-              )}
-            </article>
-          )}
-          {second.length > 0 && (
-            <div className="front-second">
-              {second.map((a) => (
-                <article key={a.id} className="card card-md">
-                  <Photo image={a.image} size="md" caption={false} />
-                  <Kicker a={a} />
-                  <h2 className="hl-lg"><a href={link(a)}>{a.headline}</a></h2>
-                  {a.dek && <p className="dek">{a.dek}</p>}
-                  <Para a={a} p={a.body[0]} className="excerpt" />
-                  <Meta a={a} />
-                </article>
-              ))}
-            </div>
-          )}
-          {/* the rest of the paper stays in the main column, next to the rail: no empty space beside it */}
-          {third.length > 0 && (
-            <section className="front-grid">
-              {third.map((a) => (
-                <article key={a.id} className={`card ${a.image ? 'has-photo' : ''}`}>
-                  <Photo image={a.image} size="sm" caption={false} />
-                  <Kicker a={a} />
-                  <h2 className="hl-md"><a href={link(a)}>{a.headline}</a></h2>
-                  {a.dek && <p className="dek dek-sm">{a.dek}</p>}
-                  <Meta a={a} />
-                </article>
-              ))}
-            </section>
-          )}
+          <MainNews edition={edition} link={link} />
           {edition.briefs.length > 0 && (
             <section className="briefs">
               <h3 className="box-title">{tr({ en: 'Briefly', it: 'In breve' })}</h3>

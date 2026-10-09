@@ -88,6 +88,8 @@ const HINTS_EN = {
   timesheet: 'How the hour was split between apps, measured minute by minute: the shape of the hour (focus or fragments), with the minutes. Only app names are known: don\'t guess what was on screen.',
   shots: 'The photographer: photos, videos and screenshots of the hour, counted. Never imagine what is in the pictures, where, or who: only how many, what kind, when.',
   downloads: 'What arrived in the Downloads folder, and from which sites.',
+  commits: 'Work on a software project, told through its git commits: what changed, in the owner\'s own commit messages, and how big it was. Plain words, no lessons on git.',
+  todo: 'Reminders ticked off and added: the small news of things done and things still to do.',
 };
 
 const HINTS_IT = {
@@ -107,6 +109,8 @@ const HINTS_IT = {
   timesheet: 'Come si è divisa l\'ora tra le app, misurata minuto per minuto: la forma dell\'ora (concentrazione o frammenti), con i minuti. Si conoscono solo i nomi delle app: non indovinare cosa ci fosse sullo schermo.',
   shots: 'Il fotografo: foto, video e screenshot dell\'ora, contati. Non immaginare mai cosa c\'è nelle immagini, dove o chi: solo quante, di che tipo, quando.',
   downloads: 'Cosa è arrivato nella cartella Download, e da quali siti.',
+  commits: 'Lavoro su un progetto software raccontato dai commit git: cosa è cambiato, con i messaggi di commit del proprietario, e quanto era grande. Parole semplici, niente lezioni di git.',
+  todo: 'Promemoria spuntati e aggiunti: la piccola cronaca delle cose fatte e di quelle ancora da fare.',
 };
 
 const SIZE_NAMES = { en: { lead: 'lead story', article: 'article', brief: 'brief' }, it: { lead: 'apertura', article: 'articolo', brief: 'breve' } };

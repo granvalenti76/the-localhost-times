@@ -174,6 +174,8 @@ export function templateQuestion(s) {
     case 'timesheet': return s.time?.longest
       ? (en ? `Chief, ${s.time.longest.minutes} minutes straight on ${s.time.longest.app}: what kept you there?` : `Direttore, ${s.time.longest.minutes} minuti di fila su ${s.time.longest.app}: cosa la teneva lì?`)
       : (en ? 'Chief, a fragmented hour: what was going on?' : 'Direttore, un\'ora a pezzetti: cosa succedeva?');
+    case 'commits': return en ? `Chief, ${q(cut(s.repo, 30))}: what are you building there?` : `Direttore, ${q(cut(s.repo, 30))}: cosa sta costruendo lì?`;
+    case 'todo': return en ? 'Chief, reminders ticked off: a productive hour?' : 'Direttore, promemoria spuntati: un\'ora produttiva?';
     case 'shots': return en ? 'Chief, pictures this hour: a special occasion?' : 'Direttore, foto in quest\'ora: un\'occasione speciale?';
     default: return en ? `Chief, about ${q(cut(s.topic, 40))}: a comment for the paper?` : `Direttore, su ${q(cut(s.topic, 40))}: una dichiarazione per il giornale?`;
   }

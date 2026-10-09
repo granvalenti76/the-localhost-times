@@ -25,6 +25,7 @@ const DEFAULTS = {
     safari: true, mail: true, terminal: true, notes: true,
     journal: true, podcasts: true, books: true, files: true,
     apps: true, power: true, photos: true,
+    git: true, calendar: true, reminders: true,
   },
   apps: {
     sampleSeconds: 60,   // how often the app in front is noted (one tiny command each time)
@@ -32,6 +33,10 @@ const DEFAULTS = {
   },
   photos: {
     library: '',         // another Photos library (empty = ~/Pictures/Photos Library.photoslibrary)
+  },
+  git: {
+    folders: [],         // where to look for repositories (empty = the same folders as Files)
+    exclude: [],         // parts of paths to leave out
   },
   files: {
     folders: [],         // folders to watch (empty = Desktop, Documents, Downloads, Work, Developer, Projects, Code…)
@@ -63,6 +68,7 @@ const DEFAULTS = {
   },
   desk: {
     closingMinute: 55,   // when the desk asks the Editor about the edition about to close
+    chain: 'top',        // which articles the managing editor and the copy desk read: 'top' (first three), 'all', 'lead', 'off'
   },
   tips: {
     notesFolder: '',     // a Notes folder used as the tip box ("Redazione" and "Newsroom" always work)

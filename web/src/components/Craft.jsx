@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { href } from '../lib.js';
 import { tr, quote } from '../i18n.js';
 import Para from './Para.jsx';
@@ -33,6 +33,12 @@ const T = tr({
     hl: { long: (n) => `A long headline (${n} words): 12 at most.`, colon: 'A headline with a colon is often two headlines: try saying it in one sentence.', good: 'A short, whole headline.', number: 'A number in the headline: concrete.' },
     headline: 'Headline', note: 'The managing editor\'s note', look: (h) => `Look at ${quote(h)}:`, see: 'See how it\'s built →',
     xray: 'How it\'s built', xrayOff: 'Hide the anatomy',
+    path: 'How the piece got here', reporter: 'Reporter', editorWho: 'Managing editor', copyWho: 'Copy desk',
+    wrote: (n) => `writes the draft: ${n} words`, passes: 'passes it', sendsBack: 'sends it back', rewrote: (n) => `rewrites it: ${n} words`,
+    keptFirst: { short: 'tries again, but the new version is too short: the first one stays', figures: 'tries again, but the new version invents figures: the first one stays', style: 'tries again, but the new version reads worse: the first one stays', failed: 'doesn\'t manage to rewrite it: the first one stays' },
+    clean: 'checks every figure against the signals: all there', fixed: 'corrects', cut: 'cuts', left: 'flags, but leaves (it is the whole paragraph)', small: (n) => `${n} small thing${n === 1 ? '' : 's'} tidied (spaces, doubled words)`, flagged: (n) => `checks every figure against the signals: ${n === 1 ? 'one sentence' : `${n} sentences`} quoted figures that aren't there`,
+    showDraft: 'See the first draft', hideDraft: 'Hide the first draft', draft: 'The first draft', notIn: 'not in the signals',
+    credits: (e, c) => `Edited by ${e} · copy by ${c}`,
     tips: [
       'Inverted pyramid: the most important fact first, then the details in order of importance. The reader may stop anywhere and still have the news.',
       'Show, don\'t tell: not “a frantic afternoon” but the three facts that make it frantic.',
@@ -67,6 +73,12 @@ const T = tr({
     hl: { long: (n) => `Titolo lungo (${n} parole): al massimo 12.`, colon: 'Un titolo con i due punti spesso sono due titoli: prova a dirlo in una frase.', good: 'Titolo corto e intero.', number: 'Un numero nel titolo: concreto.' },
     headline: 'Titolo', note: 'La nota del caporedattore', look: (h) => `Guarda ${quote(h)}:`, see: 'Vedi com\'è fatto →',
     xray: 'Come è fatto', xrayOff: 'Nascondi l\'anatomia',
+    path: 'Il percorso del pezzo', reporter: 'Cronista', editorWho: 'Caporedattore', copyWho: 'Correzione',
+    wrote: (n) => `scrive la bozza: ${n} parole`, passes: 'lo passa', sendsBack: 'lo rimanda indietro', rewrote: (n) => `lo riscrive: ${n} parole`,
+    keptFirst: { short: 'ci riprova, ma la nuova versione è troppo corta: resta la prima', figures: 'ci riprova, ma la nuova versione inventa cifre: resta la prima', style: 'ci riprova, ma la nuova versione si legge peggio: resta la prima', failed: 'non riesce a riscriverlo: resta la prima' },
+    clean: 'controlla ogni cifra sui segnali: ci sono tutte', fixed: 'corregge', cut: 'taglia', left: 'segnala, ma lascia (è tutto il paragrafo)', small: (n) => `${n === 1 ? 'una piccolezza sistemata' : `${n} piccolezze sistemate`} (spazi, parole doppie)`, flagged: (n) => `controlla ogni cifra sui segnali: ${n === 1 ? 'una frase citava' : `${n} frasi citavano`} cifre che non ci sono`,
+    showDraft: 'Vedi la prima bozza', hideDraft: 'Nascondi la prima bozza', draft: 'La prima bozza', notIn: 'non nei segnali',
+    credits: (e, c) => `Rivisto da ${e} · corretto da ${c}`,
     tips: [
       'Piramide rovesciata: prima il fatto più importante, poi i dettagli in ordine di importanza. Il lettore può fermarsi in qualsiasi punto e avere comunque la notizia.',
       'Mostra, non dire: non «un pomeriggio frenetico», ma i tre fatti che lo rendono frenetico.',
@@ -138,11 +150,74 @@ export function anatomy(a) {
   return { parts, missingNut, headline };
 }
 
+/** The three hands a piece passed through: reporter, managing editor, copy desk. */
+export function Passage({ a }) {
+  const [open, setOpen] = useState(false);
+  const steps = a?.chain;
+  if (!steps?.length) return null;
+  const who = { reporter: T.reporter, editor: T.editorWho, copy: T.copyWho };
+  const line = (x) => {
+    if (x.who === 'reporter' && x.rewrote === undefined) return T.wrote(x.words);
+    if (x.who === 'reporter') return x.rewrote ? T.rewrote(x.words) : T.keptFirst[x.why] || T.keptFirst.failed;
+    if (x.who === 'editor') return x.verdict === 'rework' ? T.sendsBack : T.passes;
+    const n = (x.fixes || []).length;
+    return `${n ? T.flagged(n) : T.clean}${x.small ? ` · ${T.small(x.small)}` : ''}`;
+  };
+  return (
+    <div className="passage">
+      <span className="lbl">{T.path}</span>
+      <ol>
+        {steps.map((x, i) => (
+          <li key={i} className={`step step-${x.who}${x.verdict === 'rework' ? ' sent-back' : ''}`}>
+            <span className="step-who">{who[x.who]}{x.name ? <em> · {x.name}</em> : null}</span>
+            <span className="step-what">{line(x)}</span>
+            {x.who === 'editor' && x.notes?.length > 0 && x.verdict === 'rework' && <ul className="step-notes">{x.notes.map((n, k) => <li key={k}>{n}</li>)}</ul>}
+            {x.who === 'editor' && x.praise && <p className="step-praise">{quote(x.praise)}</p>}
+            {x.who === 'copy' && x.fixes?.length > 0 && (
+              <ul className="step-fixes">
+                {x.fixes.map((f, k) => (
+                  <li key={k} className={`fix-${f.kind}`}>
+                    <span className="fix-how">{T[f.kind === 'figure' ? 'fixed' : f.kind]}</span>{' '}
+                    <del>{f.from}</del>{f.to && <> → <ins>{f.to}</ins></>}
+                    <span className="fix-figs"> ({f.figures.join(', ')}: {T.notIn})</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ol>
+      {a.draft && (
+        <>
+          <button className="linkish" onClick={() => setOpen(!open)}>{open ? T.hideDraft : T.showDraft}</button>
+          {open && (
+            <div className="first-draft">
+              <span className="lbl">{T.draft}</span>
+              <h3>{a.draft.headline}</h3>
+              {a.draft.dek && <p className="dek">{a.draft.dek}</p>}
+              {a.draft.body.map((p, i) => <p key={i}>{p}</p>)}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** "Edited by … · copy by …": the credits at the foot of a piece that went through the desk. */
+export function DeskCredits({ a }) {
+  const ed = a?.chain?.find((x) => x.who === 'editor');
+  const cp = a?.chain?.find((x) => x.who === 'copy');
+  if (!ed || !cp) return null;
+  return <p className="desk-credits">{T.credits(ed.name, cp.name)}</p>;
+}
+
 /** The article's body with its anatomy: parts coloured and labelled, notes in the margin. */
 export function Xray({ a }) {
   const { parts, missingNut, headline } = anatomy(a);
   return (
     <div className="xray">
+      <Passage a={a} />
       {headline.length > 0 && (
         <div className="xray-part xray-headline">
           <span className="xray-label">{T.headline}</span>

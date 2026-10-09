@@ -137,9 +137,18 @@ export function demoEvents(hours = 9, now = Date.now()) {
       }
       if (rnd() < 0.6) {
         const m = pick(COMMITS);
-        add('terminal', 'command', at(), `git commit -m "${m}"`, 'zsh', { shell: 'zsh', family: 'git commit', timed: true });
+        const tc = at();
+        add('terminal', 'command', tc, `git commit -m "${m}"`, 'zsh', { shell: 'zsh', family: 'git commit', timed: true });
+        // the same commit as the repository's reflog sees it, with its size
+        const added = 4 + Math.floor(rnd() * 180);
+        add('git', 'commit', tc + 2000, m, 'dailymac', { repo: 'dailymac', branch: 'main', hash: hash(m).slice(0, 10), added, removed: Math.floor(added * rnd() * 0.6), files: 1 + Math.floor(rnd() * 6) });
       }
     }
+
+    // The calendar and the reminders
+    if (hourOfDay === 10) add('calendar', 'appointment', H + 30 * 60e3, 'Standup', null, { end: H + 45 * 60e3, minutes: 15 });
+    if (hourOfDay === 15) add('calendar', 'appointment', H, L({ en: 'Call with Martha', it: 'Chiamata con Marta' }), null, { end: H + 40 * 60e3, minutes: 40 });
+    if (!quiet && rnd() < 0.3) add('reminders', 'done', at(), pick(L({ en: ['Pay the electricity bill', 'Return the library books', 'Answer Luca', 'Buy coffee'], it: ['Pagare la bolletta della luce', 'Riportare i libri in biblioteca', 'Rispondere a Luca', 'Comprare il caffè'] })), null, { list: L({ en: 'Home', it: 'Casa' }) });
 
     // Files: a project folder, a documents folder, the downloads
     if (!quiet && rnd() < 0.75) {
