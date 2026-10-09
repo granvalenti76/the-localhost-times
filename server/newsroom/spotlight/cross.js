@@ -115,6 +115,23 @@ const searchFacts = (n, words) => (n ? [
   n.sites?.length ? tr({ en: `Sites: ${n.sites.slice(0, 4).map((s) => `${s.name} ${s.n}`).join(', ')}`, it: `Siti: ${n.sites.slice(0, 4).map((s) => `${s.name} ${s.n}`).join(', ')}` }) : null,
 ].filter(Boolean) : []);
 
+/** How many signals of the last weeks a word finds (to keep the words the archive knows). */
+function hits(store, w, now) {
+  try {
+    const m = /\./.test(w) ? `"${w.replace(/"/g, '')}"` : `"${w.replace(/"/g, '')}"*`;
+    return store.db.prepare(`SELECT COUNT(*) AS n FROM search WHERE search MATCH ? AND kind = 'event' AND ts >= ?`).get(m, now - HISTORY_DAYS * DAY).n;
+  } catch { return 0; }
+}
+
+/** The words of a tip worth searching: the sites it names, otherwise the words the archive knows best. */
+export function searchWordsFor(store, text, keywords, now = Date.now()) {
+  const given = tipWords(text, keywords);
+  if (keywords || given.some((w) => w.includes('.'))) return given;
+  const pool = [...terms(text).values()].slice(0, 12);
+  const ranked = pool.map((w) => ({ w, n: hits(store, w, now) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
+  return ranked.length ? ranked.slice(0, 3).map((x) => x.w) : given;
+}
+
 /** The words of a tip worth searching (or the ones the Editor gave). */
 export function tipWords(text, keywords) {
   const given = String(keywords || '').split(/[,;]+|\s{2,}/).map((x) => x.trim()).filter(Boolean);
@@ -133,7 +150,7 @@ export function openFromTip(store, config, { text, keywords } = {}, now = Date.n
   const t = String(text || '').trim().slice(0, 600);
   if (!t) throw new DeskError(tr({ en: 'Write the tip.', it: 'Scrivi la soffiata.' }), 400);
   if (isSensitive(`${t} ${keywords || ''}`)) throw new DeskError(tr({ en: 'Spotlight doesn\'t investigate this kind of subject (health, money, love, faith, politics, the law, a job search).', it: 'Spotlight non indaga su questo genere di argomenti (salute, soldi, amore, fede, politica, giustizia, ricerca di lavoro).' }), 422);
-  const words = tipWords(t, keywords);
+  const words = searchWordsFor(store, t, keywords, now);
   const { evidence, numbers } = search(store, words, now);
   const id = `tip:${hash(`${t}|${now}`)}`;
   const witness = tipExhibit({ id: `spot-${hash(t)}`, text: t, ts: now });
@@ -190,7 +207,15 @@ export function tipLead(store, id, text, now = Date.now()) {
 export function widenLead(store, id, keywords, now = Date.now()) {
   const lead = store.getLead(id);
   if (!lead) throw new DeskError(tr({ en: 'Lead not found.', it: 'Pista non trovata.' }), 404);
-  const words = String(keywords || '').split(/[,;]+/).map((x) => x.trim()).filter(Boolean).slice(0, 5);
+  const raw = String(keywords || '').trim();
+  // a sentence is a tip: it goes into the file as a witness, and its best words are searched
+  const sentence = raw.split(/[,;]+/).some((x) => x.trim().split(/\s+/).length > 3);
+  if (sentence) {
+    const tipped = tipLead(store, id, raw, now);
+    const best = searchWordsFor(store, raw, '', now).filter((w) => !(tipped.keywords || []).includes(w));
+    return best.length ? widenLead(store, id, best.join(', '), now) : tipped;
+  }
+  const words = raw.split(/[,;]+/).map((x) => x.trim()).filter(Boolean).slice(0, 5);
   if (!words.length) throw new DeskError(tr({ en: 'Give the reporters some words to search.', it: 'Dai ai cronisti qualche parola da cercare.' }), 400);
   if (isSensitive(words.join(' '))) throw new DeskError(tr({ en: 'Spotlight doesn\'t investigate this kind of subject.', it: 'Spotlight non indaga su questo genere di argomenti.' }), 422);
   const { evidence, numbers } = search(store, words, now);
@@ -298,10 +323,13 @@ export function crossLeads(store, aId, bId, now = Date.now()) {
 export function searchCandidates(store, leads, now = Date.now()) {
   const out = [];
   for (const l of leads.filter((x) => ACTIVE.includes(x.status) && x.kind === 'tip' && x.keywords?.length)) {
-    const { evidence, numbers } = search(store, l.keywords, now);
+    // words, not sentences (older leads may have kept a sentence among their words)
+    const words = l.keywords.filter((k) => k.trim().split(/\s+/).length <= 3 && !isSensitive(k));
+    if (!words.length) continue;
+    const { evidence, numbers } = search(store, words, now);
     out.push({
       key: l.id, kind: 'tip', subject: l.subject, hypothesis: l.hypothesis,
-      evidence, facts: numbers ? searchFacts(numbers, l.keywords) : l.facts,
+      evidence, facts: numbers ? searchFacts(numbers, words) : l.facts,
       strength: Math.min(1, 0.35 + Math.min(0.45, evidence.length / 25)),
     });
   }
@@ -309,6 +337,15 @@ export function searchCandidates(store, leads, now = Date.now()) {
 }
 
 // ───────────────────────── The dossier, widened ─────────────────────────
+
+/** Before the editor reads it: what touches a delicate subject leaves the file (a tip, a word). */
+export function sanitize(lead) {
+  const ok = (t) => !isSensitive(t);
+  lead.tips = (lead.tips || []).filter((t) => ok(t.text));
+  lead.evidence = (lead.evidence || []).filter((x) => x.source !== 'tip' || ok(x.title));
+  lead.keywords = (lead.keywords || []).filter(ok);
+  return lead;
+}
 
 /** What the desk knows beyond the exhibits, as lines for the model (and for the reader's file). */
 export function dossierExtras(store, lead, now = Date.now()) {

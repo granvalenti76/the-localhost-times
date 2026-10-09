@@ -134,7 +134,7 @@ export function RumoursBox({ rumours }) {
   return (
     <section className="box rumours-box">
       <h3 className="box-title">{T.rumours}</h3>
-      <ul>{rumours.map((r) => <li key={r.id}>{r.line}</li>)}</ul>
+      <ul>{rumours.slice(0, 3).map((r) => <li key={r.id}>{r.line}</li>)}</ul>
       <p className="hint-small">{T.sourceClose}</p>
     </section>
   );

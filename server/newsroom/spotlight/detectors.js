@@ -67,7 +67,7 @@ const SENSITIVE = new RegExp([
   'medic', 'doctor', 'dottor', 'ospedal', 'hospital', 'clinic', 'sintom', 'symptom', 'malatt', 'disease', 'diagnos',
   'farmac', 'pharma', 'terapi', 'therap', 'psicolog', 'psychiat', 'psichiatr', 'ansia', 'anxiety', 'depress', 'cancro', 'cancer',
   'tumor', 'incinta', 'pregnan', 'gravidanz', 'aborto', 'abortion', 'pillola', 'dieta', 'diet\\b', 'calori', 'anoress', 'bulimi',
-  'suicid', 'autolesion', 'self-harm', 'dolore', '\\bpain\\b', 'analisi del sangue', 'blood test', 'vaccin', 'covid', 'hiv',
+  'suicid', 'autolesion', 'self-harm', 'adhd', 'deficit di attenzione', 'attention deficit', 'autis', 'asperger', 'bipolar', 'disturbo', 'disorder', 'dislessi', 'dyslexi', 'dolore', '\\bpain\\b', 'analisi del sangue', 'blood test', 'vaccin', 'covid', 'hiv',
   // money troubles
   'debit', '\\bdebt', 'prestit', '\\bloan', 'mutuo', 'mortgage', 'fallimento', 'bankrupt', 'pignorament', 'stipendi', 'salary',
   'tasse arretrate', 'equitalia', 'agenzia entrate', 'cartella esattoriale', 'gambling', 'scommess', 'casino', 'betting',

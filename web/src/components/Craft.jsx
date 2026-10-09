@@ -202,7 +202,7 @@ export function EditorNote({ edition }) {
     <div className={`editor-note ${n.good ? 'good' : 'bad'}`}>
       <span className="lbl">✎ {T.note}</span>
       <p>
-        {n.article && <>{T.look(n.article.headline)} </>}{n.text}
+        {n.article && <>{T.look(n.article.headline)} </>}{n.article ? n.text.charAt(0).toLowerCase() + n.text.slice(1) : n.text}
         {n.article && <> <a href={`${href.article(edition.id, n.article.id)}/x`}>{T.see}</a></>}
       </p>
     </div>

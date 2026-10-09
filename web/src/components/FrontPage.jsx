@@ -180,12 +180,12 @@ export default function FrontPage({ edition }) {
           <FactCheck edition={edition} />
           <SpotlightBox edition={edition} />
           <RumoursBox rumours={edition.rumours} />
-          <ChatterBox />
         </aside>
       </section>
 
       {/* below the fold: the games and the numbers, side by side */}
       <section className="back-pages" aria-label={tr({ en: 'Games and numbers', it: 'Giochi e numeri' })}>
+        <ChatterBox />
         <SerialBox serial={edition.serial} />
         <SportBox sport={edition.sport} />
         <OracleBox oracle={edition.oracle} />

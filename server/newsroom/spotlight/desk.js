@@ -18,7 +18,7 @@ import { writerFor, byline } from '../writers.js';
 import { cleanEvents, DeskError } from '../edition.js';
 import { detect, HISTORY_DAYS, isSensitive } from './detectors.js';
 import { judge, writeScoop, typesetScoop, scoopCheck, scoopWords, method, kindName } from './write.js';
-import { linkCandidates, searchCandidates, tipsToLeads, dossierExtras, openFromTip, tipLead, widenLead, crossLeads } from './cross.js';
+import { linkCandidates, searchCandidates, tipsToLeads, dossierExtras, openFromTip, tipLead, widenLead, crossLeads, sanitize } from './cross.js';
 import { dayKey } from '../../util.js';
 
 const HOUR = 3600e3;
@@ -138,6 +138,7 @@ const dueForReview = (lead, now, demo) => lead.status === 'open'
 /** The Spotlight editor weighs a lead: story or not (yet). */
 async function review(store, config, lead, ctx, now) {
   lead.status = 'review';
+  sanitize(lead);
   lead.extras = dossierExtras(store, lead, now);
   store.saveLead(lead);
   let verdict;
@@ -191,6 +192,7 @@ async function review(store, config, lead, ctx, now) {
 /** Writes, checks and publishes a scoop; it goes on the latest front page of the day. */
 async function publish(store, config, lead, ctx, now) {
   lead.status = 'writing';
+  sanitize(lead);
   lead.extras = dossierExtras(store, lead, now);
   store.saveLead(lead);
   const writer = writerFor(ctx.line, 'spotlight');

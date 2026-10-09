@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { detectSequence, windows } from '../server/newsroom/spotlight/detectors.js';
-import { openFromTip, tipsToLeads, linkCandidates, crossLeads, widenLead, tipLead, dossierExtras, overlap, tipWords } from '../server/newsroom/spotlight/cross.js';
+import { openFromTip, tipsToLeads, linkCandidates, crossLeads, widenLead, tipLead, dossierExtras, overlap, tipWords, sanitize } from '../server/newsroom/spotlight/cross.js';
 import { spotlightRound, board } from '../server/newsroom/spotlight/desk.js';
 import { dossier } from '../server/newsroom/spotlight/write.js';
 import { addTip } from '../server/newsroom/tips.js';
@@ -93,3 +93,22 @@ for (const l of ['en', 'it']) {
     } finally { cleanup(); setLang('en'); }
   });
 }
+
+test('a sentence in "widen" is a tip; delicate tips leave the file before the editor reads it', () => {
+  const { config, store, cleanup } = sandbox();
+  try {
+    const now = Date.now();
+    store.insertEvents(evenings(now));
+    const lead = openFromTip(store, config, { text: 'Every evening I watch videos about knights' }, now);
+    assert.ok(lead.keywords.includes('knights') || lead.keywords.includes('videos'), lead.keywords.join(','));
+    const w = widenLead(store, lead.id, 'he looks for chess openings late at night', now);
+    assert.ok(w.tips.some((t) => /openings/.test(t.text)), 'the sentence did not become a witness');
+    assert.ok(w.keywords.every((k) => k.split(/\s+/).length <= 3), w.keywords.join(' | '));
+    const l2 = store.getLead(lead.id);
+    l2.tips.push({ text: 'He has ADHD', ts: now });
+    l2.evidence.push({ id: 'tip:x', ts: now, source: 'tip', kind: 'tip', title: 'He has ADHD' });
+    const clean = sanitize(l2);
+    assert.ok(!clean.tips.some((t) => /ADHD/.test(t.text)));
+    assert.ok(!clean.evidence.some((x) => /ADHD/.test(x.title)));
+  } finally { cleanup(); }
+});
