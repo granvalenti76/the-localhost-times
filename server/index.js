@@ -27,7 +27,7 @@ import { rssFeed } from './feed.js';
 import { search, ask } from './newsroom/archive.js';
 import { preview, steer } from './newsroom/next.js';
 import { createInvestigation, suggestions, interruptedInvestigations } from './newsroom/investigations.js';
-import { board, leadAction, teaser, recoverLeads } from './newsroom/spotlight/desk.js';
+import { board, leadAction, teaser, recoverLeads, leadFromTip } from './newsroom/spotlight/desk.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
 import { openCalls, callView, answerCall } from './newsroom/calls.js';
@@ -339,7 +339,14 @@ app.get('/api/spotlight/:id', (req, res) => {
 app.post('/api/spotlight/leads/:id', wrap((req, res) => {
   const lead = leadAction(store, req.params.id, req.body || {});
   if (req.body?.action === 'reply' || req.body?.action === 'publish') newsroom.spotlight(true);
-  if (req.body?.action === 'push') newsroom.spotlight(false);
+  // the Editor's moves that change a lead's file: the desk looks again at the next round, now
+  if (['push', 'tip', 'widen', 'cross'].includes(req.body?.action)) newsroom.spotlight(false);
+  res.json(board(store, config));
+}));
+// a tip handed straight to Spotlight: a lead of its own
+app.post('/api/spotlight/leads', wrap((req, res) => {
+  leadFromTip(store, config, { text: req.body?.text, keywords: req.body?.keywords });
+  newsroom.spotlight(false);
   res.json(board(store, config));
 }));
 

@@ -12,11 +12,11 @@ import { personaPrompt } from '../writers.js';
 import { numbersCheck } from '../factcheck.js';
 import { dayKey, hhmm } from '../../util.js';
 
-const secName = (s) => SECTIONS[s]?.name || s;
+const secName = (s) => (s === 'tip' ? tr({ en: 'Witness', it: 'Testimone' }) : SECTIONS[s]?.name || s);
 const q = (s) => (lang() === 'it' ? `«${s}»` : `“${s}”`);
 const KIND_NAMES = {
-  en: { cross: 'Crossed traces', obsession: 'A recurring presence', intent: 'A decision in the making', vanish: 'A disappearance', habit: 'A change of habits' },
-  it: { cross: 'Tracce incrociate', obsession: 'Una presenza ricorrente', intent: 'Una decisione in arrivo', vanish: 'Una sparizione', habit: 'Un cambio di abitudini' },
+  en: { cross: 'Crossed traces', obsession: 'A recurring presence', intent: 'A decision in the making', vanish: 'A disappearance', habit: 'A change of habits', sequence: 'One thing leads to another', link: 'Two leads cross', tip: 'On the Editor\'s tip' },
+  it: { cross: 'Tracce incrociate', obsession: 'Una presenza ricorrente', intent: 'Una decisione in arrivo', vanish: 'Una sparizione', habit: 'Un cambio di abitudini', sequence: 'Una cosa tira l\'altra', link: 'Due piste si incrociano', tip: 'Su segnalazione del direttore' },
 };
 export const kindName = (k) => (lang() === 'it' ? KIND_NAMES.it : KIND_NAMES.en)[k] || k;
 
@@ -37,6 +37,7 @@ export function dossier(lead) {
     `${en ? 'EXHIBITS (in order)' : 'REPERTI (in ordine)'}:`,
     ...lead.evidence.map((x, i) => `- ${exhibitLine(x, i)}`),
   ];
+  if (lead.extras) lines.push(lead.extras);
   if (lead.desk?.angle) lines.push('', `${en ? 'THE EDITOR\'S ANGLE' : 'L\'ANGOLO DEL CAPOREDATTORE'}: ${lead.desk.angle}`);
   if (lead.reply?.text) lines.push('', `${en ? 'THE OWNER\'S REPLY (quote it verbatim)' : 'LA REPLICA DEL PROPRIETARIO (citala alla lettera)'}: ${lead.reply.text}`);
   else lines.push('', en ? 'THE OWNER DID NOT REPLY to the request for comment.' : 'IL PROPRIETARIO NON HA RISPOSTO alla richiesta di commento.');
@@ -92,6 +93,7 @@ Rules:
 - Don't invent motives, feelings or outcomes. When you interpret, say so ("perhaps", "one reading is").
 - Third person: "the owner".
 - If the dossier has the owner's reply, quote it verbatim once; otherwise write that the owner did not respond to a request for comment.
+- Exhibits from "tip" are witnesses: attribute them to "a source close to the owner". The owner's words to our reporters are real quotes: quote them verbatim. If two leads cross, say how they meet: that is the news.
 Structure: a kicker (1-3 words), a headline (12 words at most, no final period), a dek (one sentence), then 5 sections, each with a short heading:
 1. the finding, said plainly in the first paragraph;
 2. how it unfolded, exhibit by exhibit, in order;
@@ -106,6 +108,7 @@ Regole:
 - Non inventare motivazioni, sentimenti o esiti. Quando interpreti, dillo («forse», «una lettura possibile è»).
 - Terza persona: «il proprietario».
 - Se il fascicolo contiene la replica del proprietario, citala una volta alla lettera; altrimenti scrivi che il proprietario non ha risposto alla richiesta di commento.
+- I reperti «tip» sono testimoni: attribuiscili a «una fonte vicina al proprietario». Le parole del proprietario ai nostri cronisti sono citazioni vere: riportale alla lettera. Se due piste si incrociano, racconta dove si toccano: è quella la notizia.
 Struttura: un occhiello (1-3 parole), un titolo (massimo 12 parole, senza punto finale), un sommario (una frase), poi 5 sezioni, ognuna con un breve titoletto:
 1. la scoperta, detta chiaramente nel primo paragrafo;
 2. come è andata, reperto dopo reperto, in ordine;

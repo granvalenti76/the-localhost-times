@@ -1294,3 +1294,20 @@ a.btn-ghost { display: inline-block; }
 .verdict.printed { border-color: var(--hair); }
 .next-commissioned { margin: 0 0 14px; padding: 10px 12px; border-left: 4px solid #2f8f4e; background: var(--chip); }
 .next-commissioned ul { margin: 6px 0 0; padding-left: 16px; font: 600 13.5px/1.5 var(--f-sans); }
+
+/* Spotlight, widened: tips, witnesses, crossings */
+.tipoff { display: flex; flex-direction: column; gap: 6px; margin: 0 0 16px; padding: 12px 14px; background: var(--spot-bg); color: var(--spot-ink); border-top: 3px solid var(--spot-red); }
+.tipoff .lbl { color: var(--spot-ink); }
+.tipoff .hint-small { color: var(--spot-muted); margin: 0 0 4px; }
+.tipoff textarea, .tipoff input, .lead-tool input, .lead-tool select {
+  font: 400 13.5px/1.4 var(--f-sans); color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 2px; padding: 7px 9px; width: 100%;
+}
+.tipoff .btn { align-self: flex-start; background: var(--spot-red); border-color: var(--spot-red); color: #fff; }
+.lead-badges { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px; }
+.lead-badge { font: 700 10px/1 var(--f-sans); letter-spacing: .06em; text-transform: uppercase; padding: 4px 6px 3px; border-radius: 2px; background: var(--chip); color: var(--ink-2); }
+.lead-badge.chief { background: var(--spot-red); color: #fff; }
+.lead-badge.tip { background: #6b4f8f; color: #fff; }
+.lead-badge.link { background: #2f6f8f; color: #fff; text-transform: none; letter-spacing: 0; }
+.lead-badge.kw { text-transform: none; letter-spacing: 0; font-weight: 600; }
+.lead-tool { display: flex; gap: 6px; margin: 6px 0 4px; }
+.lead-ex li.witness { color: #6b4f8f; font-style: italic; }

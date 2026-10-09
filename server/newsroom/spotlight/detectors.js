@@ -8,6 +8,7 @@
  *   intent     searches that reveal a plan (comparisons, prices, reviews, flights)
  *   vanish     something that was part of every day and has gone quiet
  *   habit      when the day starts and ends, nights, how the time is split between apps
+ *   sequence   one thing that keeps following another (the inbox, then YouTube)
  */
 import { tr, lang } from '../../i18n.js';
 import { siteOf } from '../cluster.js';
@@ -162,7 +163,14 @@ export function windows(events, now) {
 /** One rare subject in different apps within a few days. */
 export function detectCross(w) {
   const { recent, before, baseDays } = w;
-  const usable = (e) => !['journal', 'terminal', 'apps', 'power', 'photos'].includes(e.source) && e.kind !== 'inbox' && !(e.source === 'mail' && e.meta?.newsletter);
+  // what can carry a subject: pages, searches, mail, notes, books, podcasts, downloads, and (since
+  // they speak plainly) the commit messages and the names of files, when the paper may read them
+  const usable = (e) => {
+    if (['journal', 'apps', 'power', 'photos'].includes(e.source)) return false;
+    if (e.source === 'terminal') return e.meta?.family === 'git commit';
+    if (e.source === 'files') return e.kind === 'downloaded' || !/^\./.test(e.title || '.');
+    return e.kind !== 'inbox' && !(e.source === 'mail' && e.meta?.newsletter);
+  };
   const index = new Map(); // term → { surface, events: [] }
   for (const e of recent) {
     if (!usable(e)) continue;
@@ -180,7 +188,7 @@ export function detectCross(w) {
       for (const n of terms(e.title).keys()) if (index.has(n)) baseCount.set(n, (baseCount.get(n) || 0) + 1);
     }
   }
-  const ACTION = (e) => e.kind === 'search' || e.kind === 'sent' || e.source === 'notes' || e.kind === 'downloaded' || e.kind === 'created' || e.source === 'books' || e.source === 'podcasts';
+  const ACTION = (e) => e.kind === 'search' || e.kind === 'sent' || e.source === 'notes' || e.kind === 'downloaded' || e.kind === 'created' || e.source === 'books' || e.source === 'podcasts' || e.source === 'terminal';
   const found = [];
   for (const [n, t] of index) {
     const evs = t.events;
@@ -512,7 +520,67 @@ export function detectHabits(w) {
   return out;
 }
 
-export const DETECTORS = { cross: detectCross, obsession: detectObsession, intent: detectIntent, vanish: detectVanish, habit: detectHabits };
+/**
+ * A sequence: one thing that keeps following another ("almost every time he opens the inbox,
+ * within ten minutes he is on YouTube"). Sessions of A followed by B within ten minutes, on at
+ * least two days, at least four times, in at least half of A's sessions.
+ */
+export function detectSequence(w) {
+  const { recent } = w;
+  const GAP = 10 * 60e3;
+  const byEntity = new Map();
+  for (const e of recent) {
+    const ent = entityOf(e);
+    if (!ent || ent.type === 'app') continue;
+    const x = byEntity.get(ent.key) || { ...ent, evs: [] };
+    x.evs.push(e);
+    byEntity.set(ent.key, x);
+  }
+  // the timeline of "entering" an entity: the first event of each of its sessions
+  const entries = [];
+  for (const x of byEntity.values()) for (const s of sessions(x.evs, 20 * 60e3)) entries.push({ key: x.key, label: x.label, type: x.type, start: s[0], end: s.at(-1) });
+  entries.sort((a, b) => a.start.ts - b.start.ts);
+  const pairs = new Map();
+  const sessionsOf = new Map();
+  for (let i = 0; i < entries.length; i++) {
+    const a = entries[i];
+    sessionsOf.set(a.key, (sessionsOf.get(a.key) || 0) + 1);
+    const b = entries.slice(i + 1).find((x) => x.key !== a.key && x.start.ts >= a.start.ts && x.start.ts - a.end.ts <= GAP);
+    if (!b) continue;
+    const k = `${a.key}>${b.key}`;
+    const p = pairs.get(k) || { a, b, hits: [] };
+    p.hits.push([a.start, b.start]);
+    pairs.set(k, p);
+  }
+  const out = [];
+  for (const [k, p] of pairs) {
+    const n = p.hits.length;
+    const ofA = sessionsOf.get(p.a.key) || 1;
+    const days = new Set(p.hits.map(([x]) => dayKey(x.ts)));
+    if (n < 4 || days.size < 2 || n / ofA < 0.5) continue;
+    const subject = `${p.a.label} → ${p.b.label}`;
+    out.push({
+      key: `sequence:${k}`,
+      kind: 'sequence',
+      subject,
+      hypothesis: tr({
+        en: `Almost every time the owner goes to ${q(p.a.label)}, within ten minutes he is on ${q(p.b.label)}: ${n} times out of ${ofA}, on ${days.size} days.`,
+        it: `Quasi ogni volta che il proprietario passa da ${q(p.a.label)}, entro dieci minuti è su ${q(p.b.label)}: ${n} volte su ${ofA}, in ${days.size} giorni.`,
+      }),
+      evidence: p.hits.slice(-9).flat().map(exhibit),
+      facts: [
+        tr({ en: `Sessions on ${p.a.label} in the last ${RECENT_DAYS} days: ${ofA}`, it: `Sessioni su ${p.a.label} negli ultimi ${RECENT_DAYS} giorni: ${ofA}` }),
+        tr({ en: `Followed by ${p.b.label} within ten minutes: ${n} (${Math.round((n / ofA) * 100)}%)`, it: `Seguite da ${p.b.label} entro dieci minuti: ${n} (${Math.round((n / ofA) * 100)}%)` }),
+        tr({ en: `Days on which it happened: ${days.size}`, it: `Giorni in cui è successo: ${days.size}` }),
+      ],
+      strength: Math.min(1, 0.3 + (n / ofA) * 0.4 + Math.min(0.3, n / 20)),
+      sources: [...new Set(p.hits.flat().map((e) => e.source))],
+    });
+  }
+  return out.sort((a, b) => b.strength - a.strength).slice(0, 4);
+}
+
+export const DETECTORS = { cross: detectCross, obsession: detectObsession, intent: detectIntent, vanish: detectVanish, habit: detectHabits, sequence: detectSequence };
 
 /** Every detector on the signals of the last weeks. Delicate subjects are dropped here, before anything is stored. */
 export function detect(events, now = Date.now()) {
@@ -528,4 +596,4 @@ export function detect(events, now = Date.now()) {
   return out.filter((c) => c.error || !isSensitive([c.subject, ...c.evidence.map((x) => `${x.title} ${x.host || ''}`)].join(' ')));
 }
 
-export { fmtDay, startOfDay, DAY };
+export { fmtDay, startOfDay, DAY, pickExhibits, norm };

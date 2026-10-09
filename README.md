@@ -184,7 +184,16 @@ Every day:
 
 Each finding becomes a **lead**, which gathers exhibits as they come in and grows stronger with more evidence, more days and more apps. Leads without new evidence go cold. When one is strong enough and has been followed for a few hours, the Spotlight editor (your model) decides whether it's a story. If it is, you get a **right of reply** (a notification, then an hour to comment, say nothing, or stop it); then a long piece is written (800–1,200 words: the finding, the exhibits in order, the numbers against the usual, what we don't know, what it says) and comes out under a black band at the top of the front page, with its file of exhibits. There is no schedule: most leads never make it, and in the first days, with no history to compare against, there are few or none. You can follow the board, and push or stop any lead, in **Newsroom → Spotlight**.
 
-Subjects touching health, money troubles, love, faith, politics, the law or a job search are never turned into leads, and the editor drops any that slip through.
+- **One thing leads to another:** something that keeps following something else (almost every time the inbox is opened, YouTube within ten minutes).
+- **Two leads cross:** two open leads that keep happening in the same hours, or share their subject, become a third lead: where they meet is the story.
+
+You take part too, from **Newsroom → Spotlight**:
+
+- **Tip off Spotlight.** Write what you suspect about your own habits (*“I think I end up on chess.com every evening after dinner”*): a lead is opened on it, the archive is searched for the sites or words it names, the reporters search again every hour, and the editor weighs it at the next round instead of waiting.
+- **Witnesses.** Any tip in the tip box that speaks of an open lead joins its file as a witness, quoted as *a source close to the owner*; you can also add a tip to a lead directly. The file also gathers what you told the paper's reporters on the subject and what the paper already printed about it.
+- **Widen** a lead with more words or sites to search, or **cross** two leads by hand.
+
+Subjects touching health, money troubles, love, faith, politics, the law or a job search are never turned into leads (tips about them are refused too), and the editor drops any that slip through.
 
 ![Spotlight on the front page](docs/screenshots/spotlight.png)
 

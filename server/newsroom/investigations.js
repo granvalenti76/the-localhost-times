@@ -27,7 +27,7 @@ export function gather(store, { keywords, from, to }) {
   const events = hits.map((h) => {
     const e = meta.get(h.ref);
     const m = e ? JSON.parse(e.meta || '{}') : {};
-    return { ts: h.ts, source: h.source, title: h.title, kind: e?.kind, host: m.host ? siteOf(m.host) : null, detail: e?.detail || null };
+    return { id: h.ref, ts: h.ts, source: h.source, title: h.title, kind: e?.kind, host: m.host ? siteOf(m.host) : null, detail: e?.detail || null };
   });
   // coverage: only headlines, so that "the owner" in every article body doesn't match everything
   let coverage = [];

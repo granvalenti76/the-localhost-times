@@ -31,6 +31,10 @@ const T = tr({
     send: 'Send the reply', noComment: 'No comment: print it', block: 'Don\'t publish',
     angle: 'The angle', readScoop: 'Read the scoop', facts: 'The numbers', ago: (m) => (m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`),
     counts: (c) => `${c.open + c.review} open · ${c.reply} waiting for you · ${c.published} published`,
+    tipTitle: 'Tip off Spotlight', tipHint: 'Something you suspect about your own habits: the reporters open a lead, search the archive for it and look again every hour. Delicate subjects are refused.',
+    tipPh: 'e.g. I think I end up on YouTube every time I open the inbox', kwPh: 'words or sites to search, comma-separated (optional)', openLead: 'Open the lead',
+    yourTip: 'on your tip', witnesses: (n) => `${n} witness${n === 1 ? '' : 'es'}`, crosses: 'Crosses', addTip: 'Tip', widen: 'Widen', cross: 'Cross with…',
+    tipLeadPh: 'a tip for this lead: it becomes a witness', widenPh: 'more words or sites to search, comma-separated', go: 'Go', pick: 'choose a lead', searched: 'Searching',
   },
   it: {
     exclusive: 'Esclusiva', read: 'Leggi l\'inchiesta', by: 'Di', desk: 'la squadra Spotlight',
@@ -54,11 +58,15 @@ const T = tr({
     send: 'Invia la replica', noComment: 'Nessun commento: stampate', block: 'Non pubblicare',
     angle: 'L\'angolo', readScoop: 'Leggi l\'esclusiva', facts: 'I numeri', ago: (m) => (m < 1 ? 'adesso' : m < 60 ? `${m} min fa` : m < 1440 ? `${Math.round(m / 60)} h fa` : `${Math.round(m / 1440)} giorni fa`),
     counts: (c) => `${c.open + c.review} aperte · ${c.reply} aspettano te · ${c.published} pubblicate`,
+    tipTitle: 'Una soffiata a Spotlight', tipHint: 'Qualcosa che sospetti delle tue abitudini: i cronisti aprono una pista, la cercano in archivio e tornano a guardare ogni ora. Gli argomenti delicati vengono rifiutati.',
+    tipPh: 'es. secondo me finisco su YouTube ogni volta che apro la posta', kwPh: 'parole o siti da cercare, separati da virgola (facoltativo)', openLead: 'Apri la pista',
+    yourTip: 'su tua segnalazione', witnesses: (n) => `${n} ${n === 1 ? 'testimone' : 'testimoni'}`, crosses: 'Incrocia', addTip: 'Soffiata', widen: 'Allarga', cross: 'Incrocia con…',
+    tipLeadPh: 'una soffiata per questa pista: diventa un testimone', widenPh: 'altre parole o siti da cercare, separati da virgola', go: 'Vai', pick: 'scegli una pista', searched: 'Cerca',
   },
 });
 
 const readMin = (words) => Math.max(1, Math.round((words || 0) / tr({ en: 230, it: 200 })));
-const secName = (id) => SECTIONS.find((s) => s.id === id)?.name || id;
+const secName = (id) => (id === 'tip' ? tr({ en: 'Witness', it: 'Testimone' }) : SECTIONS.find((s) => s.id === id)?.name || id);
 const minsAgo = (ts) => Math.max(0, Math.round((Date.now() - ts) / 60e3));
 
 function Meta({ s }) {
@@ -231,8 +239,10 @@ export function SpotlightPage({ id }) {
   );
 }
 
-function Lead({ l, onAct }) {
+function Lead({ l, onAct, others = [] }) {
   const [open, setOpen] = useState(false);
+  const [tool, setTool] = useState(null); // 'tip' | 'widen' | 'cross'
+  const [input, setInput] = useState('');
   const [armed, setArmed] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -252,6 +262,14 @@ function Lead({ l, onAct }) {
       </div>
       <h4 className="lead-subject">{l.subject}</h4>
       <p className="lead-hyp">{l.hypothesis}</p>
+      {(l.chief || l.tips?.length > 0 || l.links?.length > 0 || l.keywords?.length > 0) && (
+        <p className="lead-badges">
+          {l.chief && <span className="lead-badge chief">{T.yourTip}</span>}
+          {l.tips?.length > 0 && <span className="lead-badge tip" title={l.tips.map((t) => t.text).join(' · ')}>{T.witnesses(l.tips.length)}</span>}
+          {l.links?.length > 0 && <span className="lead-badge link">{T.crosses}: {l.links.map((x) => x.subject).join(' × ')}</span>}
+          {l.keywords?.length > 0 && <span className="lead-badge kw">{T.searched}: {l.keywords.join(', ')}</span>}
+        </p>
+      )}
       {active && (
         <div className="lead-bar" title={`${T.nose} ${l.score}/${l.goal}`}>
           <span style={{ width: `${Math.round(l.progress * 100)}%` }} />
@@ -277,16 +295,32 @@ function Lead({ l, onAct }) {
         </div>
       )}
       <div className="lead-actions">
+        {active && <button className={`btn-ghost btn-small ${tool === 'tip' ? 'on' : ''}`} disabled={busy} onClick={() => { setTool(tool === 'tip' ? null : 'tip'); setInput(''); }}>{T.addTip}</button>}
+        {active && <button className={`btn-ghost btn-small ${tool === 'widen' ? 'on' : ''}`} disabled={busy} onClick={() => { setTool(tool === 'widen' ? null : 'widen'); setInput(''); }}>{T.widen}</button>}
+        {active && others.length > 0 && <button className={`btn-ghost btn-small ${tool === 'cross' ? 'on' : ''}`} disabled={busy} onClick={() => { setTool(tool === 'cross' ? null : 'cross'); setInput(''); }}>{T.cross}</button>}
         {l.status === 'open' && <button className="btn-ghost btn-small" disabled={busy} onClick={() => act('push')}>{T.push}</button>}
         {l.status === 'open' && <button className={`btn-ghost btn-small danger ${armed ? 'on' : ''}`} disabled={busy} onClick={() => act('kill')}>{armed ? T.sure : T.kill}</button>}
         {l.scoopId && <a className="btn-ghost btn-small" href={href.spotlight(l.scoopId)}>{T.readScoop} →</a>}
         <button className="btn-link" onClick={() => setOpen((o) => !o)}>{open ? T.hide : T.details}</button>
       </div>
+      {tool && (
+        <form className="lead-tool" onSubmit={async (e) => { e.preventDefault(); if (!input.trim()) return; await act(tool, { text: input.trim() }); setTool(null); setInput(''); }}>
+          {tool === 'cross' ? (
+            <select value={input} onChange={(e) => setInput(e.target.value)}>
+              <option value="">{T.pick}</option>
+              {others.map((o) => <option key={o.id} value={o.id}>{o.subject} · {o.kindName}</option>)}
+            </select>
+          ) : (
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={tool === 'tip' ? T.tipLeadPh : T.widenPh} />
+          )}
+          <button className="btn btn-small" disabled={busy || !input.trim()}>{T.go}</button>
+        </form>
+      )}
       {open && (
         <div className="lead-file">
           <ul className="lead-facts">{l.facts.map((f, i) => <li key={i}>{f}</li>)}</ul>
           <ol className="lead-ex">
-            {l.evidence.map((x) => <li key={x.id}><span>{shortDate(x.ts)} {hhmm(x.ts)} · {secName(x.source)}</span> {x.title}</li>)}
+            {l.evidence.map((x) => <li key={x.id} className={x.source === 'tip' ? 'witness' : ''}><span>{shortDate(x.ts)} {hhmm(x.ts)} · {secName(x.source)}</span> {x.title}</li>)}
           </ol>
           <ul className="lead-log">
             {[...l.log].reverse().map((e, i) => <li key={i}><span>{T.ago(minsAgo(e.ts))} · {T.who[e.who] || e.who}</span> {e.text}</li>)}
@@ -294,6 +328,27 @@ function Lead({ l, onAct }) {
         </div>
       )}
     </article>
+  );
+}
+
+/** A tip handed straight to Spotlight: a lead of its own. */
+function TipOff({ onDone, setError }) {
+  const [text, setText] = useState('');
+  const [kw, setKw] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <form className="tipoff" onSubmit={async (e) => {
+      e.preventDefault();
+      if (!text.trim()) return;
+      setBusy(true);
+      try { onDone(await api('/spotlight/leads', { method: 'POST', json: { text: text.trim(), keywords: kw.trim() } })); setText(''); setKw(''); } catch (err) { setError?.(err.message); } finally { setBusy(false); }
+    }}>
+      <span className="lbl">{T.tipTitle}</span>
+      <p className="hint-small">{T.tipHint}</p>
+      <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder={T.tipPh} />
+      <input value={kw} onChange={(e) => setKw(e.target.value)} placeholder={T.kwPh} />
+      <button className="btn btn-small" disabled={busy || !text.trim()}>{busy ? '…' : T.openLead}</button>
+    </form>
   );
 }
 
@@ -320,7 +375,11 @@ export function SpotlightDesk({ setError }) {
         <p className="spot-desk-counts">{T.counts(b.counts)}</p>
         <p className="hint-small">{b.run ? T.lastRun(`${shortDate(b.run.at)} ${hhmm(b.run.at)}`) : T.never}</p>
       </div>
-      {b.leads.length === 0 ? <p className="hint-small">{T.empty}</p> : b.leads.map((l) => <Lead key={l.id} l={l} onAct={onAct} />)}
+      <TipOff onDone={setB} setError={setError} />
+      {b.leads.length === 0 ? <p className="hint-small">{T.empty}</p> : b.leads.map((l) => (
+        <Lead key={l.id} l={l} onAct={onAct}
+          others={b.leads.filter((o) => o.id !== l.id && ['open', 'review'].includes(o.status) && o.kind !== 'link' && l.kind !== 'link')} />
+      ))}
       <a className="more" href={href.spotlight()}>{T.all} →</a>
     </div>
   );

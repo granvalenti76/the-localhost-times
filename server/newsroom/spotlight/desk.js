@@ -18,6 +18,7 @@ import { writerFor, byline } from '../writers.js';
 import { cleanEvents, DeskError } from '../edition.js';
 import { detect, HISTORY_DAYS, isSensitive } from './detectors.js';
 import { judge, writeScoop, typesetScoop, scoopCheck, scoopWords, method, kindName } from './write.js';
+import { linkCandidates, searchCandidates, tipsToLeads, dossierExtras, openFromTip, tipLead, widenLead, crossLeads } from './cross.js';
 import { dayKey } from '../../util.js';
 
 const HOUR = 3600e3;
@@ -75,6 +76,9 @@ export function updateLeads(store, config, candidates, now = Date.now()) {
         facts: c.facts,
         strength: c.strength,
         log: reopened ? lead.log : [],
+        links: c.links || lead?.links || null,
+        tips: lead?.tips || [],
+        witnesses: lead?.witnesses || [],
       };
       note(lead, 'desk', reopened
         ? tr({ en: 'The lead is warm again: new exhibits.', it: 'La pista torna calda: nuovi reperti.' })
@@ -85,7 +89,9 @@ export function updateLeads(store, config, candidates, now = Date.now()) {
     const known = new Set(lead.evidence.map((x) => x.id));
     const fresh = c.evidence.filter((x) => !known.has(x.id));
     if (fresh.length) {
-      lead.evidence = [...lead.evidence, ...fresh].sort((a, b) => a.ts - b.ts).slice(-30);
+      // the witnesses (tips) always stay in the file; the signals keep the latest 30
+      const all = [...lead.evidence, ...fresh];
+      lead.evidence = [...all.filter((x) => x.source !== 'tip').sort((a, b) => a.ts - b.ts).slice(-30), ...all.filter((x) => x.source === 'tip')].sort((a, b) => a.ts - b.ts);
       lead.lastEvidenceAt = now;
       if (lead.passes > 0) {
         note(lead, 'reporters', tr({
@@ -98,6 +104,7 @@ export function updateLeads(store, config, candidates, now = Date.now()) {
     lead.subject = c.subject;
     lead.hypothesis = c.hypothesis;
     lead.facts = c.facts;
+    if (c.links) lead.links = c.links;
     lead.strength = Math.max(lead.strength * 0.9, c.strength);
     lead.passes = (lead.passes || 0) + 1;
     lead.score = scoreOf(lead);
@@ -121,15 +128,17 @@ export function updateLeads(store, config, candidates, now = Date.now()) {
 }
 
 /** Ready for the editor: strong enough, followed long enough, and with something new since the last look. */
+// a lead opened or crossed by the Editor is fast-tracked: the editor weighs it at the next round
 const dueForReview = (lead, now, demo) => lead.status === 'open'
   && lead.score >= lead.goal
-  && (demo || now - lead.openedAt >= MIN_AGE)
-  && (lead.passes || 0) >= (demo ? 1 : 2)
+  && (demo || lead.chief || now - lead.openedAt >= MIN_AGE)
+  && (lead.passes || 0) >= (demo || lead.chief ? 1 : 2)
   && (!lead.reviewedAt || lead.lastEvidenceAt > lead.reviewedAt);
 
 /** The Spotlight editor weighs a lead: story or not (yet). */
 async function review(store, config, lead, ctx, now) {
   lead.status = 'review';
+  lead.extras = dossierExtras(store, lead, now);
   store.saveLead(lead);
   let verdict;
   if (ctx.llm) {
@@ -182,6 +191,7 @@ async function review(store, config, lead, ctx, now) {
 /** Writes, checks and publishes a scoop; it goes on the latest front page of the day. */
 async function publish(store, config, lead, ctx, now) {
   lead.status = 'writing';
+  lead.extras = dossierExtras(store, lead, now);
   store.saveLead(lead);
   const writer = writerFor(ctx.line, 'spotlight');
   let text = null;
@@ -272,9 +282,13 @@ export async function spotlightRound(store, config, { log = console.log, notify 
   const result = { changes: null, reviewed: null, published: null };
   if (!light) {
     const events = cleanEvents(store.eventsBetween(now - HISTORY_DAYS * DAY, now), config);
-    const candidates = detect(events, now);
+    const live = store.leads({ status: ACTIVE });
+    // the detectors, the crossings between open leads, the leads searched by words (the Editor's tips)
+    const candidates = [...detect(events, now), ...linkCandidates(live), ...searchCandidates(store, live, now)];
     for (const c of candidates.filter((x) => x.error)) log(`[spotlight] ${c.error}`);
     result.changes = updateLeads(store, config, candidates, now);
+    // the tips in the box that speak of an open lead join it as witnesses
+    result.changes.witnesses = tipsToLeads(store, now);
     store.setSetting('spotlightRun', { at: now, events: events.length, candidates: candidates.length });
   }
   const due = store.leads({ status: ['reply', 'writing'] })
@@ -320,6 +334,10 @@ export function board(store, config) {
       reply: l.reply || null,
       log: (l.log || []).slice(-12),
       scoopId: l.scoopId || null,
+      chief: !!l.chief,
+      keywords: l.keywords || [],
+      tips: (l.tips || []).map((t) => ({ text: t.text, ts: t.ts })),
+      links: (l.links || []).map((id) => { const p = store.getLead(id); return p ? { id, subject: p.subject, status: p.status } : null; }).filter(Boolean),
     }));
   return {
     enabled: config.spotlight?.enabled !== false,
@@ -358,6 +376,12 @@ export function leadAction(store, id, { action, text } = {}) {
     lead.passes = Math.max(lead.passes || 0, 2);
     lead.reviewedAt = null;
     note(lead, 'chief', tr({ en: 'The editor-in-chief wants a decision on this one.', it: 'Il direttore vuole una decisione su questa.' }), now);
+  } else if (action === 'tip') {
+    return tipLead(store, id, text, now);
+  } else if (action === 'widen') {
+    return widenLead(store, id, text, now);
+  } else if (action === 'cross') {
+    return crossLeads(store, id, String(text || ''), now);
   } else {
     throw new DeskError(tr({ en: 'Unknown action.', it: 'Azione sconosciuta.' }), 400);
   }
@@ -365,3 +389,6 @@ export function leadAction(store, id, { action, text } = {}) {
   store.saveLead(lead);
   return lead;
 }
+
+/** The Editor hands Spotlight a tip: a lead of its own, searched in the archive, fast-tracked. */
+export const leadFromTip = (store, config, body, now = Date.now()) => openFromTip(store, config, body, now);
