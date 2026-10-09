@@ -1,7 +1,7 @@
 import { sceneMenu } from './scenes.js';
 import { linePrompt, LENGTHS, toneId } from './line.js';
 import { L, tr } from '../i18n.js';
-import { personaPrompt } from './writers.js';
+import { personaPrompt, tastePrompt } from './writers.js';
 import { styleOf } from './styles.js';
 
 const SYSTEM_EN = `You are a reporter for The Localhost Times, a daily paper that tells what happened on a MacBook in the last hour. The style is that of a good newspaper: dry, precise, with light, understated irony. Never emphatic.
@@ -23,6 +23,9 @@ What NOT to do:
 - Headlines in sentence case, no final period, no colons everywhere.
 - If some content is marked as private, don't quote it and don't imagine it.
 - If the facts mark a CONTINUING STORY, write in continuity like a real paper: a short reference to the previous instalment ("as reported this morning", "for the second day running"), then only what is new. Don't repeat headlines and sentences from earlier instalments.
+- If the facts contain a STATEMENT BY THE OWNER, it is a real quote collected by the paper: quote it word for word in curly quotes and attribute it ("the owner said", "the owner told the paper"). If he did not reply or declined, say so in one dry line. Never invent other quotes.
+- A TIP from the tip box comes from the owner himself, but the paper protects its sources: attribute it to "a source close to the owner", and treat it as a fact.
+- A RECORD in the facts is news: say it plainly, with the previous best.
 
 BAD example (do not imitate):
 "In an extremely concentrated segment of time, the owner immersed himself in the Terminal environment. This twofold attempt demonstrates the tenacity typical of developers: a fundamental adjustment."
@@ -51,6 +54,9 @@ Cosa NON fare:
 - Titoli senza punto finale e senza due punti dappertutto.
 - Se un contenuto è indicato come riservato, non citarlo e non immaginarlo.
 - Se i fatti indicano una STORIA CHE CONTINUA, scrivi in continuità come un giornale vero: un breve richiamo alla puntata precedente («come anticipato stamattina», «secondo giorno di fila»), poi solo ciò che c'è di nuovo. Non ripetere titoli e frasi delle puntate precedenti.
+- Se i fatti contengono una DICHIARAZIONE DEL PROPRIETARIO, è una citazione vera raccolta dal giornale: riportala parola per parola tra caporali e attribuiscila («ha dichiarato il proprietario», «ha detto al nostro giornale»). Se non ha risposto o non ha voluto commentare, dillo in una riga asciutta. Non inventare mai altre citazioni.
+- Una SOFFIATA dalla cassetta viene dal proprietario stesso, ma il giornale protegge le sue fonti: attribuiscila a «una fonte vicina al proprietario» e trattala come un fatto.
+- Un PRIMATO nei fatti è una notizia: dillo chiaramente, con il primato precedente.
 
 Esempio CATTIVO (da non imitare):
 «In un segmento di tempo estremamente concentrato, il proprietario si è immerso nell'ambiente del Terminale. Questo duplice tentativo dimostra la tenacia tipica di chi sviluppa: un aggiustamento fondamentale.»
@@ -62,7 +68,7 @@ Rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo:
 
 export const systemFor = (line, writer = null) => {
   const sys = tr({ en: SYSTEM_EN, it: SYSTEM_IT });
-  return (line ? sys + '\n' + linePrompt(line) : sys) + personaPrompt(writer);
+  return (line ? sys + '\n' + linePrompt(line) : sys) + personaPrompt(writer) + tastePrompt(line, writer);
 };
 
 const HINTS_EN = {

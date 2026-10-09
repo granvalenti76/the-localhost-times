@@ -115,7 +115,7 @@ function sample(events, n = 40) {
   return out;
 }
 
-function dataSheet(topic, d, tl, from, to) {
+export function dataSheet(topic, d, tl, from, to) {
   const en = lang() === 'en';
   const n = d.numbers;
   const src = Object.entries(n.bySource).map(([k, v]) => `${SECTIONS[k]?.name || k} ${v}`).join(', ');
@@ -157,7 +157,7 @@ Rispondi SOLO con JSON: {"headline": "...", "dek": "...", "sections": [{"heading
 }
 
 /** The typesetting's version, when the writer is offline: the same facts, in templates. */
-function typeset(topic, d, from, to) {
+export function typeset(topic, d, from, to) {
   const n = d.numbers;
   const en = lang() === 'en';
   const srcs = Object.entries(n.bySource).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${SECTIONS[k]?.name || k} (${v})`);

@@ -14,11 +14,24 @@ import { findSeries, seriesInfo, seriesFacts } from './series.js';
 import { lettersForEdition } from './letters.js';
 import { pendingScoop } from './spotlight/desk.js';
 import { computeTime, computeMac, isAmbient } from './time.js';
+import { interviewFacts, quoteParagraph, closingOf } from './calls.js';
+import { tipsForEdition, tipFolders, isTipNote } from './tips.js';
+import { metrics, checkRecords, recordFact, reportCards, matchesFrom } from './sport.js';
+import { oracleRound } from './oracle.js';
+import { flashesBetween } from './flash.js';
+import { featureOn } from './line.js';
+import { lint } from './lint.js';
+import { say } from './chatter.js';
 import { editionId, hhmm, mapLimit, isSelfUrl, hourStart } from '../util.js';
 import { tr } from '../i18n.js';
 
 const HOUR = 3600e3;
 const PHOTO_SLOTS = 6;
+
+/** The extras never stop the presses: if one fails, the edition goes out without it. */
+function safely(fn, fallback, log = () => {}) {
+  try { return fn(); } catch (e) { log(`[newsroom] ${e.message}`); return fallback; }
+}
 
 function sourcesOf(story) {
   return story.events.slice(0, 40).map((e) => ({
@@ -40,7 +53,7 @@ function validArticle(a) {
 /** The automatic typesetting writes with this name (older editions say 'tipografia'). */
 export const isTypeset = (w) => !w || w === 'typesetting' || w === 'tipografia';
 
-const cleanHeadline = (h) => String(h).trim().replace(/(?<!\.)\.$/, '').trim();
+export const cleanHeadline = (h) => String(h).trim().replace(/(?<!\.)\.$/, '').trim();
 
 function fromLLM(j, story, model) {
   if (!validArticle(j)) throw new Error(tr({ en: 'incomplete JSON', it: 'JSON incompleto' }));
@@ -79,7 +92,7 @@ async function writeArticle(story, rank, ctx) {
   const size = sizeOf(story, rank, line, writer);
   if (llm) {
     try {
-      const facts = factSheet(story) + seriesFacts(story.series, Date.now());
+      const facts = factSheet(story) + seriesFacts(story.series, Date.now()) + (story.extra || '');
       const msgs = articlePrompt(story, facts, hourLabel, size, line, writer);
       const raw = await chat(llm, config, msgs, maxTokensFor(size));
       text = fromLLM(parseJson(raw), story, llm.model);
@@ -91,6 +104,13 @@ async function writeArticle(story, rank, ctx) {
     }
   }
   text ||= fallbackArticle(story);
+  // the Editor's statements always reach the page: the typesetting adds them if the writer didn't
+  for (const qt of story.quotes || []) {
+    const said = qt.answer && text.body.some((p) => p.includes(qt.answer.slice(0, 40)));
+    if (said) continue;
+    if (qt.answer || isTypeset(text.writer)) text.body = [...text.body, quoteParagraph(qt)];
+  }
+  text.lint = lint(text.body);
   return {
     id: story.id,
     series: story.series || null,
@@ -105,6 +125,9 @@ async function writeArticle(story, rank, ctx) {
     ...text,
     image: null,
     sources: sourcesOf(story),
+    quotes: story.quotes?.length ? story.quotes : undefined,
+    record: story.records?.length ? story.records : undefined,
+    tipped: story.tipped || undefined,
   };
 }
 
@@ -181,9 +204,12 @@ async function writeMarketComment(market, ctx) {
   return fallbackMarketComment(market);
 }
 
-export const cleanEvents = (events, config) =>
-  // visits to the paper itself are not news (also cleans up events collected earlier)
-  events.filter((e) => !(e.source === 'safari' && isSelfUrl(e.url, config.port)));
+export const cleanEvents = (events, config) => {
+  // visits to the paper itself are not news (also cleans up events collected earlier),
+  // and neither are the notes left in the tip box
+  const folders = tipFolders(config);
+  return events.filter((e) => !(e.source === 'safari' && isSelfUrl(e.url, config.port)) && !isTipNote(e, folders));
+};
 
 /**
  * The time window an edition covers: from the end of the previous edition (quiet hours merge in),
@@ -240,6 +266,21 @@ export async function printEdition({ store, config, start, final = true, force =
   for (const s of main) s.series = seriesInfo(series.get(s.id));
   const hourLabel = windowStart < hour ? `${hhmm(windowStart)}–${hhmm(end)}` : hhmm(hour);
 
+  // what the Editor and the paper's games add to the facts: statements, tips, records
+  const stats = computeStats(news, windowStart, end);
+  const time = computeTime(events, windowStart, end);
+  const single = windowStart === hour;
+  const records = featureOn(line, 'sport') ? safely(() => checkRecords(store, metrics({ news, stats, time }), { editionId: id, at: hour, single }), [], log) : [];
+  const tipped = featureOn(line, 'tips') ? safely(() => tipsForEdition(store, main, { end, editionId: id }), { facts: new Map(), box: [] }, log) : { facts: new Map(), box: [] };
+  const metricList = records.length ? metrics({ news, stats, time }) : [];
+  for (const s of main) {
+    const iv = featureOn(line, 'interview') ? safely(() => interviewFacts(store, s, { windowStart, end, editionId: id }), { facts: '', quotes: [] }, log) : { facts: '', quotes: [] };
+    s.quotes = iv.quotes;
+    s.records = records.filter((r) => metricList.find((m) => m.key === r.key)?.story(s));
+    s.tipped = tipped.facts.has(s.id);
+    s.extra = iv.facts + (tipped.facts.get(s.id) || '') + s.records.map(recordFact).join('');
+  }
+
   const llm = await connectLLM(config);
   const ctx = { llm, config, hourLabel, log, line, store, hour: windowStart };
   log(tr({
@@ -258,8 +299,6 @@ export async function printEdition({ store, config, start, final = true, force =
     : Promise.resolve();
 
   const market = computeMarket(store, hour, { port: config.port });
-  const stats = computeStats(news, windowStart, end);
-  const time = computeTime(events, windowStart, end);
   const mac = computeMac(store, windowStart, end);
   const prevLetters = existing?.letters || [];
   const [{ summary, summaryBy, cartoon }, comment, newLetters] = await Promise.all([
@@ -272,6 +311,22 @@ export async function printEdition({ store, config, start, final = true, force =
   if (market) market.comment = comment;
   // the fact-check reads the finished edition: articles, Brief and the hour's data
   const factcheck = await factCheck({ articles, stories: main, summary, stats, market, hourLabel }, ctx);
+
+  // the games: the sports page, the Oracle; the Editor's closing call; the breaking news of the hour
+  const sport = featureOn(line, 'sport') ? safely(() => ({
+    cards: reportCards({ stories: main, time, market, records }),
+    records,
+    matches: matchesFrom(main),
+  }), null, log) : null;
+  const recentTotals = safely(() => store.db.prepare(`SELECT payload FROM editions WHERE start_ts < ? ORDER BY start_ts DESC LIMIT 6`).all(windowStart)
+    .map((r) => JSON.parse(r.payload).stats?.total || 0), [], log);
+  const oracle = featureOn(line, 'oracle') ? safely(() => oracleRound(store, {
+    editionId: id, events, end, recentTotals,
+    eventsFor: (a, b) => cleanEvents(store.eventsBetween(a, b), config),
+  }), null, log) : null;
+  const closing = safely(() => closingOf(store, { windowStart, end }), null, log);
+  const flashes = safely(() => flashesBetween(store, windowStart, end), [], log);
+  if (records.length) say(store, 'sport', tr({ en: `Sports desk: record! ${records[0].label}: ${records[0].value}.`, it: `Redazione sportiva: primato! ${records[0].label}: ${records[0].value}.` }));
 
   const edition = {
     id,
@@ -296,6 +351,12 @@ export async function printEdition({ store, config, start, final = true, force =
     market,
     letters: newLetters,
     spotlight: existing?.spotlight || pendingScoop(store, id),
+    sport,
+    oracle,
+    closing,
+    flashes,
+    rumours: tipped.box.length ? tipped.box : existing?.rumours || null,
+    serial: existing?.serial || null,
     stats,
     time,
     mac,
@@ -315,20 +376,20 @@ export class DeskError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
 }
 
-function load(store, id) {
+export function load(store, id) {
   const ed = store.getEdition(id);
   if (!ed) throw new DeskError(tr({ en: 'Edition not found', it: 'Edizione non trovata' }), 404);
   ed.spiked ||= [];
   return ed;
 }
 
-function findArticle(ed, aid) {
+export function findArticle(ed, aid) {
   const i = ed.articles.findIndex((a) => a.id === aid);
   if (i < 0) throw new DeskError(tr({ en: 'Article not found', it: 'Articolo non trovato' }), 404);
   return i;
 }
 
-function touch(store, ed) {
+export function touch(store, ed) {
   ed.edited = true;
   if (ed.factcheck) ed.factcheck.stale = true; // the page changed after it was checked
   ed.editedAt = Date.now();

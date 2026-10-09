@@ -11,10 +11,28 @@ import { LettersBox } from './Letters.jsx';
 import { InvestigationBox } from './Investigations.jsx';
 import FactCheck from './FactCheck.jsx';
 import RadioBox from './Radio.jsx';
+import { FlashBand, ChatterBox } from './Live.jsx';
+import { SportBox, OracleBox, SerialBox, RumoursBox } from './Games.jsx';
+import { FeaturesBox } from './Features.jsx';
 
-function Kicker({ a }) {
+/** Small flags on an article: the Editor's choice, a record, a quote, a tip. */
+function Flags({ a, chosen }) {
+  const quoted = a.quotes?.some((q) => q.answer);
+  if (!chosen && !a.record && !quoted && !a.tipped) return null;
+  return (
+    <span className="flags">
+      {chosen && <span className="flag flag-chosen">{tr({ en: 'The Editor\'s choice', it: 'Scelta del direttore' })}</span>}
+      {a.record && <span className="flag flag-record">{tr({ en: 'Record', it: 'Primato' })}</span>}
+      {quoted && <span className="flag flag-quote">☎︎ {tr({ en: 'Interview', it: 'Intervista' })}</span>}
+      {a.tipped && <span className="flag flag-tip">{tr({ en: 'Tip', it: 'Soffiata' })}</span>}
+    </span>
+  );
+}
+
+function Kicker({ a, chosen = false }) {
   return (
     <div className="kicker">
+      <Flags a={a} chosen={chosen} />
       {a.series && <span className="segue">{episodeLabel(a.series.episode)}</span>}
       <span className="sec">{a.section}</span>
       {a.kicker && a.kicker.toLowerCase() !== a.section.toLowerCase() && <span className="sub"> · {a.kicker}</span>}
@@ -77,12 +95,13 @@ export default function FrontPage({ edition }) {
 
   return (
     <div className="front">
+      <FlashBand />
       <SpotlightBand scoop={edition.spotlight} />
       <section className="front-top">
         <div className="front-main">
           {lead && (
             <article className="lead">
-              <Kicker a={lead} />
+              <Kicker a={lead} chosen={edition.closing?.storyId === lead.id} />
               <h2 className="hl-xl"><a href={link(lead)}>{lead.headline}</a></h2>
               {lead.dek && <p className="dek dek-lg">{lead.dek}</p>}
               <Meta a={lead} />
@@ -126,9 +145,18 @@ export default function FrontPage({ edition }) {
             <h3 className="box-title">{tr({ en: 'The Brief', it: 'Il punto' })}</h3>
             <p>{edition.summary}</p>
             {edition.summaryBy && <p className="punto-by">— {edition.summaryBy.name}</p>}
+            {edition.closing && !edition.closing.storyId && (
+              <p className="closing-note">{tr({ en: `At ${hhmm(edition.closing.at)} the Editor decided: ${edition.closing.answer}.`, it: `Alle ${hhmm(edition.closing.at)} il direttore ha deciso: ${edition.closing.answer}.` })}</p>
+            )}
           </section>
+          <SerialBox serial={edition.serial} />
+          <SportBox sport={edition.sport} />
+          <OracleBox oracle={edition.oracle} />
+          <RumoursBox rumours={edition.rumours} />
+          <ChatterBox />
           <FactCheck edition={edition} />
           <SpotlightBox edition={edition} />
+          <FeaturesBox />
           <InvestigationBox />
           <LettersBox letters={edition.letters} />
           <TimeBox time={edition.time} />

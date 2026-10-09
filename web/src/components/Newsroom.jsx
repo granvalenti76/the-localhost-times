@@ -5,8 +5,10 @@ import DeskCartoon from './DeskCartoon.jsx';
 import FactCheck from './FactCheck.jsx';
 import NextEdition from './NextEdition.jsx';
 import { tr } from '../i18n.js';
-import Para from './Para.jsx';
 import { SpotlightDesk } from './Spotlight.jsx';
+import { Paragraphs, HeadlinePicker } from './Bench.jsx';
+import { DeepenButton } from './Features.jsx';
+import { ChatterFeed } from './Live.jsx';
 
 const T = tr({
   en: {
@@ -35,6 +37,11 @@ const T = tr({
     reprintTitle: 'Rewrites the whole edition with the current editorial line.', reprintingLong: 'Reprinting… (a few minutes)',
     confirm: 'Sure? You lose the manual edits', reprint: 'Reprint', brief: 'The Brief', spiked: 'Spiked', restore: 'Restore',
     panels: 'Newsroom panels', meeting: 'Meeting', line: 'Editorial line', nextTab: 'Next edition',
+    heads: 'Headlines', bench: 'Quick bench', benchHint: 'One article at a time, keep or cut', viva: 'Live', tipsTab: 'Tips',
+    games: 'The Editor\'s part and the games', gamesHint: 'Each can be turned off. The calls and the closing send a notification.',
+    feat: { interview: ['Interviews', 'A reporter calls you about a big story; your answer becomes a quote'], closing: ['The closing at :55', 'The desk asks what leads, what to cut, which tone'], tips: ['Tip box', 'Your tips go into the stories, or into “Word is”'], flash: ['Breaking news', 'A flash when a record falls mid-hour'], sport: ['Sport', 'Report cards and records'], oracle: ['The Oracle', 'Predictions on the next hour; bet against it'], serial: ['The serial', 'A novel in instalments, you choose how it goes on'], chatter: ['The newsroom, live', 'What the writers say to each other'] },
+    genre: 'Genre of the serial', director: 'How you sign your pieces', directorPh: 'The Editor', scoreTitle: 'The staff\'s scoreboard', scoreHint: '♥ paragraphs you liked · ✕ disliked · kept and cut on the bench',
+    tipsTitle: 'The tip box', tipsHint: 'Hand the newsroom a fact the signals can\'t know. It goes into the matching story (“a source close to the owner”) or into “Word is”. Also from a note in the Notes folder “Newsroom” (or “Redazione”), or from the terminal: npm run tip -- "…"', tipPh: 'e.g. I lost five games in a row to the same player', tipSend: 'Into the box', tipNew: 'waiting', tipUsed: 'used', tipArchived: 'archived', tipVia: { notes: 'Notes', cli: 'terminal', web: 'paper' }, noTips: 'The box is empty.',
     staffTitle: 'The bylines', desksTitle: 'Who writes what', unsigned: 'Unsigned (the newsroom)', briefDesk: 'The Brief and the editorial', wName: 'Name', wRole: 'Role', wStyle: 'Voice (how they write)', wHouse: 'House style', staffHint: 'Invented writers: the same model plays a different character for each.', openEdition: 'Open an edition to discuss it.',
   },
   it: {
@@ -63,6 +70,11 @@ const T = tr({
     reprintTitle: 'Riscrive tutta l\'edizione con la linea editoriale attuale.', reprintingLong: 'Ristampo… (qualche minuto)',
     confirm: 'Confermi? Perdi le modifiche a mano', reprint: 'Ristampa', brief: 'Il punto', spiked: 'Cestino', restore: 'Ripristina',
     panels: 'Pannelli della redazione', meeting: 'Riunione', line: 'Linea editoriale', nextTab: 'Prossima',
+    heads: 'Titoli', bench: 'Banco rapido', benchHint: 'Un articolo alla volta, tieni o taglia', viva: 'Viva', tipsTab: 'Soffiate',
+    games: 'La parte del direttore e i giochi', gamesHint: 'Ognuno si può spegnere. Le chiamate e la chiusura mandano una notifica.',
+    feat: { interview: ['Interviste', 'Un cronista la chiama su una storia grossa; la risposta diventa una citazione'], closing: ['La chiusura delle :55', 'Il desk chiede cosa aprire, cosa tagliare, che tono'], tips: ['Cassetta delle soffiate', 'Le soffiate entrano nelle storie, o in «Si dice che»'], flash: ['Ultim\'ora', 'Un flash quando cade un primato a metà ora'], sport: ['Sport', 'Pagelle e primati'], oracle: ['L\'Oracolo', 'Pronostici sull\'ora dopo; ci si può scommettere contro'], serial: ['Il feuilleton', 'Un romanzo a puntate, come continua lo decide lei'], chatter: ['La redazione viva', 'Cosa si dicono i redattori'] },
+    genre: 'Genere del feuilleton', director: 'Come firma i suoi pezzi', directorPh: 'Il Direttore', scoreTitle: 'La classifica della redazione', scoreHint: '♥ paragrafi apprezzati · ✕ bocciati · tenuti e tagliati al banco',
+    tipsTitle: 'La cassetta delle soffiate', tipsHint: 'Dia alla redazione un fatto che i segnali non possono sapere. Finisce nella storia che c\'entra («una fonte vicina al proprietario») o in «Si dice che». Anche da una nota nella cartella «Redazione» di Note, o dal terminale: npm run tip -- "…"', tipPh: 'es. ho perso cinque partite di fila con lo stesso avversario', tipSend: 'Nella cassetta', tipNew: 'in attesa', tipUsed: 'usata', tipArchived: 'archiviata', tipVia: { notes: 'Note', cli: 'terminale', web: 'giornale' }, noTips: 'La cassetta è vuota.',
     staffTitle: 'Le firme', desksTitle: 'Chi scrive cosa', unsigned: 'Senza firma (la redazione)', briefDesk: 'Il Punto e l\'editoriale', wName: 'Nome', wRole: 'Ruolo', wStyle: 'Carattere (come scrive)', wHouse: 'Stile', staffHint: 'Redattori inventati: lo stesso modello interpreta un personaggio diverso per ciascuno.', openEdition: 'Apri un\'edizione per discuterne.',
   },
 });
@@ -75,6 +87,70 @@ const TONE_NAMES = tr({
 const toneName = (t) => TONE_NAMES[OLD_TONE[t] || t || 'dry'] || t;
 // sizes as stored by older editions
 const OLD_SIZE = { apertura: 'lead', articolo: 'article', breve: 'brief' };
+
+const GENRES = tr({
+  en: { giallo: 'Mystery', spy: 'Spy story', scifi: 'Science fiction', feuilleton: 'Serial novel', western: 'Western' },
+  it: { giallo: 'Giallo', spy: 'Spy story', scifi: 'Fantascienza', feuilleton: 'Romanzo d\'appendice', western: 'Western' },
+});
+
+/** Who the Editor likes: ♥, ✕, kept and cut, writer by writer. */
+function Scoreboard({ people }) {
+  const [t, setT] = useState(null);
+  useEffect(() => { api('/taste').then(setT).catch(() => {}); }, []);
+  const rows = people.map((w) => ({ w, s: t?.stats?.[w.id] || { liked: 0, disliked: 0, kept: 0, cut: 0 } }))
+    .sort((a, b) => (b.s.liked * 2 + b.s.kept - b.s.cut - b.s.disliked) - (a.s.liked * 2 + a.s.kept - a.s.cut - a.s.disliked));
+  if (!t || !rows.some((r) => r.s.liked + r.s.disliked + r.s.kept + r.s.cut)) return null;
+  return (
+    <fieldset className="field">
+      <legend>{T.scoreTitle}</legend>
+      <table className="scoreboard">
+        <tbody>
+          {rows.map(({ w, s: x }, i) => (
+            <tr key={w.id}><th>{i === 0 ? '🏆 ' : ''}{w.name}</th><td>♥ {x.liked}</td><td>✕ {x.disliked}</td><td>✓ {x.kept}</td><td>✂ {x.cut}</td></tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="hint-small">{T.scoreHint}</p>
+    </fieldset>
+  );
+}
+
+/** The tip box, in the newsroom. */
+function TipsPanel({ setError }) {
+  const [list, setList] = useState([]);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => api('/tips').then(setList).catch(() => {}), []);
+  useEffect(() => { load(); }, [load]);
+  async function send(e) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    setBusy(true);
+    try { await api('/tips', { method: 'POST', json: { text: text.trim() } }); setText(''); load(); } catch (err) { setError(err.message); } finally { setBusy(false); }
+  }
+  const label = { new: T.tipNew, used: T.tipUsed, archived: T.tipArchived };
+  return (
+    <div className="tips-panel">
+      <h3 className="box-title">{T.tipsTitle}</h3>
+      <p className="hint-small">{T.tipsHint}</p>
+      <form onSubmit={send} className="tip-form">
+        <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder={T.tipPh} />
+        <button className="btn btn-small" disabled={busy || !text.trim()}>{T.tipSend}</button>
+      </form>
+      {list.length ? (
+        <ul className="tip-list">
+          {list.map((t) => (
+            <li key={t.id} className={t.status}>
+              <span className="tip-meta">{hhmm(t.ts)} · {T.tipVia[t.via] || t.via} · <em>{label[t.status] || t.status}</em></span>
+              <span>{t.text}</span>
+              {t.status === 'new' && <button className="btn-link" onClick={async () => { await api(`/tips/${t.id}/archive`, { method: 'POST' }); load(); }}>✕</button>}
+            </li>
+          ))}
+        </ul>
+      ) : <p className="hint-small">{T.noTips}</p>}
+    </div>
+  );
+}
 
 // ───────────────────────── Editorial line ─────────────────────────
 
@@ -189,6 +265,25 @@ function LinePanel({ onSaved }) {
           </details>
         ))}
       </fieldset>
+
+      <fieldset className="field">
+        <legend>{T.games}</legend>
+        <p className="hint-small">{T.gamesHint}</p>
+        {Object.entries(T.feat).map(([k, [name, hint]]) => (
+          <label key={k} className="check">
+            <input type="checkbox" checked={line.features?.[k] !== false} onChange={(e) => set({ features: { ...(line.features || {}), [k]: e.target.checked } })} />
+            <span><strong>{name}</strong><em>{hint}</em></span>
+          </label>
+        ))}
+        <label className="lbl">{T.genre}
+          <select value={line.serialGenre || 'giallo'} onChange={(e) => set({ serialGenre: e.target.value })}>
+            {Object.entries(GENRES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </label>
+        <label className="lbl">{T.director}<input value={line.directorName || ''} placeholder={T.directorPh} onChange={(e) => set({ directorName: e.target.value })} /></label>
+      </fieldset>
+
+      <Scoreboard people={people} />
 
       <fieldset className="field">
         <legend>{T.notes}</legend>
@@ -306,7 +401,8 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
               </div>
               {a.image && <img className="draft-thumb" src={a.image.src} alt="" loading="lazy" />}
             </div>
-            {open && <div className="draft-text">{a.body.map((p, k) => <Para key={k} a={a} p={p} />)}</div>}
+            {open && <div className="draft-text"><Paragraphs ed={ed} a={a} onChange={onChange} setError={setError} /></div>}
+            {mode === 'heads' && <HeadlinePicker key={a.headline} ed={ed} a={a} onChange={onChange} setError={setError} onClose={() => setMode(null)} />}
 
             {mode === 'rewrite' && (
               <div className="rewrite">
@@ -326,7 +422,9 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
               {i > 0 && <button className="btn-ghost" disabled={busy} onClick={() => call('/move', { method: 'POST', json: { to: 'top' } })}>{T.toLead}</button>}
               <button className="btn-ghost" onClick={startEdit}>{T.edit}</button>
               <button className={`btn-ghost ${mode === 'rewrite' ? 'on' : ''}`} onClick={() => setMode(mode === 'rewrite' ? null : 'rewrite')}>{T.rewrite}</button>
+              <button className={`btn-ghost ${mode === 'heads' ? 'on' : ''}`} onClick={() => setMode(mode === 'heads' ? null : 'heads')}>{T.heads}</button>
               <button className="btn-ghost" onClick={() => onDiscuss?.(a)}>{T.discuss}</button>
+              <DeepenButton editionId={ed.id} articleId={a.id} />
               <button className="btn-ghost danger" disabled={busy} onClick={() => call('/spike', { method: 'POST' })}>{T.spike}</button>
               {busy && <span className="working">{T.working}</span>}
             </div>
@@ -342,10 +440,11 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
 export default function Newsroom({ editionId: requested, onPublished }) {
   // #/newsroom/spotlight opens the Spotlight board
   const spotlightTab = requested === 'spotlight';
-  const editionId = spotlightTab ? null : requested;
+  const sideTab = ['viva', 'live'].includes(requested) ? 'viva' : ['soffiate', 'tips'].includes(requested) ? 'tips' : spotlightTab ? 'spotlight' : null;
+  const editionId = sideTab ? null : requested;
   const isEvening = !!editionId?.startsWith('sera-');
   const [day, setDay] = useState(() => (editionId ? (isEvening ? editionId.slice(5) : editionId.slice(0, 10)) : dayKey(Date.now())));
-  const [tab, setTab] = useState(spotlightTab ? 'spotlight' : 'meeting');
+  const [tab, setTab] = useState(sideTab || 'meeting');
   const [focus, setFocus] = useState(null);
   const [lineKey, setLineKey] = useState(0);
   const [evening, setEvening] = useState(null);
@@ -529,6 +628,7 @@ export default function Newsroom({ editionId: requested, onPublished }) {
                     onClick={reprint}>
                     {busy === 'reprint' ? T.reprintingLong : armed ? T.confirm : T.reprint}
                   </button>
+                  <a className="btn-ghost bench-link" href={href.bench(ed.id)} title={T.benchHint}>⚡ {T.bench}</a>
                   {status === 'published' && <a className="btn-ghost" href={href.edition(ed.id)}>{T.seeOnPage}</a>}
                 </div>
               </div>
@@ -571,6 +671,8 @@ export default function Newsroom({ editionId: requested, onPublished }) {
             <button role="tab" aria-selected={tab === 'next'} className={tab === 'next' ? 'on' : ''} onClick={() => setTab('next')}>{T.nextTab}</button>
             <button role="tab" aria-selected={tab === 'line'} className={tab === 'line' ? 'on' : ''} onClick={() => setTab('line')}>{T.line}</button>
             <button role="tab" aria-selected={tab === 'spotlight'} className={`tab-spot ${tab === 'spotlight' ? 'on' : ''}`} onClick={() => setTab('spotlight')}>Spotlight</button>
+            <button role="tab" aria-selected={tab === 'viva'} className={tab === 'viva' ? 'on' : ''} onClick={() => setTab('viva')}>{T.viva}</button>
+            <button role="tab" aria-selected={tab === 'tips'} className={tab === 'tips' ? 'on' : ''} onClick={() => setTab('tips')}>{T.tipsTab}</button>
           </div>
           {tab === 'meeting' ? (
             (isEvening ? evening : ed) ? (
@@ -587,6 +689,10 @@ export default function Newsroom({ editionId: requested, onPublished }) {
             <NextEdition setError={setError} onPrinted={() => refreshList()} />
           ) : tab === 'spotlight' ? (
             <SpotlightDesk setError={setError} />
+          ) : tab === 'viva' ? (
+            <ChatterFeed />
+          ) : tab === 'tips' ? (
+            <TipsPanel setError={setError} />
           ) : (
             <LinePanel key={lineKey} />
           )}

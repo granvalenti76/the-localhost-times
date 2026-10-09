@@ -5,6 +5,10 @@ import { hourStart, editionId, dayKey } from '../util.js';
 import { printEvening } from './evening.js';
 import { recordBulletin } from './radio.js';
 import { spotlightRound } from './spotlight/desk.js';
+import { enrichEdition } from './extras.js';
+import { interviewRound, closingRound, expireCalls, msToClosing, formingStories } from './calls.js';
+import { flashRound } from './flash.js';
+import { chatterRound } from './chatter.js';
 
 const HOUR = 3600e3;
 
@@ -40,11 +44,49 @@ export function createNewsroom({ store, config, log = console.log, notify = null
     }).catch(() => {});
   };
 
+  // after the press, the model adds the report cards, the gossip column and the serial (the edition doesn't wait)
+  const enrich = (ed) => {
+    if (!ed) return;
+    queue(busy(() => enrichEdition(store, config, ed.id, { log }))).catch((e) => log(`[extras] ${e.message}`));
+  };
+
   const printHour = (start, final, force = false) => queue(busy(async () => {
     const ed = await printEdition({ store, config, start, final, force, log });
     radio(ed);
+    enrich(ed);
     return ed;
   }));
+
+  // the newsroom at work during the hour: calls to the Editor, breaking news, the chatter
+  let deskBusy = false;
+  async function deskRound() {
+    if (deskBusy || config.demo) return;
+    deskBusy = true;
+    try {
+      const now = Date.now();
+      expireCalls(store, now);
+      flashRound(store, config, { now, notify, log });
+      const { stories, line } = formingStories(store, config, now);
+      chatterRound(store, { stories, now, line });
+      await interviewRound(store, config, { now, notify, log });
+    } catch (e) {
+      log(`[desk] ${e.message}`);
+    } finally {
+      deskBusy = false;
+    }
+  }
+
+  function scheduleClosing() {
+    setTimeout(async () => {
+      try {
+        await collect();
+        closingRound(store, config, { notify, log });
+      } catch (e) {
+        log(`[closing] ${e.message}`);
+      }
+      scheduleClosing();
+    }, msToClosing(Date.now(), config.desk?.closingMinute ?? 55) + 1000);
+  }
 
   // Spotlight works in the same queue (one model, one press), after the paper
   const spotlight = (light = false) => queue(busy(() => spotlightRound(store, config, { log, notify, light })))
@@ -112,8 +154,9 @@ export function createNewsroom({ store, config, log = console.log, notify = null
   async function start() {
     await collect();
     scheduleHourly();
+    if (!config.demo) scheduleClosing();
     setInterval(() => {
-      collect().catch((e) => log(`[${tr({ en: 'collect', it: 'raccolta' })}] ${e.message}`));
+      collect().then(() => deskRound()).catch((e) => log(`[${tr({ en: 'collect', it: 'raccolta' })}] ${e.message}`));
       // a right of reply that has expired doesn't wait for the next hour
       spotlight(true);
     }, config.collectEveryMinutes * 60e3);
@@ -124,5 +167,5 @@ export function createNewsroom({ store, config, log = console.log, notify = null
       .catch((e) => log(`[${tr({ en: 'backfill', it: 'arretrati' })}] ${e.message}`));
   }
 
-  return { collect, printNow, printHour, printEveningFor, backfill, start, state, spotlight };
+  return { collect, printNow, printHour, printEveningFor, backfill, start, state, spotlight, deskRound, enrich, queue };
 }

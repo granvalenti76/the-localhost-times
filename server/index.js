@@ -8,7 +8,7 @@ import { sourceStatus } from './collect.js';
 import { llmStatus, connectLLM } from './newsroom/llm.js';
 import { SOURCES } from './sources/index.js';
 import { startSampler } from './sources/apps.js';
-import { seedDemo } from './demo.js';
+import { seedDemo, seedDemoDesk } from './demo.js';
 import { dayKey } from './util.js';
 import { getLine, saveLine, TONES, LENGTHS, WEIGHTS } from './newsroom/line.js';
 import {
@@ -30,6 +30,18 @@ import { createInvestigation, suggestions, interruptedInvestigations } from './n
 import { board, leadAction, teaser, recoverLeads } from './newsroom/spotlight/desk.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
+import { openCalls, callView, answerCall } from './newsroom/calls.js';
+import { chatter } from './newsroom/chatter.js';
+import { tips, addTip, archiveTip } from './newsroom/tips.js';
+import { oracleBoard, bet } from './newsroom/oracle.js';
+import { recordBook } from './newsroom/sport.js';
+import { latestFlashes } from './newsroom/flash.js';
+import { episodes } from './newsroom/serial.js';
+import {
+  features, createFeature, getFeature, briefFeature, approveOutline, continueFeature, blockAction, editFeature,
+  reviewFeature, publishFeature, unpublishFeature, deleteFeature, stopFeature, interruptedFeatures,
+} from './newsroom/features.js';
+import { paragraphAction, headlineOptions, verdict, scoreboard, getTaste, forgetExample } from './newsroom/bench.js';
 
 const [maj, min] = process.versions.node.split('.').map(Number);
 if (maj < 22 || (maj === 22 && min < 13)) {
@@ -54,6 +66,7 @@ if (process.env.LOCALHOST_TIMES_SERVICE === '1') {
 const store = new Store(config.dbFile);
 interruptedInvestigations(store);
 recoverLeads(store);
+interruptedFeatures(store);
 if (store.needsReindex()) {
   // first start after the archive was added: index what is already there
   store.reindex();
@@ -66,6 +79,7 @@ if (config.demo) {
   const n = seedDemo(store);
   if (n) log(tr({ en: `[demo] ${n} demo events inserted`, it: `[demo] ${n} eventi dimostrativi inseriti` }));
   for (const s of SOURCES) sourceStatus[s.id] = { id: s.id, label: s.label, state: 'demo' };
+  seedDemoDesk(store, config).catch((e) => log(`[demo] ${e.message}`));
 }
 
 const app = express();
@@ -155,6 +169,55 @@ app.post('/api/editions/:id/reprint', wrap(async (req, res) => {
   res.json(await newsroom.printHour(ed.hour ?? ed.start, ed.final, true));
 }));
 
+// ── The editor's bench: one paragraph, one headline, keep or cut ──
+app.post(`${A}/paragraph`, wrap(async (req, res) => res.json(await paragraphAction(store, config, req.params.id, req.params.aid, req.body || {}, log))));
+app.post(`${A}/headlines`, wrap(async (req, res) => res.json(await headlineOptions(store, config, req.params.id, req.params.aid))));
+app.post(`${A}/verdict`, wrap((req, res) => res.json(verdict(store, req.params.id, req.params.aid, req.body?.verdict))));
+app.get('/api/taste', (req, res) => { const t = getTaste(store); res.json({ ...scoreboard(store), examples: { liked: t.liked, disliked: t.disliked } }); });
+app.delete('/api/taste', wrap((req, res) => { forgetExample(store, String(req.body?.text || '')); res.json({ ...scoreboard(store), examples: (({ liked, disliked }) => ({ liked, disliked }))(getTaste(store)) }); }));
+
+// ── The newsroom calls the Editor (interviews, the closing at :55, the serial's fork) ──
+app.get('/api/calls', (req, res) => res.json(openCalls(store).map((c) => callView(c))));
+app.post('/api/calls/:id/answer', wrap((req, res) => res.json(answerCall(store, config, req.params.id, {
+  text: req.body?.text, option: req.body?.option ?? req.query.option, decline: !!(req.body?.decline ?? req.query.decline),
+}))));
+// everything the pages poll in one call: open calls, breaking news, the newsroom chatter
+app.get('/api/live', (req, res) => res.json({
+  calls: openCalls(store).map((c) => callView(c)),
+  flashes: latestFlashes(store, Date.now() - 2 * 3600e3),
+  chatter: chatter(store, { limit: Math.min(50, num(req.query.chatter) || 6) }),
+}));
+app.get('/api/chatter', (req, res) => res.json(chatter(store, { limit: Math.min(200, num(req.query.limit) || 60) })));
+
+// ── The tip box ──
+app.get('/api/tips', (req, res) => res.json(tips(store, { status: req.query.status || null, limit: 100 })));
+app.post('/api/tips', wrap((req, res) => res.json(addTip(store, { text: req.body?.text, via: req.body?.via === 'cli' ? 'cli' : 'web' }))));
+app.post('/api/tips/:id/archive', wrap((req, res) => res.json(archiveTip(store, req.params.id))));
+
+// ── The games: the Oracle, the records, the serial ──
+app.get('/api/oracle', (req, res) => res.json(oracleBoard(store)));
+app.post('/api/oracle/bet', wrap((req, res) => res.json(bet(store, String(req.body?.id || ''), req.body?.yes))));
+app.get('/api/records', (req, res) => res.json(recordBook(store)));
+app.get('/api/serial', (req, res) => res.json(episodes(store)));
+
+// ── Long pieces (Approfondisci) ──
+const F = '/api/features/:id';
+app.get('/api/features', (req, res) => res.json(features(store, { status: req.query.status ? String(req.query.status).split(',') : null, limit: Math.min(100, num(req.query.limit) || 30) })));
+app.post('/api/features', wrap(async (req, res) => res.json(await createFeature(store, config, {
+  editionId: req.body?.editionId, articleId: req.body?.articleId, topic: req.body?.topic, days: req.body?.days,
+}, log))));
+app.get(F, wrap((req, res) => res.json(getFeature(store, req.params.id))));
+app.patch(F, wrap((req, res) => res.json(editFeature(store, req.params.id, req.body || {}))));
+app.delete(F, wrap((req, res) => { deleteFeature(store, req.params.id); res.status(204).end(); }));
+app.post(`${F}/brief`, wrap((req, res) => res.json(briefFeature(store, config, req.params.id, req.body || {}, log))));
+app.post(`${F}/outline`, wrap((req, res) => res.json(approveOutline(store, config, req.params.id, req.body?.outline, log))));
+app.post(`${F}/continue`, wrap((req, res) => res.json(continueFeature(store, config, req.params.id, log))));
+app.post(`${F}/stop`, wrap((req, res) => res.json(stopFeature(store, req.params.id))));
+app.post(`${F}/blocks/:i`, wrap((req, res) => res.json(blockAction(store, config, req.params.id, req.params.i, req.body || {}, log))));
+app.post(`${F}/review`, wrap((req, res) => res.json(reviewFeature(store, config, req.params.id, log))));
+app.post(`${F}/publish`, wrap((req, res) => res.json(publishFeature(store, req.params.id))));
+app.post(`${F}/unpublish`, wrap((req, res) => res.json(unpublishFeature(store, req.params.id))));
+
 // ── Evening edition ──
 app.get('/api/evening/:day', (req, res) => {
   const ev = store.getEvening(req.params.day);
@@ -206,6 +269,9 @@ app.get('/api/menubar', (req, res) => {
       scoop: store.scoops({ after: new Date().setHours(0, 0, 0, 0), limit: 1 })[0] || null,
     },
     base: `http://localhost:${config.port}`,
+    port: config.port,
+    calls: openCalls(store).map((c) => callView(c)),
+    flash: latestFlashes(store, Date.now() - 3600e3)[0] || null,
     max: Math.min(80, Number(req.query.max) || 42),
   }));
 });

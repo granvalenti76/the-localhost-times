@@ -90,6 +90,20 @@ export class Store {
         payload TEXT NOT NULL
       );
     `);
+    // the newsroom's working material: questions to the editor, tips, long pieces, flashes,
+    // the serial's episodes, the newsroom chatter (one table, told apart by `kind`)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT '',
+        ts INTEGER NOT NULL,
+        ref TEXT,
+        payload TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS items_kind_ts ON items(kind, ts);
+      CREATE INDEX IF NOT EXISTS items_ref ON items(kind, ref);
+    `);
     // migration: edition status (draft / published)
     const cols = this.db.prepare(`PRAGMA table_info(editions)`).all().map((r) => r.name);
     if (!cols.includes('status')) {
@@ -99,7 +113,7 @@ export class Store {
 
   /** Clear events, cursors and editions: the next collection rereads the last 24 hours. */
   reset() {
-    this.db.exec('DELETE FROM events; DELETE FROM cursors; DELETE FROM editions; DELETE FROM evenings; DELETE FROM threads; DELETE FROM letters; DELETE FROM search; DELETE FROM leads; DELETE FROM scoops;');
+    this.db.exec('DELETE FROM events; DELETE FROM cursors; DELETE FROM editions; DELETE FROM evenings; DELETE FROM threads; DELETE FROM letters; DELETE FROM search; DELETE FROM leads; DELETE FROM scoops; DELETE FROM items;');
   }
 
   insertEvents(events) {
@@ -367,6 +381,49 @@ export class Store {
   scoops({ before = null, after = null, limit = 50 } = {}) {
     return this.db.prepare(`SELECT payload FROM scoops WHERE published_at < ? AND published_at >= ? ORDER BY published_at DESC LIMIT ?`)
       .all(before ?? 8.64e15, after ?? 0, limit).map((r) => JSON.parse(r.payload));
+  }
+
+  // ── Items: the newsroom's working material ──
+  /** Insert (no id) or update (with id) an item; returns it with its id. */
+  saveItem(item) {
+    const ts = item.ts ?? Date.now();
+    if (item.id) {
+      this.db.prepare(`UPDATE items SET status = ?, ts = ?, ref = ?, payload = ? WHERE id = ? AND kind = ?`)
+        .run(item.status || '', ts, item.ref ?? null, JSON.stringify(item), item.id, item.kind);
+      return item;
+    }
+    const r = this.db.prepare(`INSERT INTO items (kind, status, ts, ref, payload) VALUES (?, ?, ?, ?, ?)`)
+      .run(item.kind, item.status || '', ts, item.ref ?? null, JSON.stringify({ ...item, ts }));
+    const saved = { ...item, ts, id: Number(r.lastInsertRowid) };
+    this.db.prepare(`UPDATE items SET payload = ? WHERE id = ?`).run(JSON.stringify(saved), saved.id);
+    return saved;
+  }
+
+  getItem(kind, id) {
+    const r = this.db.prepare(`SELECT payload FROM items WHERE id = ? AND kind = ?`).get(Number(id), kind);
+    return r ? JSON.parse(r.payload) : null;
+  }
+
+  /** Items of a kind, newest first; filters: status (string or list), ref, after/before (ts). */
+  items(kind, { status = null, ref = null, after = null, before = null, limit = 100, oldest = false } = {}) {
+    const sql = ['kind = ?'];
+    const args = [kind];
+    const st = status == null ? null : [].concat(status);
+    if (st) { sql.push(`status IN (${st.map(() => '?').join(',')})`); args.push(...st); }
+    if (ref != null) { sql.push('ref = ?'); args.push(ref); }
+    if (after != null) { sql.push('ts >= ?'); args.push(after); }
+    if (before != null) { sql.push('ts < ?'); args.push(before); }
+    return this.db.prepare(`SELECT payload FROM items WHERE ${sql.join(' AND ')} ORDER BY ts ${oldest ? 'ASC' : 'DESC'}, id ${oldest ? 'ASC' : 'DESC'} LIMIT ?`)
+      .all(...args, limit).map((r) => JSON.parse(r.payload));
+  }
+
+  deleteItem(kind, id) {
+    this.db.prepare(`DELETE FROM items WHERE id = ? AND kind = ?`).run(Number(id), kind);
+  }
+
+  /** Keep only the newest `keep` items of a kind. */
+  trimItems(kind, keep) {
+    this.db.prepare(`DELETE FROM items WHERE kind = ? AND id NOT IN (SELECT id FROM items WHERE kind = ? ORDER BY ts DESC, id DESC LIMIT ?)`).run(kind, kind, keep);
   }
 
   getEdition(id) {

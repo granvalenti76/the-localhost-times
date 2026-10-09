@@ -1,6 +1,7 @@
 import { tr } from './i18n.js';
 import { SOURCES } from './sources/index.js';
 import { PermissionError, fingerprint } from './util.js';
+import { tipsFromNotes } from './newsroom/tips.js';
 
 const DAY = 24 * 3600e3;
 export const sourceStatus = {};
@@ -39,6 +40,10 @@ export async function collectAll(store, config, log = console.log) {
       lastRun.set(src.id, Date.now());
       if (fp) seen.set(src.id, fp);
       const added = store.insertEvents(events);
+      // notes in the tip-box folder are tips for the newsroom, not news
+      if (src.id === 'notes') {
+        try { tipsFromNotes(store, config, events); } catch (e) { log(`[tips] ${e.message}`); }
+      }
       let maxTs = since;
       for (const e of events) if (Number.isFinite(e.ts) && e.ts > maxTs && e.ts <= Date.now() + 60e3) maxTs = e.ts;
       store.setCursor(src.id, { ts: maxTs, extra: cursor ?? cur.extra ?? null });

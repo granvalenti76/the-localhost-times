@@ -61,6 +61,12 @@ const DEFAULTS = {
     enabled: true,       // macOS notification when a new edition is out
     sound: false,
   },
+  desk: {
+    closingMinute: 55,   // when the desk asks the Editor about the edition about to close
+  },
+  tips: {
+    notesFolder: '',     // a Notes folder used as the tip box ("Redazione" and "Newsroom" always work)
+  },
   spotlight: {
     enabled: true,       // the Spotlight desk: leads followed across days, scoops when they hold up
     replyMinutes: 60,    // the owner's right of reply before a scoop goes to press (0 = no wait)

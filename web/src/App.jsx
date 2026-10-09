@@ -13,6 +13,10 @@ import LettersPage from './components/Letters.jsx';
 import ArchivePage from './components/ArchivePage.jsx';
 import { InvestigationsPage, InvestigationPage } from './components/Investigations.jsx';
 import { SpotlightList, SpotlightPage } from './components/Spotlight.jsx';
+import { CallsBar, CallsPage } from './components/Live.jsx';
+import { FeaturePage, FeaturesList } from './components/Features.jsx';
+import { SerialPage, SportPage } from './components/Games.jsx';
+import Bench from './components/Bench.jsx';
 
 function useHashRoute() {
   const [route, setRoute] = useState(() => parseRoute(location.hash));
@@ -31,7 +35,8 @@ export default function App() {
   const route = useHashRoute();
   const [edition, setEdition] = useState(null);
   const [list, setList] = useState([]);
-  const dayOf = (id) => (!id || id === 'spotlight' ? null : id.startsWith('sera-') ? id.slice(5) : id.slice(0, 10));
+  // the day of an edition id ("2026-10-09T18", "sera-2026-10-09"); other newsroom pages have none
+  const dayOf = (id) => { const d = /^(?:sera-)?(\d{4}-\d{2}-\d{2})/.exec(id || ''); return d ? d[1] : null; };
   const [day, setDay] = useState(() => route.day || route.evening || dayOf(route.edition) || dayKey(Date.now()));
   const [evening, setEvening] = useState(null);
   const [status, setStatus] = useState(null);
@@ -42,7 +47,7 @@ export default function App() {
   // The current edition
   useEffect(() => {
     let alive = true;
-    const page = route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop;
+    const page = route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.calls || route.feature || route.features || route.serial || route.sport;
     if (page) { setLoaded(true); return () => { alive = false; }; }
     const p = route.edition ? api(`/editions/${encodeURIComponent(route.edition)}`) : route.day ? Promise.resolve(null) : api('/editions/latest');
     p.then((e) => {
@@ -54,7 +59,7 @@ export default function App() {
       .catch((err) => alive && (setEdition(null), setError(route.edition ? err.message : null)))
       .finally(() => alive && setLoaded(true));
     return () => { alive = false; };
-  }, [route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop]);
+  }, [route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop, route.calls, route.feature, route.features, route.serial, route.sport]);
 
   useEffect(() => { if (route.day) setDay(route.day); }, [route.day]);
   useEffect(() => { if (route.evening) setDay(route.evening); }, [route.evening]);
@@ -102,16 +107,20 @@ export default function App() {
   }
 
   const article = route.article && edition?.articles.find((a) => a.id === route.article);
+  // pages of their own: no timeline bar above them
+  const standalone = route.desk || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop
+    || route.calls || route.feature || route.features || route.serial || route.sport;
 
   return (
     <div className="paper">
-      <Masthead edition={route.desk || route.evening ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.archive || route.investigations || route.investigation ? 'archive' : route.evening ? 'evening' : route.section} />
-      {!route.desk && !route.letters && !route.archive && !route.investigations && !route.investigation && !route.spotlight && !route.scoop && (
+      <Masthead edition={route.desk || route.evening || standalone ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.features || route.feature ? 'features' : route.archive || route.investigations || route.investigation ? 'archive' : route.evening ? 'evening' : route.section} />
+      {!route.calls && <CallsBar />}
+      {!standalone && (
         <EditionBar day={day} list={list} current={route.evening ? evening?.id : edition?.id} onPrint={printNow} printing={printing}
           evening={evening && evening.status !== 'draft' ? evening : null}
           exportable={route.evening ? (evening ? { evening } : null) : edition && !route.article && !route.section && !route.day ? { edition } : null} />
       )}
-      {!route.desk && !route.evening && !route.article && !route.letters && !route.archive && !route.investigations && !route.investigation && !route.spotlight && !route.scoop && evening && evening.status !== 'draft' && edition && edition.id.slice(0, 10) === evening.day && (
+      {!standalone && !route.evening && !route.article && evening && evening.status !== 'draft' && edition && edition.id.slice(0, 10) === evening.day && (
         <div className="evening-banner">
           <span><strong>{tr({ en: 'The evening edition is out.', it: 'È uscita l\'edizione della sera.' })}</strong> {evening.editorial.headline}</span>
           <a href={href.evening(evening.day)}>{tr({ en: 'Read', it: 'Leggi' })} →</a>
@@ -119,7 +128,19 @@ export default function App() {
       )}
       {error && <p className="notice" role="status">{error}</p>}
       <main>
-        {route.desk ? (
+        {route.desk && route.bench ? (
+          <Bench key={route.edition || 'bench'} editionId={route.edition} />
+        ) : route.calls ? (
+          <CallsPage id={route.calls === true ? null : route.calls} />
+        ) : route.feature ? (
+          <FeaturePage key={route.feature} id={route.feature} />
+        ) : route.features ? (
+          <FeaturesList />
+        ) : route.serial ? (
+          <SerialPage id={route.serial === true ? null : route.serial} />
+        ) : route.sport ? (
+          <SportPage />
+        ) : route.desk ? (
           <Newsroom key={route.edition || 'desk'} editionId={route.edition} onPublished={() => { refreshList(); refreshStatus(false); refreshEvening(); }} />
         ) : route.letters ? (
           <LettersPage />

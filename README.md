@@ -188,6 +188,19 @@ Subjects touching health, money troubles, love, faith, politics, the law or a jo
 
 ![Spotlight on the front page](docs/screenshots/spotlight.png)
 
+**You, in the newsroom.** The paper doesn't only write about you: it calls you, and you take part in ten seconds at a time. Each of these can be turned off in **Newsroom → Editorial line → The Editor's part and the games**.
+
+- **Interviews.** When a big story is forming (89 visits to chess.com in seventeen minutes), its reporter calls you with one question: *“Chief, the game against bob: how did it end?”*. A notification, a bar under the masthead, or the menu bar: answer in one line and your words go into the article as a real quote (*«Lost again», the owner told the paper*). Say nothing and the article says you didn't reply; an answer after the press is added to the printed article as an update.
+- **The closing at :55.** Five minutes before every edition the desk asks you what leads, whether to cut a story, or which tone the edition should have. One click, also straight from the menu bar.
+- **Go deeper.** Every article has a *Go deeper* button: a long piece on that story (or on any subject, from *Long reads*). The reporter asks you two or three questions, you can add facts of your own and tips, then you choose who writes: *the newsroom* (outline, then the piece section by section while you watch), *four hands* (you fix the outline; every section can be rewritten with an instruction, edited, or started by you and continued in tune), or *I write it* (signed by you; the desk checks your figures against the signals, points out the data worth using and proposes headline, kicker and summary). The facts are always the signals: your answers are quotes, your notes are facts you supply.
+- **The tip box.** Hand the newsroom a fact the signals can't know: from the Newsroom, from a note in the Notes folder **Newsroom** (or **Redazione**), or from the terminal with `npm run tip -- "I lost five games in a row"`. A tip goes into the story it belongs to, attributed to *a source close to the owner*; the others end up in the gossip column, *Word is*.
+- **The quick bench.** *Newsroom → Quick bench*: the edition one article at a time, → keep, ← cut, R rewrite, H three alternative headlines. Every paragraph has its tools: ♥ (the writer learns from it), ✕ (the writer avoids it), ✂ cut, ↻ rewrite only that paragraph (“meaner”, “shorter”). The paragraphs you mark become examples in that writer's instructions; the staff's scoreboard shows who you like.
+- **Breaking news.** When a record falls in the middle of the hour, a flash goes out at once (notification, red band on the front page, ⚡ in the menu bar).
+- **Sport.** Report cards for the apps and sites of the hour, marked out of ten like footballers after a match, the records broken (with the previous best) and the games played on chess sites. The record book is at `#/sport`.
+- **The Oracle.** Every edition makes two checkable predictions on the next hour (*“He'll be back on chess.com before 20:00”*); the next edition checks them. Bet against it: both scores are kept.
+- **The serial.** A novel in instalments (mystery, spy story, science fiction, serial novel or western), one episode per edition, made from the hour's real facts and ending on a fork: you choose how it goes on. It needs the model.
+- **The newsroom, live.** What the writers say to each other while they work (*“Brera: I've got 40 commands in the Workshop, save me a spot on page one?”*), on the front page and in *Newsroom → Live*.
+
 In **the Archive**:
 
 - **Search** everything the paper printed and every signal it read: articles, editorials, pages, mail subjects, commands, notes, folders. Words match by their beginning; "quotes" match a phrase. A small chart shows when the matches happened.
@@ -280,6 +293,7 @@ Environment variables override the file: `LOCALHOST_TIMES_LANG`, `LOCALHOST_TIME
 | `npm run service:restart` / `stop` / `start` | Restart (after an update), stop, start the service |
 | `npm run service:status` / `logs` / `uninstall` | Check it, follow its log, remove it |
 | `npm run notify:test` | Send a test notification |
+| `npm run tip -- "…"` | A tip for the newsroom (goes into the next edition) |
 | `npm run menubar:install` / `uninstall` | Add or remove the menu-bar headline (SwiftBar or xbar) |
 | `npm run dev` | Development, with hot reload → http://localhost:5173 |
 | `npm test` | Run the tests |

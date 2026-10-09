@@ -293,3 +293,29 @@ export function demoHistory(now = Date.now()) {
 export function seedDemo(store) {
   return store.insertEvents([...demoHistory(), ...demoEvents()]);
 }
+
+/** The demo's newsroom at work: a reporter on the line, a tip in the box, a breaking flash. */
+export async function seedDemoDesk(store, config) {
+  if (store.items('call', { limit: 1 }).length) return 0;
+  const { formingStories, templateQuestion } = await import('./newsroom/calls.js');
+  const { addTip } = await import('./newsroom/tips.js');
+  const { byline, writerFor } = await import('./newsroom/writers.js');
+  const { tr } = await import('./i18n.js');
+  const now = Date.now();
+  const { stories, editionId, line } = formingStories(store, config, now);
+  const s = stories.find((x) => x.events.length >= 4 && x.source !== 'journal');
+  if (s) {
+    store.saveItem({
+      kind: 'call', type: 'interview', status: 'open', ts: now, ref: s.id, storyId: s.id, editionId,
+      question: templateQuestion(s), topic: s.topic, section: s.section, by: byline(writerFor(line, s.source)),
+      deadline: now + 40 * 60e3,
+    });
+  }
+  addTip(store, { text: tr({ en: 'The cat walked on the keyboard twice this morning.', it: 'Il gatto è passato due volte sulla tastiera stamattina.' }), via: 'web', ts: now - 20 * 60e3 });
+  store.saveItem({
+    kind: 'flash', status: '', ts: now - 6 * 60e3, ref: 'demo', key: 'demo',
+    headline: tr({ en: 'Record: visits to chess.com in an hour, 41', it: 'Primato: visite a chess.com in un\'ora, 41' }),
+    text: tr({ en: 'Visits to chess.com in an hour: 41, and the hour isn\'t over. The previous best was 23.', it: 'Visite a chess.com in un\'ora: 41, e l\'ora non è finita. Il primato precedente era 23.' }),
+  });
+  return 1;
+}

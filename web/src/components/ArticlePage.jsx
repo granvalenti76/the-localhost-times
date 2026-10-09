@@ -3,6 +3,7 @@ import { href, hhmm, writerLabel, edHour, shortDate, episodeLabel, readingTime }
 import Para from './Para.jsx';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
+import { DeepenButton } from './Features.jsx';
 
 const KIND = tr({
   en: {
@@ -21,7 +22,10 @@ export default function ArticlePage({ edition, article: a }) {
     <div className="story-wrap">
       <div className="story-top">
         <a className="back" href={href.edition(edition.id)}>← {tr({ en: `The ${hhmm(edHour(edition))} front page`, it: `Prima pagina delle ${hhmm(edHour(edition))}` })}</a>
-        <a className="back" href={href.desk(edition.id)}>{tr({ en: 'Open in the newsroom', it: 'Apri in redazione' })}</a>
+        <span className="story-top-right">
+          <DeepenButton editionId={edition.id} articleId={a.id} className="btn-ghost" />
+          <a className="back" href={href.desk(edition.id)}>{tr({ en: 'Open in the newsroom', it: 'Apri in redazione' })}</a>
+        </span>
       </div>
       <article className="story">
         <div className="kicker">
@@ -37,6 +41,13 @@ export default function ArticlePage({ edition, article: a }) {
           <span> · {hhmm(a.first)}{a.last - a.first > 60e3 ? `–${hhmm(a.last)}` : ''}</span>
           <span> · {readingTime(a)}</span>
         </div>
+        {a.quotes?.length > 0 && (
+          <aside className="interview-note">
+            {a.quotes.map((q, i) => (
+              <p key={i}><span className="lbl">☎︎ {tr({ en: 'The interview', it: 'L\'intervista' })} · {hhmm(q.at)}</span> {q.question} — <strong>{q.answer || (q.declined ? tr({ en: 'no comment', it: 'nessun commento' }) : tr({ en: 'no reply', it: 'nessuna risposta' }))}</strong></p>
+            ))}
+          </aside>
+        )}
         <Photo image={a.image} size="lg" />
         <div className="story-body">
           {a.body.map((p, i) => <Para key={i} a={a} p={p} className={i === 0 && p.length > 160 ? 'dropcap' : ''} />)}

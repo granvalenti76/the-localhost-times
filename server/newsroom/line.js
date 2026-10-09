@@ -53,6 +53,14 @@ export const toneId = (t) => OLD_TONES[t] || (TONES[t] ? t : 'dry');
 export const isTone = (t) => !!(OLD_TONES[t] || TONES[t]);
 export const lengthId = (l) => OLD_LENGTHS[l] || (FACTORS[l] ? l : 'standard');
 
+/** The editor's part and the games, all on by default. */
+export const FEATURE_IDS = ['interview', 'closing', 'tips', 'flash', 'sport', 'oracle', 'serial', 'chatter'];
+export const DEFAULT_FEATURES = Object.fromEntries(FEATURE_IDS.map((id) => [id, true]));
+export const SERIAL_GENRES = ['giallo', 'spy', 'scifi', 'feuilleton', 'western'];
+
+/** Is a feature on in this editorial line? */
+export const featureOn = (line, id) => line?.features?.[id] !== false;
+
 export const DEFAULT_LINE = {
   tone: 'dry',
   length: 'standard',
@@ -62,6 +70,10 @@ export const DEFAULT_LINE = {
   sectionWeights: { safari: 1, mail: 1, terminal: 1, files: 1, apps: 1, notes: 1, journal: 1, podcasts: 1, books: 1, photos: 1 },
   desks: { ...DEFAULT_DESKS }, // who writes each section ('' = unsigned)
   staff: {},                   // the editor's edits to the bylines: { web: { name, role, style } }
+  // the editor's part in the paper and the paper's games: each can be turned off in the Newsroom
+  features: { ...DEFAULT_FEATURES },
+  serialGenre: 'giallo',       // the genre of the serial (feuilleton)
+  directorName: '',            // how the editor signs their own pieces ('' = "The Editor")
 };
 
 export function getLine(store) {
@@ -72,7 +84,10 @@ export function getLine(store) {
     sectionWeights: { ...DEFAULT_LINE.sectionWeights, ...(saved.sectionWeights || {}) },
     desks: { ...DEFAULT_LINE.desks, ...(saved.desks || {}) },
     staff: { ...(saved.staff || {}) },
+    features: { ...DEFAULT_FEATURES, ...(saved.features || {}) },
   };
+  // what the editor liked and disliked: examples for the writers (kept apart from the line itself)
+  line.taste = store.getSetting('taste', null);
   line.tone = toneId(line.tone);
   line.length = lengthId(line.length);
   return line;
@@ -88,6 +103,10 @@ export function saveLine(store, patch) {
   next.photos = !!next.photos;
   next.desks = { ...cur.desks, ...(patch.desks || {}) };
   for (const [k, v] of Object.entries(next.desks)) if (v !== '' && !WRITER_IDS.includes(v)) next.desks[k] = DEFAULT_DESKS[k] ?? '';
+  next.features = Object.fromEntries(FEATURE_IDS.map((id) => [id, (patch.features || {})[id] ?? cur.features[id] ?? true].map((v, i) => (i ? !!v : v))));
+  if (!SERIAL_GENRES.includes(next.serialGenre)) next.serialGenre = 'giallo';
+  next.directorName = String(next.directorName || '').trim().slice(0, 60);
+  delete next.taste;
   next.staff = { ...cur.staff, ...(patch.staff || {}) };
   for (const id of Object.keys(next.staff)) {
     if (!WRITER_IDS.includes(id)) { delete next.staff[id]; continue; }

@@ -5,6 +5,7 @@
  * npm run rebuild [-- --hours 12] → wipe and reprint (after a newsroom update)
  * npm run photos [-- --hours 4] → trace the photo search for recent pages
  * npm run notify:test → send a test notification
+ * npm run tip -- "…" → a tip for the newsroom (the tip box)
  */
 import { loadConfig } from './config.js';
 import { Store } from './db.js';
@@ -98,8 +99,32 @@ function report() {
 
 let store_ = null;
 
+/** npm run tip -- "text": a tip for the newsroom (to the running paper, or straight into the archive). */
+async function tip() {
+  const text = process.argv.slice(3).filter((a) => !a.startsWith('--')).join(' ').trim();
+  if (!text) {
+    console.log(tr({ en: 'Usage: npm run tip -- "what the newsroom should know"', it: 'Uso: npm run tip -- "cosa deve sapere la redazione"' }));
+    return;
+  }
+  try {
+    const r = await fetch(`http://127.0.0.1:${config.port}/api/tips`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Localhost-Times': '1' },
+      body: JSON.stringify({ text, via: 'cli' }),
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  } catch {
+    // the paper isn't running: the tip waits in the archive for the next edition
+    const { addTip } = await import('./newsroom/tips.js');
+    addTip(new Store(config.dbFile), { text, via: 'cli' });
+  }
+  console.log(tr({ en: '✓ Tip in the box. It goes into the next edition.', it: '✓ Soffiata nella cassetta. Finisce nella prossima edizione.' }));
+}
+
 async function main() {
   if (cmd === 'probe') return probe();
+  if (cmd === 'tip' || cmd === 'soffiata') return tip();
   if (cmd === 'notify') {
     const n = createNotifier({ ...config, demo: false, notifications: { ...config.notifications, enabled: true } }, console.log);
     if (!n.enabled) return console.log(tr({ en: 'Notifications work on macOS only.', it: 'Le notifiche funzionano solo su macOS.' }));
@@ -157,7 +182,7 @@ async function main() {
       : tr({ en: 'No events in the current hour.', it: 'Nessun evento nell\'ora corrente.' }));
     return;
   }
-  console.log('Usage: node server/cli.js probe [--schema] | collect | print [--hours N] | rebuild [--hours N] | photos [--hours N] [--force] | notify');
+  console.log('Usage: node server/cli.js probe [--schema] | collect | print [--hours N] | rebuild [--hours N] | photos [--hours N] [--force] | notify | tip "…"');
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

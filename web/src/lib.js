@@ -41,6 +41,7 @@ export const shortDate = (ms) =>
 // Routes are in English; the Italian ones still work (old links, bookmarks).
 export function parseRoute(hash) {
   const p = hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
+  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'banco' || p[1] === 'bench')) return { desk: true, bench: true, edition: p[2] || null };
   if (p[0] === 'newsroom' || p[0] === 'redazione') return { desk: true, edition: p[1] || null };
   if ((p[0] === 'evening' || p[0] === 'sera') && p[1]) return { evening: p[1] };
   if (p[0] === 'letters' || p[0] === 'lettere') return { letters: true };
@@ -48,6 +49,11 @@ export function parseRoute(hash) {
   if (p[0] === 'investigations' || p[0] === 'inchieste') return { investigations: true };
   if ((p[0] === 'investigation' || p[0] === 'inchiesta') && p[1]) return { investigation: p[1] };
   if (p[0] === 'spotlight') return p[1] ? { scoop: p[1] } : { spotlight: true };
+  if (p[0] === 'calls' || p[0] === 'chiamate') return { calls: p[1] || true };
+  if ((p[0] === 'feature' || p[0] === 'approfondimento') && p[1]) return { feature: p[1] };
+  if (p[0] === 'features' || p[0] === 'approfondimenti') return { features: true };
+  if (p[0] === 'serial' || p[0] === 'feuilleton') return { serial: p[1] || true };
+  if (p[0] === 'sport') return { sport: true };
   if (p[0] === 'e' && p[1]) return { edition: p[1], article: p[2] === 'a' ? p[3] : null };
   if (p[0] === 'd' && p[1]) return { day: p[1], section: p[2] === 's' ? p[3] : null };
   return {};
@@ -66,7 +72,19 @@ export const href = {
   investigation: (id) => `#/investigation/${id}`,
   spotlight: (id) => (id ? `#/spotlight/${id}` : '#/spotlight'),
   spotlightDesk: () => '#/newsroom/spotlight',
+  calls: (id) => (id ? `#/calls/${id}` : '#/calls'),
+  feature: (id) => `#/feature/${id}`,
+  features: () => '#/features',
+  serial: (id) => (id ? `#/serial/${id}` : '#/serial'),
+  bench: (id) => (id ? `#/newsroom/banco/${encodeURIComponent(id)}` : '#/newsroom/banco'),
+  sport: () => '#/sport',
 };
+
+/** A mark out of ten the Italian way (6,5) or the English way (6.5). */
+export const fmtVote = (v) => tr({ en: String(v), it: String(v).replace('.', ',') });
+
+/** "in 4 min" / "tra 4 min" */
+export const minutesLeft = (n) => tr({ en: n <= 0 ? 'closing now' : `${n} min left`, it: n <= 0 ? 'chiude ora' : `tra ${n} min` });
 
 const SECTION_NAMES = {
   en: [

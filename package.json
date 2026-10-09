@@ -35,6 +35,7 @@
     "rebuild": "node --disable-warning=ExperimentalWarning server/cli.js rebuild",
     "photos": "node --disable-warning=ExperimentalWarning server/cli.js photos",
     "notify:test": "node --disable-warning=ExperimentalWarning server/cli.js notify",
+    "tip": "node --disable-warning=ExperimentalWarning server/cli.js tip",
     "service:install": "node --disable-warning=ExperimentalWarning server/service.js install",
     "service:start": "node --disable-warning=ExperimentalWarning server/service.js start",
     "service:stop": "node --disable-warning=ExperimentalWarning server/service.js stop",

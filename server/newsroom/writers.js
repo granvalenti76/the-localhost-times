@@ -74,3 +74,35 @@ export function personaPrompt(w, use = 'article') {
 
 /** What the page shows under the headline (house: the style, for pages that render it). */
 export const byline = (w) => (w ? { id: w.id, name: w.name, role: w.role, house: isStyle(w.house) ? w.house : 'daily' } : null);
+
+/**
+ * The editor's taste: paragraphs they marked as good (to imitate the pace, not the content) or as
+ * bad (to avoid), for this writer first and then for the whole staff. A few lines, never more.
+ */
+export function tastePrompt(line, w) {
+  const t = line?.taste;
+  if (!t) return '';
+  const pick = (list) => {
+    const mine = (list || []).filter((x) => w && x.writer === w.id);
+    const rest = (list || []).filter((x) => !w || x.writer !== w.id);
+    return [...mine, ...rest].slice(0, 3).map((x) => String(x.text).slice(0, 320));
+  };
+  const liked = pick(t.liked);
+  const disliked = pick(t.disliked);
+  if (!liked.length && !disliked.length) return '';
+  const q = (s) => tr({ en: `“${s}”`, it: `«${s}»` });
+  const parts = [];
+  if (liked.length) parts.push(tr({ en: 'PARAGRAPHS THE EDITOR LIKED (imitate the pace and the kind of observation, never the content):', it: 'PARAGRAFI CHE IL DIRETTORE HA APPREZZATO (imita il passo e il tipo di osservazione, mai il contenuto):' }), ...liked.map((x) => `- ${q(x)}`));
+  if (disliked.length) parts.push(tr({ en: 'PARAGRAPHS THE EDITOR DISLIKED (don\'t write like this):', it: 'PARAGRAFI CHE IL DIRETTORE NON HA APPREZZATO (non scrivere così):' }), ...disliked.map((x) => `- ${q(x)}`));
+  return `\n${parts.join('\n')}`;
+}
+
+/** The editor-in-chief as a byline, for the pieces they write themselves. */
+export function directorByline(line) {
+  return {
+    id: 'director',
+    name: line?.directorName || tr({ en: 'The Editor', it: 'Il Direttore' }),
+    role: tr({ en: 'editor-in-chief', it: 'direttore' }),
+    house: 'magazine',
+  };
+}

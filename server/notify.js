@@ -24,7 +24,7 @@ function findBin(name) {
 
 export function createNotifier(config, log = console.log) {
   const off = process.platform !== 'darwin' || !config.notifications?.enabled || config.demo;
-  if (off) return { enabled: false, edition() {}, evening() {}, spotlight() {}, spotlightReply() {}, test() {} };
+  if (off) return { enabled: false, edition() {}, evening() {}, spotlight() {}, spotlightReply() {}, call() {}, flash() {}, test() {} };
   const tn = findBin('terminal-notifier');
   const base = `http://127.0.0.1:${config.port}/`;
 
@@ -84,9 +84,27 @@ export function createNotifier(config, log = console.log) {
     });
   }
 
+  /** The newsroom calls the Editor: a reporter's question, the closing at :55. */
+  function call(c) {
+    if (!c) return;
+    send({
+      subtitle: c.type === 'closing'
+        ? tr({ en: 'The edition closes in 5 minutes', it: 'L\'edizione chiude tra 5 minuti' })
+        : tr({ en: `${c.by?.name || 'A reporter'} is on the line`, it: `${c.by?.name || 'Un cronista'} al telefono` }),
+      message: c.question,
+      url: `#/calls/${c.id}`,
+    });
+  }
+
+  /** Breaking news. */
+  function flash(f) {
+    if (!f) return;
+    send({ subtitle: tr({ en: 'Breaking news', it: 'Ultim\'ora' }), message: f.headline, url: '#/' });
+  }
+
   function test() {
     send({ subtitle: tr({ en: 'Notifications are on', it: 'Le notifiche funzionano' }), message: tr({ en: 'You will hear from us every hour.', it: 'Ci sentiamo a ogni edizione.' }) });
   }
 
-  return { enabled: true, edition, evening, spotlight, spotlightReply, test, via: tn ? 'terminal-notifier' : 'osascript' };
+  return { enabled: true, edition, evening, spotlight, spotlightReply, call, flash, test, via: tn ? 'terminal-notifier' : 'osascript' };
 }
