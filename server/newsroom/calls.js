@@ -390,7 +390,8 @@ export function closingRound(store, config, { now = Date.now(), log = () => {}, 
 
 /** At print: how the Editor answered the closing call of this edition, if they did. */
 export function closingOf(store, { windowStart, end }) {
-  const c = store.items(KIND, { after: windowStart, before: end, limit: 10 }).find((x) => x.type === 'closing' && x.status === 'answered');
+  // "let the desk decide" and "keep it" changed nothing: nothing to tell the reader
+  const c = store.items(KIND, { after: windowStart, before: end, limit: 10 }).find((x) => x.type === 'closing' && x.status === 'answered' && !['desk', 'keep'].includes(x.option));
   return c ? { question: c.question, answer: c.answer, option: c.option, storyId: c.options?.find((o) => o.id === c.option)?.storyId || null, at: c.answeredAt } : null;
 }
 

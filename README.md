@@ -209,6 +209,7 @@ Subjects touching health, money troubles, love, faith, politics, the law or a jo
 - **Sport.** Report cards for the apps and sites of the hour, marked out of ten like footballers after a match, the records broken (with the previous best) and the games played on chess sites. The record book is at `#/sport`.
 - **The Oracle.** Every edition makes two checkable predictions on the next hour (*“He'll be back on chess.com before 20:00”*); the next edition checks them. Bet against it: both scores are kept.
 - **The serial.** A novel in instalments (mystery, spy story, science fiction, serial novel or western), one episode per edition, made from the hour's real facts and ending on a fork: you choose how it goes on. It needs the model.
+- **How it's built.** Every article has a *How it's built* switch: the article is shown in its parts (lede, why it matters, quote, development, kicker), each with what it does and, when it applies, what could be better (a lede that opens on the time, a headline split by a colon, a missing “why it matters”). And in *The Brief* box, the managing editor leaves one note per edition on an article of that edition: a good example or a bad one, with a link to its anatomy. Plain rules, no model: they work on every article, old ones included.
 - **The newsroom, live.** What the writers say to each other while they work (*“Brera: I've got 40 commands in the Workshop, save me a spot on page one?”*), on the front page and in *Newsroom → Live*.
 
 In **the Archive**:

@@ -159,7 +159,7 @@ export default function App() {
         ) : route.section ? (
           <SectionPage day={day} slug={route.section} />
         ) : article ? (
-          <ArticlePage edition={edition} article={article} />
+          <ArticlePage key={`${article.id}-${route.xray ? 'x' : ''}`} edition={edition} article={article} xray={!!route.xray} />
         ) : edition && !route.day ? (
           <FrontPage edition={edition} />
         ) : loaded ? (

@@ -14,6 +14,7 @@ import RadioBox from './Radio.jsx';
 import { FlashBand, ChatterBox } from './Live.jsx';
 import { SportBox, OracleBox, SerialBox, RumoursBox } from './Games.jsx';
 import { FeaturesBox } from './Features.jsx';
+import { EditorNote } from './Craft.jsx';
 
 /** Small flags on an article: the Editor's choice, a record, a quote, a tip. */
 function Flags({ a, chosen }) {
@@ -138,7 +139,32 @@ export default function FrontPage({ edition }) {
               ))}
             </div>
           )}
+          {/* the rest of the paper stays in the main column, next to the rail: no empty space beside it */}
+          {third.length > 0 && (
+            <section className="front-grid">
+              {third.map((a) => (
+                <article key={a.id} className={`card ${a.image ? 'has-photo' : ''}`}>
+                  <Photo image={a.image} size="sm" caption={false} />
+                  <Kicker a={a} />
+                  <h2 className="hl-md"><a href={link(a)}>{a.headline}</a></h2>
+                  {a.dek && <p className="dek dek-sm">{a.dek}</p>}
+                  <Meta a={a} />
+                </article>
+              ))}
+            </section>
+          )}
+          {edition.briefs.length > 0 && (
+            <section className="briefs">
+              <h3 className="box-title">{tr({ en: 'Briefly', it: 'In breve' })}</h3>
+              <ul>
+                {edition.briefs.map((b, i) => (
+                  <li key={i}><span className="sec">{b.section}</span> {b.text}</li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
+        {/* the rail: what the editors say about this edition */}
         <aside className="rail">
           <Cartoon cartoon={edition.cartoon} />
           <RadioBox edition={edition} />
@@ -146,55 +172,35 @@ export default function FrontPage({ edition }) {
             <h3 className="box-title">{tr({ en: 'The Brief', it: 'Il punto' })}</h3>
             <p>{edition.summary}</p>
             {edition.summaryBy && <p className="punto-by">— {edition.summaryBy.name}</p>}
-            {edition.closing && !edition.closing.storyId && (
+            {edition.closing && !edition.closing.storyId && edition.closing.option !== 'desk' && edition.closing.option !== 'keep' && (
               <p className="closing-note">{tr({ en: `At ${hhmm(edition.closing.at)} the Editor decided: ${edition.closing.answer}.`, it: `Alle ${hhmm(edition.closing.at)} il direttore ha deciso: ${edition.closing.answer}.` })}</p>
             )}
+            <EditorNote edition={edition} />
           </section>
-          <SerialBox serial={edition.serial} />
-          <SportBox sport={edition.sport} />
-          <OracleBox oracle={edition.oracle} />
-          <RumoursBox rumours={edition.rumours} />
-          <ChatterBox />
           <FactCheck edition={edition} />
           <SpotlightBox edition={edition} />
-          <FeaturesBox />
-          <InvestigationBox />
-          <LettersBox letters={edition.letters} />
-          <TimeBox time={edition.time} />
-          <Market market={edition.market} />
-          <section className="box">
-            <h3 className="box-title">{tr({ en: 'By the numbers', it: 'In numeri' })}</h3>
-            <MacLine mac={edition.mac} />
-            <Activity stats={edition.stats} start={edition.start} />
-            <Numbers stats={edition.stats} />
-          </section>
+          <RumoursBox rumours={edition.rumours} />
+          <ChatterBox />
         </aside>
       </section>
 
-      {third.length > 0 && (
-        <section className="front-grid">
-          {third.map((a) => (
-            <article key={a.id} className={`card ${a.image ? 'has-photo' : ''}`}>
-              <Photo image={a.image} size="sm" caption={false} />
-              <Kicker a={a} />
-              <h2 className="hl-md"><a href={link(a)}>{a.headline}</a></h2>
-              {a.dek && <p className="dek dek-sm">{a.dek}</p>}
-              <Meta a={a} />
-            </article>
-          ))}
+      {/* below the fold: the games and the numbers, side by side */}
+      <section className="back-pages" aria-label={tr({ en: 'Games and numbers', it: 'Giochi e numeri' })}>
+        <SerialBox serial={edition.serial} />
+        <SportBox sport={edition.sport} />
+        <OracleBox oracle={edition.oracle} />
+        <FeaturesBox />
+        <InvestigationBox />
+        <LettersBox letters={edition.letters} />
+        <TimeBox time={edition.time} />
+        <Market market={edition.market} />
+        <section className="box">
+          <h3 className="box-title">{tr({ en: 'By the numbers', it: 'In numeri' })}</h3>
+          <MacLine mac={edition.mac} />
+          <Activity stats={edition.stats} start={edition.start} />
+          <Numbers stats={edition.stats} />
         </section>
-      )}
-
-      {edition.briefs.length > 0 && (
-        <section className="briefs">
-          <h3 className="box-title">{tr({ en: 'Briefly', it: 'In breve' })}</h3>
-          <ul>
-            {edition.briefs.map((b, i) => (
-              <li key={i}><span className="sec">{b.section}</span> {b.text}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+      </section>
     </div>
   );
 }

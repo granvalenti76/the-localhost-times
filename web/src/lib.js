@@ -54,7 +54,7 @@ export function parseRoute(hash) {
   if (p[0] === 'features' || p[0] === 'approfondimenti') return { features: true };
   if (p[0] === 'serial' || p[0] === 'feuilleton') return { serial: p[1] || true };
   if (p[0] === 'sport') return { sport: true };
-  if (p[0] === 'e' && p[1]) return { edition: p[1], article: p[2] === 'a' ? p[3] : null };
+  if (p[0] === 'e' && p[1]) return { edition: p[1], article: p[2] === 'a' ? p[3] : null, xray: p[2] === 'a' && p[4] === 'x' };
   if (p[0] === 'd' && p[1]) return { day: p[1], section: p[2] === 's' ? p[3] : null };
   return {};
 }

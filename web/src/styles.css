@@ -84,10 +84,10 @@ button { font: inherit; color: inherit; }
 }
 .mast-bar > :last-child { text-align: right; }
 .sections {
-  display: flex; justify-content: center; flex-wrap: wrap; gap: 4px clamp(9px, .95vw, 18px);
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 4px clamp(8px, .8vw, 16px);
   padding: 10px 0 9px;
   border-bottom: 3px double var(--rule);
-  font: 500 13px/1.2 var(--f-sans);
+  font: 500 12.5px/1.2 var(--f-sans);
 }
 .sections a { padding: 2px 0; border-bottom: 2px solid transparent; }
 .sections a.on { border-bottom-color: var(--ink); font-weight: 700; }
@@ -1311,3 +1311,50 @@ a.btn-ghost { display: inline-block; }
 .lead-badge.kw { text-transform: none; letter-spacing: 0; font-weight: 600; }
 .lead-tool { display: flex; gap: 6px; margin: 6px 0 4px; }
 .lead-ex li.witness { color: #6b4f8f; font-style: italic; }
+
+/* the front page: articles all in the main column, the games and numbers in a band below */
+.front-main .front-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--rule); margin-top: 20px; }
+.front-main .front-grid .card:nth-child(n) { padding: 18px 22px 20px; border-right: 1px solid var(--hair); }
+.front-main .front-grid .card:nth-child(2n+1) { padding-left: 0; }
+.front-main .front-grid .card:nth-child(2n) { border-right: 0; padding-right: 0; }
+.front-main .briefs ul { columns: 2; }
+.back-pages {
+  columns: 4 240px; column-gap: 28px; column-rule: 1px solid var(--hair);
+  border-top: 3px double var(--rule); padding-top: 22px; margin-top: 6px;
+}
+.back-pages > * { break-inside: avoid; margin: 0 0 24px; display: block; }
+@media screen and (max-width: 680px) {
+  .front-main .front-grid { grid-template-columns: 1fr; }
+  .front-main .front-grid .card:nth-child(n) { padding: 16px 0; border-right: 0; }
+  .front-main .briefs ul { columns: 1; }
+}
+
+/* how an article is built: its parts, labelled, with notes in the margin */
+.xray { margin: 8px 0 0; --x-lede: #a3171f; --x-nut: #b8860b; --x-quote: #2f6f8f; --x-source: #6b4f8f; --x-body: #8a877f; --x-kicker: #2f8f4e; }
+.xray-part { display: grid; grid-template-columns: 96px minmax(0, 1fr) 230px; gap: 0 16px; align-items: start; padding: 10px 0; border-top: 1px solid var(--hair); }
+.xray-part > p { margin: 0; font: 400 18px/1.6 var(--f-serif); padding-left: 12px; border-left: 3px solid var(--x-body); }
+.xray-label { font: 800 10.5px/1.2 var(--f-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--x-body); padding-top: 5px; }
+.role-lede .xray-label { color: var(--x-lede); } .role-lede > p { border-left-color: var(--x-lede); }
+.role-nut .xray-label { color: var(--x-nut); } .role-nut > p { border-left-color: var(--x-nut); }
+.role-quote .xray-label { color: var(--x-quote); } .role-quote > p { border-left-color: var(--x-quote); }
+.role-source .xray-label { color: var(--x-source); } .role-source > p { border-left-color: var(--x-source); }
+.role-kicker .xray-label { color: var(--x-kicker); } .role-kicker > p { border-left-color: var(--x-kicker); }
+.xray-part.missing > p { border-left-style: dashed; color: var(--muted); font: italic 400 15px/1.5 var(--f-serif); }
+.xray-headline { grid-template-columns: 96px minmax(0, 1fr); }
+.xray-notes { list-style: none; margin: 0; padding: 4px 0 0; font: 400 12.5px/1.4 var(--f-sans); }
+.xray-notes li { margin-bottom: 5px; padding-left: 16px; position: relative; }
+.xray-notes li::before { position: absolute; left: 0; top: 0; font-weight: 800; }
+.xray-notes li.what { color: var(--muted); padding-left: 0; }
+.xray-notes li.good::before { content: '✓'; color: #2f8f4e; }
+.xray-notes li.bad::before { content: '✗'; color: var(--accent); }
+.xray-notes li.bad { color: var(--ink-2); }
+.xray-toggle.on { background: var(--ink); color: var(--paper); }
+@media (max-width: 860px) {
+  .xray-part, .xray-headline { grid-template-columns: 1fr; gap: 4px; }
+  .xray-label { padding-top: 0; }
+}
+.editor-note { margin-top: 14px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--chip); }
+.editor-note.good { border-left-color: #2f8f4e; }
+.editor-note .lbl { display: block; margin-bottom: 4px; }
+.editor-note p { margin: 0; font: 400 14px/1.45 var(--f-sans) !important; font-style: normal !important; }
+.editor-note a { font-weight: 700; white-space: nowrap; }
