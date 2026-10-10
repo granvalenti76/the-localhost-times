@@ -12,6 +12,7 @@ import EveningPage from './components/EveningPage.jsx';
 import LettersPage from './components/Letters.jsx';
 import ArchivePage from './components/ArchivePage.jsx';
 import { InvestigationsPage, InvestigationPage } from './components/Investigations.jsx';
+import { InquiryPage, EditorDeskPage } from './components/Inquiry.jsx';
 import { SpotlightList, SpotlightPage } from './components/Spotlight.jsx';
 import { CallsBar, CallsPage } from './components/Live.jsx';
 import { FeaturePage, FeaturesList } from './components/Features.jsx';
@@ -47,7 +48,7 @@ export default function App() {
   // The current edition
   useEffect(() => {
     let alive = true;
-    const page = route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.calls || route.feature || route.features || route.serial || route.sport;
+    const page = route.desk || route.inquiry || route.editorDesk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.calls || route.feature || route.features || route.serial || route.sport;
     if (page) { setLoaded(true); return () => { alive = false; }; }
     const p = route.edition ? api(`/editions/${encodeURIComponent(route.edition)}`) : route.day ? Promise.resolve(null) : api('/editions/latest');
     p.then((e) => {
@@ -59,7 +60,7 @@ export default function App() {
       .catch((err) => alive && (setEdition(null), setError(route.edition ? err.message : null)))
       .finally(() => alive && setLoaded(true));
     return () => { alive = false; };
-  }, [route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop, route.calls, route.feature, route.features, route.serial, route.sport]);
+  }, [route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop, route.calls, route.feature, route.features, route.serial, route.sport, route.inquiry, route.editorDesk]);
 
   useEffect(() => { if (route.day) setDay(route.day); }, [route.day]);
   useEffect(() => { if (route.evening) setDay(route.evening); }, [route.evening]);
@@ -108,12 +109,12 @@ export default function App() {
 
   const article = route.article && edition?.articles.find((a) => a.id === route.article);
   // pages of their own: no timeline bar above them
-  const standalone = route.desk || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop
+  const standalone = route.desk || route.inquiry || route.editorDesk || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop
     || route.calls || route.feature || route.features || route.serial || route.sport;
 
   return (
     <div className="paper">
-      <Masthead edition={route.desk || route.evening || standalone ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.features || route.feature ? 'features' : route.archive || route.investigations || route.investigation ? 'archive' : route.evening ? 'evening' : route.section} />
+      <Masthead edition={route.desk || route.evening || standalone ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk || route.inquiry || route.editorDesk ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.features || route.feature ? 'features' : route.archive || route.investigations || route.investigation ? 'archive' : route.evening ? 'evening' : route.section} />
       {!route.calls && <CallsBar />}
       {!standalone && (
         <EditionBar day={day} list={list} current={route.evening ? evening?.id : edition?.id} onPrint={printNow} printing={printing}
@@ -128,7 +129,11 @@ export default function App() {
       )}
       {error && <p className="notice" role="status">{error}</p>}
       <main>
-        {route.desk && route.bench ? (
+        {route.inquiry ? (
+          <InquiryPage key={String(route.inquiry)} id={route.inquiry === true ? null : route.inquiry} />
+        ) : route.editorDesk ? (
+          <EditorDeskPage key={String(route.editorDesk)} id={route.editorDesk === true ? null : route.editorDesk} />
+        ) : route.desk && route.bench ? (
           <Bench key={route.edition || 'bench'} editionId={route.edition} />
         ) : route.calls ? (
           <CallsPage id={route.calls === true ? null : route.calls} />

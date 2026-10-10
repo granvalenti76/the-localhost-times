@@ -17,6 +17,9 @@ const DEFAULTS = {
     concurrency: 1,      // parallel requests to the model (1 = queued, suits local servers)
     temperature: 0.7,
     thinking: false,
+    // the investigation's writer: long, ambitious prose. Empty baseUrl/model = the model above,
+    // used warmer and with more room; set them to send the long pieces to a creative-writing model
+    creative: { baseUrl: '', model: '', apiKey: '', temperature: 0.85, maxTokens: 4000 },
   },
   collectEveryMinutes: 5,
   backfillHours: 1,

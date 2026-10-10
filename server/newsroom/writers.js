@@ -1,28 +1,28 @@
 /**
- * The newsroom's staff: invented bylines, each with a voice. The model is the same;
- * what changes is the character it plays. Each section is assigned a writer; the columnist
- * also signs the Brief and the evening editorial. Names and styles can be edited in the
- * Newsroom (stored with the editorial line).
+ * The newsroom's staff: invented bylines. The paper has one voice (voice.js): the bylines are
+ * people on the staff, not different styles. Each section is assigned a writer; the columnist
+ * also signs the Brief and the evening editorial. Names, roles and an optional deviation (one
+ * line from the editor that shifts a writer's focus or attitude, never the register) can be
+ * edited in the Newsroom (stored with the editorial line).
  */
 import { L, tr } from '../i18n.js';
-import { styleOf, isStyle } from './styles.js';
 
 const ROSTER = {
   en: {
-    web: { house: 'daily', name: 'Nora Lake', role: 'web correspondent', style: 'Curious and light on her feet; notices patterns in what was read, and what was only skimmed. Short sentences, one sharp observation per piece.' },
-    tech: { house: 'tech', name: 'Walt Brenner', role: 'technology correspondent', style: 'Precise, a little dry, fond of the right word for a command; explains what was being built without lecturing. Respects working code.' },
-    local: { house: 'daily', name: 'Frank Doyle', role: 'city desk', style: 'The old local reporter: mail, folders and downloads are his neighbourhood. Plain words, concrete details, a wry closing line.' },
-    culture: { house: 'magazine', name: 'Julian Ashe', role: 'critic', style: 'Cultured without showing off; treats a podcast episode or an underlined passage as worth a real sentence. Measured, elegant, never gushing.' },
-    spotlight: { house: 'explainer', name: 'Ruth Calder', role: 'Spotlight editor', style: 'Patient and exact; builds a case exhibit by exhibit, never claims more than the evidence shows, and ends by telling the reader what it means for them. Warm, not preachy.' },
-    columnist: { house: 'essay', name: 'Margaret Holt', role: 'columnist', style: 'Sharp, ironic, economical: finds the thread that ties the hour together and says it in two lines. Signs the Brief and the evening editorial.' },
+    web: { name: 'Nora Lake', role: 'web correspondent' },
+    tech: { name: 'Walt Brenner', role: 'technology correspondent' },
+    local: { name: 'Frank Doyle', role: 'city desk' },
+    culture: { name: 'Julian Ashe', role: 'critic' },
+    spotlight: { name: 'Ruth Calder', role: 'Spotlight editor' },
+    columnist: { name: 'Margaret Holt', role: 'columnist' },
   },
   it: {
-    web: { house: 'daily', name: 'Elena Rossetti', role: 'inviata sul web', style: 'Curiosa e leggera; nota le abitudini di lettura, e cosa è stato solo sfogliato. Frasi brevi, un\'osservazione acuta per pezzo.' },
-    tech: { house: 'tech', name: 'Giulio Ferraris', role: 'cronista tecnico', style: 'Preciso, un po\' asciutto, ama la parola giusta per un comando; spiega cosa si stava costruendo senza fare lezioni. Rispetta il codice che funziona.' },
-    local: { house: 'daily', name: 'Tonino Brera', role: 'cronaca locale', style: 'Il vecchio cronista di quartiere: posta, cartelle e download sono la sua zona. Parole semplici, dettagli concreti, una chiusa sorniona.' },
-    culture: { house: 'magazine', name: 'Ottavio Lancia', role: 'critico', style: 'Colto senza esibirsi; tratta un episodio di podcast o un passo sottolineato come degni di una frase vera. Misurato, elegante, mai entusiasta a vuoto.' },
-    spotlight: { house: 'explainer', name: 'Marta Vescovi', role: 'caporedattrice di Spotlight', style: 'Paziente ed esatta; costruisce il caso reperto dopo reperto, non afferma mai più di quanto le prove mostrino, e chiude dicendo al lettore cosa significa per lui. Calda, mai predicatoria.' },
-    columnist: { house: 'essay', name: 'Bice Cantoni', role: 'corsivista', style: 'Tagliente, ironica, essenziale: trova il filo che lega l\'ora e lo dice in due righe. Firma il Punto e l\'editoriale della sera.' },
+    web: { name: 'Elena Rossetti', role: 'inviata sul web' },
+    tech: { name: 'Giulio Ferraris', role: 'cronista tecnico' },
+    local: { name: 'Tonino Brera', role: 'cronaca locale' },
+    culture: { name: 'Ottavio Lancia', role: 'critico' },
+    spotlight: { name: 'Marta Vescovi', role: 'caporedattrice di Spotlight' },
+    columnist: { name: 'Bice Cantoni', role: 'corsivista' },
   },
 };
 
@@ -36,7 +36,7 @@ export const DEFAULT_DESKS = {
   spotlight: 'spotlight', // the Spotlight desk's scoops
 };
 
-/** The staff, with the editor's edits (names, roles, styles) on top of the defaults. */
+/** The staff, with the editor's edits (names, roles, deviations) on top of the defaults. */
 export function staff(line) {
   const base = L(ROSTER);
   const custom = line?.staff || {};
@@ -54,26 +54,18 @@ export function writerFor(line, source) {
 /** Who signs the Brief and the evening editorial. */
 export const columnist = (line) => writerFor(line, 'brief');
 
-/**
- * The lines added to the writer's instructions: who you are, how you write, and the house style.
- * use: 'article' (everything), 'editorial' (the style, unless it needs labelled paragraphs),
- * 'brief' (no house style: the Brief is two sentences).
- */
-export function personaPrompt(w, use = 'article') {
+/** The lines added to the writer's instructions: who you are, and the deviation the editor gave you, if any. */
+export function personaPrompt(w) {
   if (!w) return '';
-  const st = styleOf(w);
-  const house = use === 'brief' || (use === 'editorial' && st.labeled) ? '' : `\n${st.prompt} ${tr({
-    en: 'This style decides how the piece is built and may override the general advice on structure and sentence length; it never overrides the rules on facts.',
-    it: 'Questo stile decide come è costruito il pezzo e può prevalere sui consigli generali su struttura e lunghezza delle frasi; non prevale mai sulle regole sui fatti.',
-  })}`;
-  return house + tr({
-    en: `\nYOUR BYLINE: you are ${w.name}, ${w.role} of the paper. Your style: ${w.style} Write in that voice, within the rules above; don't sign the text and don't mention your name.`,
-    it: `\nLA TUA FIRMA: sei ${w.name}, ${w.role} del giornale. Il tuo stile: ${w.style} Scrivi con quella voce, dentro le regole qui sopra; non firmare il testo e non nominarti.`,
+  const dev = String(w.deviation || '').trim();
+  return tr({
+    en: `\nYOUR BYLINE: you are ${w.name}, ${w.role} of the paper. You write in the house voice; don't sign the text and don't mention your name.${dev ? `\nYOUR DEVIATION (from the editor): ${dev} It shifts what you notice and your attitude, never the house register or the rules about facts.` : ''}`,
+    it: `\nLA TUA FIRMA: sei ${w.name}, ${w.role} del giornale. Scrivi nella voce della casa; non firmare il testo e non nominarti.${dev ? `\nLA TUA DEVIAZIONE (decisa dal direttore): ${dev} Sposta cosa noti e il tuo atteggiamento, mai il registro della casa né le regole sui fatti.` : ''}`,
   });
 }
 
-/** What the page shows under the headline (house: the style, for pages that render it). */
-export const byline = (w) => (w ? { id: w.id, name: w.name, role: w.role, house: isStyle(w.house) ? w.house : 'daily' } : null);
+/** What the page shows under the headline. */
+export const byline = (w) => (w ? { id: w.id, name: w.name, role: w.role } : null);
 
 /**
  * The editor's taste: paragraphs they marked as good (to imitate the pace, not the content) or as
@@ -103,6 +95,5 @@ export function directorByline(line) {
     id: 'director',
     name: line?.directorName || tr({ en: 'The Editor', it: 'Il Direttore' }),
     role: tr({ en: 'editor-in-chief', it: 'direttore' }),
-    house: 'magazine',
   };
 }

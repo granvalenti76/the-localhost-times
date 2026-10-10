@@ -10,12 +10,13 @@ import { Paragraphs, HeadlinePicker } from './Bench.jsx';
 import { DeepenButton } from './Features.jsx';
 import { ChatterFeed } from './Live.jsx';
 import CommissionPanel, { PiecesStrip } from './Commissions.jsx';
+import { NewsroomNav } from './Inquiry.jsx';
 
 const T = tr({
   en: {
     quick: ['Shorter', 'More ironic', 'More serious', 'Better headline', 'Just the facts'],
     size: { lead: 'Lead', article: 'Article', brief: 'Brief' },
-    tone: 'Tone', length: 'Article length', space: 'Room for each section', notes: 'Editor\'s notes',
+    voice: 'The voice', voiceText: 'One voice for the whole paper, in the manner of The New Yorker: cultivated, amused, a touch superior, never cruel. The rules and the examples are in the style guide (docs/STYLE.md); to shift a single writer, give them a deviation below.', length: 'Article length', space: 'Room for each section', notes: 'Editor\'s notes',
     notesPh: 'Rules for the writers, for example:\n· Never talk about Facebook\n· Work on TurboCode is always news\n· Call me “the Editor”',
     printing: 'Printing', autoPub: 'Publish automatically', autoPubHint: 'If you turn it off, every edition stays a draft until you send it to press from here.',
     photos: 'Photos', photosHint: 'Previews of public pages and YouTube thumbnails.',
@@ -40,15 +41,15 @@ const T = tr({
     panels: 'Newsroom panels', meeting: 'Meeting', line: 'Editorial line', nextTab: 'Next edition',
     newArticle: 'New article', heads: 'Headlines', bench: 'Quick bench', benchHint: 'One article at a time, keep or cut', viva: 'Live', tipsTab: 'Tips',
     games: 'The Editor\'s part and the games', gamesHint: 'Each can be turned off. The calls and the closing send a notification.',
-    feat: { interview: ['Interviews', 'A reporter calls you about a big story; your answer becomes a quote'], closing: ['The closing at :55', 'The desk asks what leads, what to cut, which tone'], tips: ['Tip box', 'Your tips go into the stories, or into “Word is”'], flash: ['Breaking news', 'A flash when a record falls mid-hour'], sport: ['Sport', 'Report cards and records'], oracle: ['The Oracle', 'Predictions on the next hour; bet against it'], serial: ['The serial', 'A novel in instalments, you choose how it goes on'], chatter: ['The newsroom, live', 'What the writers say to each other'] },
+    feat: { interview: ['Interviews', 'A reporter calls you about a big story; your answer becomes a quote, a lead makes the piece longer'], closing: ['The closing at :55', 'The desk asks what leads, or what to cut'], tips: ['Tip box', 'Your tips go into the stories, or into “Word is”'], flash: ['Breaking news', 'A flash when a record falls mid-hour'], sport: ['Sport', 'Report cards and records'], oracle: ['The Oracle', 'Predictions on the next hour; bet against it'], serial: ['The serial', 'A novel in instalments, you choose how it goes on'], chatter: ['The newsroom, live', 'What the writers say to each other'] },
     genre: 'Genre of the serial', director: 'How you sign your pieces', directorPh: 'The Editor', scoreTitle: 'The staff\'s scoreboard', scoreHint: '♥ paragraphs you liked · ✕ disliked · kept and cut on the bench',
     tipsTitle: 'The tip box', tipsHint: 'Hand the newsroom a fact the signals can\'t know. It goes into the matching story (“a source close to the owner”) or into “Word is”. Also from a note in the Notes folder “Newsroom” (or “Redazione”), or from the terminal: npm run tip -- "…"', tipPh: 'e.g. I lost five games in a row to the same player', tipSend: 'Into the box', tipNew: 'waiting', tipUsed: 'used', tipArchived: 'archived', tipVia: { notes: 'Notes', cli: 'terminal', web: 'paper' }, noTips: 'The box is empty.',
-    staffTitle: 'The bylines', desksTitle: 'Who writes what', unsigned: 'Unsigned (the newsroom)', briefDesk: 'The Brief and the editorial', wName: 'Name', wRole: 'Role', wStyle: 'Voice (how they write)', wHouse: 'House style', staffHint: 'Invented writers: the same model plays a different character for each.', openEdition: 'Open an edition to discuss it.',
+    staffTitle: 'The bylines', desksTitle: 'Who writes what', unsigned: 'Unsigned (the newsroom)', briefDesk: 'The Brief and the editorial', wName: 'Name', wRole: 'Role', wDeviation: 'Deviation (optional)', wDeviationPh: 'e.g. keener on the numbers; partial to melancholy endings', staffHint: 'Invented writers, all in the house voice. A deviation is one line that shifts what a writer notices or their attitude, never the register.', openEdition: 'Open an edition to discuss it.',
   },
   it: {
     quick: ['Più corto', 'Più ironico', 'Più serio', 'Titolo migliore', 'Solo i fatti'],
     size: { lead: 'Apertura', article: 'Articolo', brief: 'Breve' },
-    tone: 'Tono', length: 'Lunghezza degli articoli', space: 'Spazio alle sezioni', notes: 'Note del direttore',
+    voice: 'La voce', voiceText: 'Una sola voce per tutto il giornale, alla maniera del New Yorker: colta, divertita, un filo superiore, mai cattiva. Le regole e gli esempi sono nel manuale di stile (docs/STYLE.md); per spostare una sola firma, dalle una deviazione qui sotto.', length: 'Lunghezza degli articoli', space: 'Spazio alle sezioni', notes: 'Note del direttore',
     notesPh: 'Regole per i redattori, per esempio:\n· Non parlare mai di Facebook\n· Il lavoro su TurboCode è sempre notizia\n· Chiamami «il Direttore»',
     printing: 'Stampa', autoPub: 'Pubblicazione automatica', autoPubHint: 'Se la togli, ogni edizione resta in bozza finché non la mandi in stampa da qui.',
     photos: 'Foto', photosHint: 'Anteprime delle pagine pubbliche e miniature di YouTube.',
@@ -73,10 +74,10 @@ const T = tr({
     panels: 'Pannelli della redazione', meeting: 'Riunione', line: 'Linea editoriale', nextTab: 'Prossima',
     newArticle: 'Nuovo articolo', heads: 'Titoli', bench: 'Banco rapido', benchHint: 'Un articolo alla volta, tieni o taglia', viva: 'Viva', tipsTab: 'Soffiate',
     games: 'La parte del direttore e i giochi', gamesHint: 'Ognuno si può spegnere. Le chiamate e la chiusura mandano una notifica.',
-    feat: { interview: ['Interviste', 'Un cronista la chiama su una storia grossa; la risposta diventa una citazione'], closing: ['La chiusura delle :55', 'Il desk chiede cosa aprire, cosa tagliare, che tono'], tips: ['Cassetta delle soffiate', 'Le soffiate entrano nelle storie, o in «Si dice che»'], flash: ['Ultim\'ora', 'Un flash quando cade un primato a metà ora'], sport: ['Sport', 'Pagelle e primati'], oracle: ['L\'Oracolo', 'Pronostici sull\'ora dopo; ci si può scommettere contro'], serial: ['Il feuilleton', 'Un romanzo a puntate, come continua lo decide lei'], chatter: ['La redazione viva', 'Cosa si dicono i redattori'] },
+    feat: { interview: ['Interviste', 'Un cronista la chiama su una storia grossa; la risposta diventa una citazione, una traccia allunga il pezzo'], closing: ['La chiusura delle :55', 'Il desk chiede cosa aprire, o cosa tagliare'], tips: ['Cassetta delle soffiate', 'Le soffiate entrano nelle storie, o in «Si dice che»'], flash: ['Ultim\'ora', 'Un flash quando cade un primato a metà ora'], sport: ['Sport', 'Pagelle e primati'], oracle: ['L\'Oracolo', 'Pronostici sull\'ora dopo; ci si può scommettere contro'], serial: ['Il feuilleton', 'Un romanzo a puntate, come continua lo decide lei'], chatter: ['La redazione viva', 'Cosa si dicono i redattori'] },
     genre: 'Genere del feuilleton', director: 'Come firma i suoi pezzi', directorPh: 'Il Direttore', scoreTitle: 'La classifica della redazione', scoreHint: '♥ paragrafi apprezzati · ✕ bocciati · tenuti e tagliati al banco',
     tipsTitle: 'La cassetta delle soffiate', tipsHint: 'Dia alla redazione un fatto che i segnali non possono sapere. Finisce nella storia che c\'entra («una fonte vicina al proprietario») o in «Si dice che». Anche da una nota nella cartella «Redazione» di Note, o dal terminale: npm run tip -- "…"', tipPh: 'es. ho perso cinque partite di fila con lo stesso avversario', tipSend: 'Nella cassetta', tipNew: 'in attesa', tipUsed: 'usata', tipArchived: 'archiviata', tipVia: { notes: 'Note', cli: 'terminale', web: 'giornale' }, noTips: 'La cassetta è vuota.',
-    staffTitle: 'Le firme', desksTitle: 'Chi scrive cosa', unsigned: 'Senza firma (la redazione)', briefDesk: 'Il Punto e l\'editoriale', wName: 'Nome', wRole: 'Ruolo', wStyle: 'Carattere (come scrive)', wHouse: 'Stile', staffHint: 'Redattori inventati: lo stesso modello interpreta un personaggio diverso per ciascuno.', openEdition: 'Apri un\'edizione per discuterne.',
+    staffTitle: 'Le firme', desksTitle: 'Chi scrive cosa', unsigned: 'Senza firma (la redazione)', briefDesk: 'Il Punto e l\'editoriale', wName: 'Nome', wRole: 'Ruolo', wDeviation: 'Deviazione (facoltativa)', wDeviationPh: 'es. più attento ai numeri; un debole per le chiuse malinconiche', staffHint: 'Redattori inventati, tutti nella voce della casa. Una deviazione è una riga che sposta cosa nota una firma o il suo atteggiamento, mai il registro.', openEdition: 'Apri un\'edizione per discuterne.',
   },
 });
 // tone names, also for ids stored by older editions
@@ -85,7 +86,7 @@ const TONE_NAMES = tr({
   en: { dry: 'dry', ironic: 'ironic', satirical: 'satirical', british: 'understatement', tabloid: 'tabloid' },
   it: { dry: 'asciutto', ironic: 'ironico', satirical: 'satirico', british: 'understatement', tabloid: 'strillone' },
 });
-const toneName = (t) => TONE_NAMES[OLD_TONE[t] || t || 'dry'] || t;
+const toneName = (t) => TONE_NAMES[OLD_TONE[t] || t] || t;
 // sizes as stored by older editions
 const OLD_SIZE = { apertura: 'lead', articolo: 'article', breve: 'brief' };
 
@@ -167,7 +168,6 @@ function LinePanel({ onSaved }) {
   // the staff as shown: defaults with the editor's edits on top
   const people = meta?.staff ? Object.values(meta.staff).map((w) => ({ ...w, ...(line?.staff?.[w.id] || {}) })) : [];
   const setPerson = (id, k, v) => setLine((l) => ({ ...l, staff: { ...l.staff, [id]: { ...(l.staff?.[id] || {}), [k]: v } } }));
-  const styleLabel = (id) => meta?.styles?.find((s) => s.id === (id || 'daily'))?.label || '';
   const setDesk = (k, v) => setLine((l) => ({ ...l, desks: { ...l.desks, [k]: v } }));
 
   if (!line) return <div className="line-panel" />;
@@ -192,16 +192,8 @@ function LinePanel({ onSaved }) {
     <div className="line-panel">
 
       <fieldset className="field">
-        <legend>{T.tone}</legend>
-        <div className="tones">
-          {Object.entries(meta.tones).map(([k, t]) => (
-            <label key={k} className={`tone ${line.tone === k ? 'on' : ''}`}>
-              <input type="radio" name="tone" value={k} checked={line.tone === k} onChange={() => set({ tone: k })} />
-              <span className="tone-name">{t.label}</span>
-              <span className="tone-hint">{t.hint}</span>
-            </label>
-          ))}
-        </div>
+        <legend>{T.voice}</legend>
+        <p className="hint-small">{T.voiceText}</p>
       </fieldset>
 
       <fieldset className="field">
@@ -253,16 +245,10 @@ function LinePanel({ onSaved }) {
         <p className="hint-small">{T.staffHint}</p>
         {people.map((w) => (
           <details key={w.id} className="person">
-            <summary><strong>{w.name}</strong> · {w.role} · <em>{styleLabel(w.house)}</em></summary>
-            <label className="lbl">{T.wHouse}
-              <select value={w.house || 'daily'} onChange={(e) => setPerson(w.id, 'house', e.target.value)}>
-                {(meta.styles || []).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
-              <span className="hint-small">{meta.styles?.find((s) => s.id === (w.house || 'daily'))?.hint}</span>
-            </label>
+            <summary><strong>{w.name}</strong> · {w.role}{w.deviation ? <> · <em>{w.deviation}</em></> : null}</summary>
             <label className="lbl">{T.wName}<input value={w.name} onChange={(e) => setPerson(w.id, 'name', e.target.value)} /></label>
             <label className="lbl">{T.wRole}<input value={w.role} onChange={(e) => setPerson(w.id, 'role', e.target.value)} /></label>
-            <label className="lbl">{T.wStyle}<textarea rows={3} value={w.style} onChange={(e) => setPerson(w.id, 'style', e.target.value)} /></label>
+            <label className="lbl">{T.wDeviation}<input value={w.deviation || ''} maxLength={300} placeholder={T.wDeviationPh} onChange={(e) => setPerson(w.id, 'deviation', e.target.value)} /></label>
           </details>
         ))}
       </fieldset>
@@ -365,7 +351,7 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
         <div className="draft-tags">
           <span className="sec">{a.section}</span>
           <span className="tag">{T.size[OLD_SIZE[a.size] || a.size] || a.size || '—'}</span>
-          <span className="tag">{a.byline ? `${a.byline.name} · ${styleName(a.byline.house)} · ` : ''}{writerLabel(a.writer)}</span>
+          <span className="tag">{a.byline ? `${[a.byline.name, styleName(a.byline.house)].filter(Boolean).join(' · ')} · ` : ''}{writerLabel(a.writer)}</span>
           {a.rewrittenWith && <span className="tag">{T.rewritten}: «{a.rewrittenWith}»</span>}
           <span className="tag">{a.sources.length} {a.sources.length === 1 ? T.source : T.sources}</span>
           <span className="tag" title={a.expanded ? tr({ en: 'The first draft was too short: the writer expanded it.', it: 'La prima bozza era troppo corta: la firma l\'ha allungata.' }) : undefined}>{a.body.join(' ').split(/\s+/).filter(Boolean).length} {tr({ en: 'words', it: 'parole' })} · {readingTime(a)}{a.expanded ? ' ↥' : ''}</span>
@@ -532,6 +518,7 @@ export default function Newsroom({ editionId: requested, onPublished }) {
         <div>
           <h2>{T.title}</h2>
           <p>{T.subtitle}</p>
+          <NewsroomNav on="desk" />
         </div>
         <button className={`btn new-article ${commission ? 'on' : ''}`} onClick={() => setCommission((c) => !c)}>＋ {T.newArticle}</button>
       </header>
@@ -620,7 +607,7 @@ export default function Newsroom({ editionId: requested, onPublished }) {
                 <div>
                   <span className={`status ${status}`}>{status === 'draft' ? T.draftStatus : T.onStand}</span>
                   <strong>{T.editionOf(hhmm(edHour(ed)))}</strong>{edSince(ed)}
-                  <span className="muted"> · {ed.articles.length} {T.articles} · {T.toneLabel} {toneName(ed.tone)} · {writerLabel(ed.writer)}</span>
+                  <span className="muted"> · {ed.articles.length} {T.articles}{ed.tone ? ` · ${T.toneLabel} ${toneName(ed.tone)}` : ''} · {writerLabel(ed.writer)}</span>
                 </div>
                 <div className="desk-bar-actions">
                   {status === 'draft' && (

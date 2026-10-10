@@ -39,6 +39,10 @@ const T = tr({
     none: 'Nobody is calling right now. The reporters call when a big story is forming, and the desk at :55.',
     breaking: 'Breaking news', read: 'Read', live: 'In the newsroom, now', quiet: 'The newsroom is quiet.', seeAll: 'All the chatter',
     noCommentSent: '“No comment”: noted.',
+    leadPh: 'A lead for the article (optional): what should the reporter look into? Not a quote: it makes the piece longer',
+    sentLead: 'Got it: the quote goes in the paper, and the reporter follows your lead.',
+    leadOnly: 'Nothing on the record: the reporter takes note of your lead and follows it.',
+    followLate: 'The reporter goes back to the printed article and expands it with your lead.',
   },
   it: {
     onLine: 'al telefono', reply: 'Rispondi', noComment: 'Nessun commento', ph: 'La sua risposta, in una riga: finisce sul giornale come citazione',
@@ -47,6 +51,10 @@ const T = tr({
     none: 'Nessuno chiama, adesso. I cronisti chiamano quando si forma una storia grossa, il desk alle :55.',
     breaking: 'Ultim\'ora', read: 'Leggi', live: 'In redazione, ora', quiet: 'La redazione tace.', seeAll: 'Tutte le chiacchiere',
     noCommentSent: '«Nessun commento»: preso nota.',
+    leadPh: 'Una traccia per l\'articolo (facoltativa): cosa dovrebbe approfondire il cronista? Non è una citazione: allunga il pezzo',
+    sentLead: 'Ricevuto: la dichiarazione va sul giornale, e il cronista segue la sua traccia.',
+    leadOnly: 'Niente dichiarazioni: il cronista prende nota della traccia e la segue.',
+    followLate: 'Il cronista riprende l\'articolo già stampato e lo amplia con la sua traccia.',
   },
 });
 
@@ -54,6 +62,7 @@ const T = tr({
 
 export function Call({ call: c, big = false, onDone }) {
   const [text, setText] = useState('');
+  const [lead, setLead] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
   const [error, setError] = useState(null);
@@ -65,7 +74,9 @@ export function Call({ call: c, big = false, onDone }) {
     setError(null);
     try {
       const r = await api(`/calls/${c.id}/answer`, { method: 'POST', json: body });
-      setDone(body.decline ? T.noCommentSent : c.type === 'interview' ? (r.update ? T.sentLate : T.sent) : T.chosen);
+      setDone(r.follow ? T.followLate
+        : body.lead ? (body.text && !body.decline ? T.sentLead : T.leadOnly)
+          : body.decline ? T.noCommentSent : c.type === 'interview' ? (r.update ? T.sentLate : T.sent) : T.chosen);
       setTimeout(() => { refreshLive(); onDone?.(r); }, 1800);
     } catch (e) {
       setError(e.message);
@@ -86,10 +97,12 @@ export function Call({ call: c, big = false, onDone }) {
       <p className="call-q">{c.question}</p>
       {c.type === 'interview' ? (
         <>
-          <form className="call-form" onSubmit={(e) => { e.preventDefault(); if (text.trim()) send({ text: text.trim() }); }}>
+          <form className="call-form" onSubmit={(e) => { e.preventDefault(); if (text.trim() || lead.trim()) send({ text: text.trim(), lead: lead.trim() || undefined }); }}>
             <input ref={input} value={text} onChange={(e) => setText(e.target.value)} placeholder={T.ph} maxLength={400} disabled={busy} />
-            <button className="btn btn-small" disabled={busy || !text.trim()}>{T.reply}</button>
-            <button type="button" className="btn-ghost" disabled={busy} onClick={() => send({ decline: true })}>{T.noComment}</button>
+            <button className="btn btn-small" disabled={busy || !(text.trim() || lead.trim())}>{T.reply}</button>
+            <button type="button" className="btn-ghost" disabled={busy} onClick={() => send({ decline: true, lead: lead.trim() || undefined })}>{T.noComment}</button>
+            <textarea className="call-lead" value={lead} onChange={(e) => setLead(e.target.value)} placeholder={T.leadPh} maxLength={600} rows={2} disabled={busy}
+              onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) e.currentTarget.form.requestSubmit(); }} />
           </form>
           {c.late && <p className="hint-small">{T.late}</p>}
         </>

@@ -42,6 +42,9 @@ export const shortDate = (ms) =>
 export function parseRoute(hash) {
   const p = hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
   if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'banco' || p[1] === 'bench')) return { desk: true, bench: true, edition: p[2] || null };
+  // the newsroom's own rooms: the inquiry and the Editor desk
+  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'inquiry' || p[1] === 'inchiesta')) return { inquiry: p[2] || true };
+  if ((p[0] === 'newsroom' || p[0] === 'redazione') && p[1] === 'editor-desk') return { editorDesk: p[2] || true };
   if (p[0] === 'newsroom' || p[0] === 'redazione') return { desk: true, edition: p[1] || null };
   if ((p[0] === 'evening' || p[0] === 'sera') && p[1]) return { evening: p[1] };
   if (p[0] === 'letters' || p[0] === 'lettere') return { letters: true };
@@ -76,6 +79,8 @@ export const href = {
   feature: (id) => `#/feature/${id}`,
   features: () => '#/features',
   serial: (id) => (id ? `#/serial/${id}` : '#/serial'),
+  inquiry: (id) => (id ? `#/newsroom/inquiry/${id}` : '#/newsroom/inquiry'),
+  editorDesk: (id) => (id ? `#/newsroom/editor-desk/${id}` : '#/newsroom/editor-desk'),
   bench: (id) => (id ? `#/newsroom/banco/${encodeURIComponent(id)}` : '#/newsroom/banco'),
   sport: () => '#/sport',
 };
@@ -157,12 +162,12 @@ export function readingTime(a) {
 }
 
 
-/** Names of the house styles (the server has the full descriptions). */
+/** Names of the house styles of older bylines and of long reads (the server has the descriptions). */
 const STYLE_NAMES = {
   en: { daily: 'Daily paper', magazine: 'Literary magazine', essay: 'Essay', tech: 'Tech news', newsletter: 'Newsletter', explainer: 'Explainer', economist: 'The Economist', noir: 'Noir' },
   it: { daily: 'Quotidiano', magazine: 'Magazine letterario', essay: 'Saggio', tech: 'Tech news', newsletter: 'Newsletter', explainer: 'Spiegone', economist: 'The Economist', noir: 'Noir' },
 };
-export const styleName = (id) => tr(STYLE_NAMES)[id || 'daily'] || '';
+export const styleName = (id) => (id ? tr(STYLE_NAMES)[id] || '' : '');
 
 const wordsIn = (s) => String(s || '').split(/\s+/).filter(Boolean).length;
 

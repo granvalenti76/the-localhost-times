@@ -156,7 +156,7 @@ export async function createFeature(store, config, { editionId, articleId, story
   const f = save(store, {
     kind: KIND, status: 'brief', ts: now, ref: origin?.storyId || null,
     target: forEdition ? 'edition' : 'longread', format: forEdition ? 'article' : 'long', evidence,
-    mode: null, style: forEdition ? (persona?.house || 'daily') : 'magazine', length: 'standard',
+    mode: null, style: 'magazine', length: 'standard',
     topic: subject, keywords, days: span, from, to: now,
     origin, dossier, numbers: d?.numbers || null, coverage: d?.coverage?.slice(-10) || [], timeline: tl,
     questions: asked.map((x) => ({ q: x, a: '' })), sources: [],
@@ -204,7 +204,7 @@ function system(f, line, persona, what) {
 Rules: every fact and every number must come from the dossier or from what the owner supplied; don't invent causes, feelings or outcomes; don't compute new numbers beyond the obvious; don't open sentences with the time over and over; no "perhaps…, perhaps…"; no absences nobody could know ("no likes"). Quote titles in curly quotes “like this”.`,
     it: `Sei una firma del «The Localhost Times», il giornale di ciò che succede sul Mac del suo proprietario, e lavori a ${f.target === 'edition' ? 'un articolo che il Direttore ha commissionato per la prossima edizione' : 'un pezzo lungo'}: ${what}. Scrivi come un buon ${f.target === 'edition' ? 'giornale' : 'magazine'}: scene, dettagli rivelatori, un filo che tiene, frasi di lunghezza diversa; l'ironia nasce dai fatti, mai dagli aggettivi. Terza persona («il proprietario»), ma senza ripeterlo: al massimo due volte per sezione.
 Regole: ogni fatto e ogni numero deve venire dal fascicolo o da ciò che il proprietario ha fornito; non inventare cause, sentimenti o esiti; non calcolare numeri nuovi salvo gli ovvi; non cominciare le frasi con l'orario una dopo l'altra; niente «forse…, forse…»; niente assenze che nessuno può sapere («nessun like»). Cita i titoli tra «caporali».`,
-  }) + styleBlock(f) + (line ? `\n${linePrompt(line)}` : '') + personaPrompt(persona, 'editorial') + tastePrompt(line, persona);
+  }) + styleBlock(f) + (line ? `\n${linePrompt(line)}` : '') + personaPrompt(persona) + tastePrompt(line, persona);
 }
 
 // ───────────────────────── The outline ─────────────────────────

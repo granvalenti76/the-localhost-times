@@ -9,10 +9,32 @@ import { tr, lang } from '../i18n.js';
 import { chat, parseJson } from './llm.js';
 import { factSheet } from './cluster.js';
 
-/** Figures in a text: times (11:08), numbers (1,204 · 3.5 · 42%). Small counts (0–2) are too common to flag. */
+// Numbers up to ten are spelled out (docs/STYLE.md §3): they are figures too, in both languages.
+// The models also spell out some larger ones: those are read as well, so they can't slip past.
+const WORDS = {
+  tre: 3, quattro: 4, cinque: 5, sei: 6, sette: 7, otto: 8, nove: 9, dieci: 10,
+  undici: 11, dodici: 12, tredici: 13, quattordici: 14, quindici: 15, sedici: 16, diciassette: 17, diciotto: 18, diciannove: 19, venti: 20, trenta: 30, quaranta: 40, cinquanta: 50, sessanta: 60,
+  three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
+};
+const SPELLED = new RegExp(`\\b(${Object.keys(WORDS).join('|')})\\b`, 'gi');
+// …except as the time of day ("alle otto", "at nine") and in idioms ("a quattro mani")
+const NOT_A_COUNT = /\b(?:alle|dalle|verso le|fino alle|entro le|at|by|until|past|after|before)\s+$/i;
+const IDIOM = /\b(?:in quattro e quattr'otto|a quattro mani|quattro passi|quattro chiacchiere|farsi in quattro|tre quarti|nine[- ]to[- ]five|at sixes and sevens|ten to one)\b|\b(?:three|four|five|six|seven|eight|nine|ten) o'clock\b/gi;
+
+function spelled(t, out) {
+  const text = t.replace(IDIOM, ' ');
+  for (const m of text.matchAll(SPELLED)) {
+    if (NOT_A_COUNT.test(text.slice(Math.max(0, m.index - 12), m.index))) continue;
+    out.add(String(WORDS[m[1].toLowerCase()]));
+  }
+}
+
+/** Figures in a text: times (11:08), numbers (1,204 · 3.5 · 42% · tre · ten). Small counts (0–2) are too common to flag. */
 export function figures(text) {
   const out = new Set();
   const t = String(text || '');
+  spelled(t, out);
   for (const m of t.matchAll(/\b([01]?\d|2[0-3]):[0-5]\d\b/g)) out.add(m[0].padStart(5, '0'));
   const rest = t.replace(/\b([01]?\d|2[0-3]):[0-5]\d\b/g, ' ');
   for (const m of rest.matchAll(/(?<![\w.])\d{1,3}(?:[.,\s]\d{3})+(?![\d])|(?<![\w.])\d+(?:[.,]\d+)?/g)) {

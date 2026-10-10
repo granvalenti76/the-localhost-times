@@ -186,7 +186,7 @@ export default function Bench({ editionId }) {
           <div className="draft-tags">
             <span className="sec">{a.section}</span>
             <span className="tag">{i + 1} {T.of} {total}</span>
-            {a.byline && <span className="tag">{a.byline.name} · {styleName(a.byline.house)}</span>}
+            {a.byline && <span className="tag">{[a.byline.name, styleName(a.byline.house)].filter(Boolean).join(' · ')}</span>}
             <span className="tag">{readingTime(a)}</span>
             {a.lint && a.lint.score < 85 && <span className="tag tag-warn" title={a.lint.issues.map((x) => x.msg).join(' · ')}>{T.style} {a.lint.score}</span>}
             {a.check?.unverified?.length > 0 && <span className="tag tag-warn">⚠ {T.unverified}: {a.check.unverified.slice(0, 3).join(', ')}</span>}

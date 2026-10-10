@@ -10,7 +10,7 @@ import { SOURCES } from './sources/index.js';
 import { startSampler } from './sources/apps.js';
 import { seedDemo, seedDemoDesk } from './demo.js';
 import { dayKey } from './util.js';
-import { getLine, saveLine, TONES, LENGTHS, WEIGHTS } from './newsroom/line.js';
+import { getLine, saveLine, LENGTHS, WEIGHTS } from './newsroom/line.js';
 import {
   DeskError, editArticle, spikeArticle, restoreArticle, moveArticle, publishEdition, rewriteArticle, rewriteSummary,
   editCartoon, factCheckEdition,
@@ -30,7 +30,12 @@ import { createInvestigation, suggestions, interruptedInvestigations } from './n
 import { board, leadAction, teaser, recoverLeads, leadFromTip } from './newsroom/spotlight/desk.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
-import { openCalls, callView, answerCall } from './newsroom/calls.js';
+import { openCalls, callView, answerCall, followLead } from './newsroom/calls.js';
+import {
+  createInquiry, getInquiry, inquiries, editInquiry, deleteInquiry, replyInquiry, chooseAngle, confirmData, addInquirySource,
+  editInquirySource, confirmSources, approveInquiryOutline, retryInquiry, backInquiry, toDesk, talkDesk, applyDeskAction,
+  sectionAction, publishInquiry, interruptedInquiries, rewriteAllInquiry,
+} from './newsroom/inquiry.js';
 import { chatter } from './newsroom/chatter.js';
 import { tips, addTip, archiveTip } from './newsroom/tips.js';
 import { oracleBoard, bet } from './newsroom/oracle.js';
@@ -68,6 +73,7 @@ const store = new Store(config.dbFile);
 interruptedInvestigations(store);
 recoverLeads(store);
 interruptedFeatures(store);
+interruptedInquiries(store);
 if (store.needsReindex()) {
   // first start after the archive was added: index what is already there
   store.reindex();
@@ -149,7 +155,7 @@ app.post('/api/print', wrap(async (req, res) => {
 }));
 
 // ── The Newsroom ──
-app.get('/api/line', (req, res) => { const line = getLine(store); res.json({ line, tones: TONES, lengths: LENGTHS, weights: WEIGHTS, staff: staff(line), styles: styleList() }); });
+app.get('/api/line', (req, res) => { const line = getLine(store); res.json({ line, lengths: LENGTHS, weights: WEIGHTS, staff: staff(line), styles: styleList() }); });
 app.put('/api/line', (req, res) => { const line = saveLine(store, req.body || {}); res.json({ line, staff: staff(line) }); });
 app.get('/api/drafts', (req, res) => res.json(store.drafts()));
 
@@ -180,9 +186,14 @@ app.delete('/api/taste', wrap((req, res) => { forgetExample(store, String(req.bo
 
 // ── The newsroom calls the Editor (interviews, the closing at :55, the serial's fork) ──
 app.get('/api/calls', (req, res) => res.json(openCalls(store).map((c) => callView(c))));
-app.post('/api/calls/:id/answer', wrap((req, res) => res.json(answerCall(store, config, req.params.id, {
-  text: req.body?.text, option: req.body?.option ?? req.query.option, decline: !!(req.body?.decline ?? req.query.decline),
-}))));
+app.post('/api/calls/:id/answer', wrap((req, res) => {
+  const r = answerCall(store, config, req.params.id, {
+    text: req.body?.text, option: req.body?.option ?? req.query.option, decline: !!(req.body?.decline ?? req.query.decline), lead: req.body?.lead,
+  });
+  // a lead after the press: the reporter rewrites the printed article in the background
+  if (r.follow) followLead(store, config, r.follow, r.call.id, log).catch((e) => log(`[newsroom] ${e.message}`));
+  res.json(r);
+}));
 // everything the pages poll in one call: open calls, breaking news, the newsroom chatter
 app.get('/api/live', (req, res) => res.json({
   calls: openCalls(store).map((c) => callView(c)),
@@ -230,6 +241,29 @@ app.post(`${F}/blocks/:i`, wrap((req, res) => res.json(blockAction(store, config
 app.post(`${F}/review`, wrap((req, res) => res.json(reviewFeature(store, config, req.params.id, log))));
 app.post(`${F}/publish`, wrap((req, res) => res.json(publishFeature(store, req.params.id))));
 app.post(`${F}/unpublish`, wrap((req, res) => res.json(unpublishFeature(store, req.params.id))));
+
+// ── The inquiry (Newsroom → Inquiry) and the Editor desk ──
+const I = '/api/inquiries/:id';
+app.get('/api/inquiries', (req, res) => res.json(inquiries(store, { limit: Math.min(100, num(req.query.limit) || 30) })));
+app.post('/api/inquiries', wrap((req, res) => res.json(createInquiry(store, config, { topic: req.body?.topic, lead: req.body?.lead, days: req.body?.days }, log))));
+app.get(I, wrap((req, res) => res.json(getInquiry(store, req.params.id))));
+app.patch(I, wrap((req, res) => res.json(editInquiry(store, req.params.id, req.body || {}))));
+app.delete(I, wrap((req, res) => { deleteInquiry(store, req.params.id); res.status(204).end(); }));
+app.post(`${I}/reply`, wrap((req, res) => res.json(replyInquiry(store, config, req.params.id, req.body || {}, log))));
+app.post(`${I}/angle`, wrap((req, res) => res.json(chooseAngle(store, config, req.params.id, req.body || {}, log))));
+app.post(`${I}/data`, wrap((req, res) => res.json(confirmData(store, config, req.params.id, req.body || {}, log))));
+app.post(`${I}/sources`, wrap((req, res) => res.json(addInquirySource(store, req.params.id, req.body || {}))));
+app.patch(`${I}/sources/:sid`, wrap((req, res) => res.json(editInquirySource(store, req.params.id, req.params.sid, req.body || {}))));
+app.post(`${I}/sources/done`, wrap((req, res) => res.json(confirmSources(store, config, req.params.id, log))));
+app.post(`${I}/outline`, wrap((req, res) => res.json(approveInquiryOutline(store, config, req.params.id, req.body?.outline, log))));
+app.post(`${I}/retry`, wrap((req, res) => res.json(retryInquiry(store, config, req.params.id, log))));
+app.post(`${I}/back`, wrap((req, res) => res.json(backInquiry(store, req.params.id, String(req.body?.to || '')))));
+app.post(`${I}/desk`, wrap((req, res) => res.json(toDesk(store, config, req.params.id, log))));
+app.post(`${I}/desk/talk`, wrap(async (req, res) => res.json(await talkDesk(store, config, req.params.id, req.body?.text, log))));
+app.post(`${I}/desk/apply`, wrap((req, res) => res.json(applyDeskAction(store, config, req.params.id, req.body || {}, log))));
+app.post(`${I}/blocks/:k`, wrap((req, res) => res.json(sectionAction(store, config, req.params.id, req.params.k, req.body || {}, log))));
+app.post(`${I}/rewrite-all`, wrap((req, res) => res.json(rewriteAllInquiry(store, config, req.params.id, log))));
+app.post(`${I}/publish`, wrap((req, res) => res.json(publishInquiry(store, req.params.id))));
 
 // ── Evening edition ──
 app.get('/api/evening/:day', (req, res) => {

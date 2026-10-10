@@ -78,7 +78,8 @@ export default function ArticlePage({ edition, article: a, xray: xrayAtStart = f
         {a.quotes?.length > 0 && (
           <aside className="interview-note">
             {a.quotes.map((q, i) => (
-              <p key={i}><span className="lbl">☎︎ {tr({ en: 'The interview', it: 'L\'intervista' })} · {hhmm(q.at)}</span> {q.question} — <strong>{q.answer || (q.declined ? tr({ en: 'no comment', it: 'nessun commento' }) : tr({ en: 'no reply', it: 'nessuna risposta' }))}</strong></p>
+              <p key={i}><span className="lbl">☎︎ {tr({ en: 'The interview', it: 'L\'intervista' })} · {hhmm(q.at)}</span> {q.question} — <strong>{q.answer || (q.declined ? tr({ en: 'no comment', it: 'nessun commento' }) : tr({ en: 'no reply', it: 'nessuna risposta' }))}</strong>
+                {q.lead && <span className="interview-lead"> · {tr({ en: 'The lead', it: 'La traccia' })}: <em>{q.lead}</em></span>}</p>
             ))}
           </aside>
         )}

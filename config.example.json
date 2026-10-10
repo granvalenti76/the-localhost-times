@@ -9,7 +9,13 @@
     "timeoutMs": 300000,
     "concurrency": 1,
     "temperature": 0.7,
-    "thinking": false
+    "thinking": false,
+    "creative": {
+      "baseUrl": "",
+      "model": "",
+      "temperature": 0.85,
+      "maxTokens": 4000
+    }
   },
   "collectEveryMinutes": 5,
   "backfillHours": 1,

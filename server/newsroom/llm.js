@@ -101,6 +101,32 @@ export async function connectLLM(config) {
 }
 
 /**
+ * The creative writer, for the investigation: llm.creative in config.json. With its own baseUrl it
+ * is a separate server (a model trained for prose); otherwise it is the newsroom's model, used
+ * warmer. Either way the requests carry its temperature. Null when nothing answers.
+ */
+export async function connectCreative(config) {
+  const c = config.llm.creative || {};
+  const temperature = Number.isFinite(c.temperature) ? c.temperature : 0.85;
+  const maxTokens = Number(c.maxTokens) || 4000;
+  const own = String(c.baseUrl || '').trim().replace(/\/+$/, '');
+  if (!own) {
+    const llm = await connectLLM(c.model ? { ...config, llm: { ...config.llm, model: c.model } } : config);
+    return llm && { ...llm, temperature, maxTokens, creative: true };
+  }
+  const headers = { 'Content-Type': 'application/json' };
+  if (c.apiKey) headers.Authorization = `Bearer ${c.apiKey}`;
+  try {
+    const model = c.model || await probe(own, headers, 4000) || 'local';
+    return { base: own, headers, model, temperature, maxTokens, creative: true };
+  } catch {
+    // the creative server is down: the newsroom's model writes, warmer
+    const llm = await connectLLM(config);
+    return llm && { ...llm, temperature, maxTokens, creative: true };
+  }
+}
+
+/**
  * The writer's queue: local servers (llama.cpp, LM Studio…) usually process
  * one request at a time. Sending several at once just makes them wait in the server's queue,
  * where the timeout expires before the model even starts writing.
@@ -143,7 +169,7 @@ async function chatNow(llm, config, messages, maxTokens) {
       body: JSON.stringify({
         model: llm.model,
         messages,
-        temperature: config.llm.temperature,
+        temperature: llm.temperature ?? config.llm.temperature,
         max_tokens: maxTokens,
         stream: false,
         // "reasoning" models spend tokens before answering: a newspaper does not need that

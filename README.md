@@ -82,6 +82,12 @@ npm start
 { "llm": { "baseUrl": "http://192.168.1.20:8080/v1", "model": "" } }
 ```
 
+**A model for long prose.** The Inquiry is written by `llm.creative`: by default the same model, used warmer (temperature 0.85) and with more room per request; give it its own `baseUrl` (and `model`) to send the long pieces to a model trained for creative writing, while the hourly paper keeps its own. The checks at the Editor desk always use the main model, at its own temperature.
+
+```json
+{ "llm": { "baseUrl": "http://192.168.1.20:8080/v1", "creative": { "baseUrl": "http://192.168.1.20:8081/v1", "temperature": 0.9 } } }
+```
+
 Leave `model` empty to use the server's first model. Small local models (3–8B parameters) are enough: the facts are prepared for them, and they only have to write. Requests go one at a time (`llm.concurrency`), and each one may take up to `llm.timeoutMs` (5 minutes by default), so slow machines work too.
 
 When the model is off or doesn't answer, the paper doesn't stop: that hour's articles are written by the automatic typesetting, and the model picks up again at the next edition.
@@ -206,10 +212,12 @@ Subjects touching health, money troubles, love, faith, politics, the law or a jo
 
 **You, in the newsroom.** The paper doesn't only write about you: it calls you, and you take part in ten seconds at a time. Each of these can be turned off in **Newsroom → Editorial line → The Editor's part and the games**.
 
-- **Interviews.** When a big story is forming (89 visits to chess.com in seventeen minutes), its reporter calls you with one question: *“Chief, the game against bob: how did it end?”*. A notification, a bar under the masthead, or the menu bar: answer in one line and your words go into the article as a real quote (*«Lost again», the owner told the paper*). Say nothing and the article says you didn't reply; an answer after the press is added to the printed article as an update.
-- **The closing at :55.** Five minutes before every edition the desk asks you what leads, whether to cut a story, or which tone the edition should have. One click, also straight from the menu bar.
+- **Interviews.** When a big story is forming (89 visits to chess.com in seventeen minutes), its reporter calls you with one question: *“Chief, the game against bob: how did it end?”*. A notification, a bar under the masthead, or the menu bar: answer in one line and your words go into the article as a real quote (*«Lost again», the owner told the paper*). Say nothing and the article says you didn't reply; an answer after the press is added to the printed article as an update. Under the answer there is room for a **lead** (*“look at the openings: always the same one”*): not a quote but a note for the reporter, who follows it, and the piece grows by a paragraph or two. A lead after the press has the printed article rewritten to follow it.
+- **The closing at :55.** Five minutes before every edition the desk asks you what leads, or whether to cut a story. One click, also straight from the menu bar.
 - **A new article.** *Newsroom → ＋ New article*: the newsroom proposes subjects found in the signals (the stories forming this hour, the ones that keep coming back this week, the Spotlight leads), or you give one of your own. You answer the reporter, add tips (also while the piece is being written: *Rewrite with the new tips*), follow the draft section by section, and decide: **Approve for the next edition**, as the lead or inside. The next edition prints it with its byline and a *Commissioned* flag; the pieces in the works sit at the top of the newsroom, and the writer notifies you when a draft is waiting for your review.
 - **Go deeper.** Every article has a *Go deeper* button: a long piece on that story (or on any subject, from *Long reads*). The reporter asks you two or three questions, you can add facts of your own and tips, then you choose who writes: *the newsroom* (outline, then the piece section by section while you watch), *four hands* (you fix the outline; every section can be rewritten with an instruction, edited, or started by you and continued in tune), or *I write it* (signed by you; the desk checks your figures against the signals, points out the data worth using and proposes headline, kicker and summary). The facts are always the signals: your answers are quotes, your notes are facts you supply.
+- **The Inquiry.** *Newsroom → Inquiry* (also from the masthead: hover *Newsroom*): the paper's most ambitious piece, about 1,500 words in the manner of The New Yorker, built in conversation with the reporter. You give the subject and, if you like, a lead (*“look at the evenings: the real work starts after dinner”*). The reporter reads the signals and proposes **angles**, each with the figure that supports it; you pick one or write your own. Then the **data** the angle needs: what the signals hold (the reporter searches the archive and shows what it found) and what only you know (you answer). Then the **sources**: the signals, the paper's archive, your interview, and whatever you add — a witness, a document, a note — each on the record, on background or anonymous. Then the **structure**: lede, nut graf, four or five movements, ending; you move, cut and rewrite it. At every stage the reporter asks questions, and your answers can bring follow-ups that dig deeper (up to three turns). Then the creative model writes it, movement by movement.
+- **The Editor desk.** *Newsroom → Editor desk*, across the whole window: the finished inquiry on the left as a proof, the checks on the right. The fact-checker lists the piece's claims against the sources (supported, partial, unsupported) and marks the paragraphs; the managing editor judges the lede, the nut graf, the arc and the ending, proposes edits you apply with one click, and talks it through with you. Length by movement, figures not in the sources, the style score, your quotes used or not, alternative headlines. Rewrite or edit any movement, then **Publish**: it comes out as a long read.
 - **The tip box.** Hand the newsroom a fact the signals can't know: from the Newsroom, from a note in the Notes folder **Newsroom** (or **Redazione**), or from the terminal with `npm run tip -- "I lost five games in a row"`. A tip goes into the story it belongs to, attributed to *a source close to the owner*; the others end up in the gossip column, *Word is*.
 - **The quick bench.** *Newsroom → Quick bench*: the edition one article at a time, → keep, ← cut, R rewrite, H three alternative headlines. Every paragraph has its tools: ♥ (the writer learns from it), ✕ (the writer avoids it), ✂ cut, ↻ rewrite only that paragraph (“meaner”, “shorter”). The paragraphs you mark become examples in that writer's instructions; the staff's scoreboard shows who you like.
 - **Breaking news.** When a record falls in the middle of the hour, a flash goes out at once (notification, red band on the front page, ⚡ in the menu bar).
@@ -235,8 +243,9 @@ In **the Archive**:
 In **the Newsroom** you are the editor-in-chief:
 
 - **Drafts.** Reorder, edit, rewrite with an instruction, or spike any article.
-- **The bylines.** The paper has a staff of invented writers, each with a voice: a web correspondent, a technology correspondent, the city desk, a critic and a columnist who signs *The Brief* and the evening editorial. The model is the same; it plays a different character for each. Each writer also has a **house style**, which decides how their pieces are built (the tone decides the attitude): *Daily paper* (inverted pyramid), *Literary magazine* (in the manner of The New Yorker), *Essay* (The Atlantic), *Tech news* (The Verge, Ars Technica), *Newsletter* (Axios, with labelled paragraphs), *Explainer* (Il Post), *The Economist* and *Noir*. In *Editorial line* choose who writes each section, give each writer a style, rename them or rewrite their voice.
-- **The editorial line.** Set the tone (dry, ironic, satirical, understatement, tabloid), the article length (*Long* also turns more stories into full articles; drafts that come out too short go back to their writer once; every article shows its reading time) and how much room each section gets, and give permanent rules to the writers. Turn off automatic publishing to approve every edition before it goes out.
+- **One voice.** The whole paper is written in the house voice, in the manner of The New Yorker: cultivated, amused, a touch superior, never cruel. *The news may be ordinary; the sentence may not.* The rules, the house phrasebook and the examples are in the style guide, [docs/STYLE.md](docs/STYLE.md), in English and Italian; the writers' instructions are its translation. Pieces follow the facts: a *note* (up to 90 words) when there is little to tell, a *piece* (150–300) or the *lead* (up to 400) when there is more, never padded.
+- **The bylines.** The paper has a staff of invented writers: a web correspondent, a technology correspondent, the city desk, a critic and a columnist who signs *The Brief* and the evening editorial. They all write in the house voice. In *Editorial line* choose who writes each section, rename them, or give one a **deviation**: a single line that shifts what that writer notices or their attitude (*“keener on the numbers”*), never the register.
+- **The editorial line.** Set the article length (*Long* also turns more stories into full pieces; pieces that come out well under their format go back to their writer once, notes never; every article shows its reading time) and how much room each section gets, and give permanent rules to the writers. Turn off automatic publishing to approve every edition before it goes out.
 - **The editorial meeting.** Discuss an edition with the managing editor (the model). It proposes concrete actions, and you apply them with one click. It can also look things up while you talk: the next edition before it's printed (signals collected so far, stories forming, minutes left), the facts behind a story, the day so far, the archive.
 - **The next edition.** See what the coming edition will contain while the hour is still running, and steer it: pick its lead, leave a story out, give the writers a one-off instruction, or print it right away. Your choices apply to that edition only. The managing editor can propose the same moves in the meeting.
 
@@ -272,6 +281,10 @@ The paper is written in **English or Italian** (`"language": "en"` or `"it"`).
 | `llm.timeoutMs` | `300000` | How long to wait for each answer |
 | `llm.concurrency` | `1` | Requests in parallel (1 suits local servers) |
 | `llm.thinking` | `false` | Let "thinking" models reason before writing (slower) |
+| `llm.creative.baseUrl` | `""` | The writer of the Inquiry; empty = the model above |
+| `llm.creative.model` | `""` | Its model name; empty = the server's first chat model |
+| `llm.creative.temperature` | `0.85` | Warmer than the newsroom, for prose |
+| `llm.creative.maxTokens` | `4000` | Room for each movement of the piece |
 | `sources.<name>` | `true` | Turn a source off |
 | `files.folders` | Desktop, Documents, Downloads, Work, Developer, Projects, Code… | Folders the Local section watches |
 | `files.exclude` | `[]` | Parts of paths to leave out, e.g. `"Documents/Medical"` |
@@ -352,7 +365,9 @@ app databases (read from a copy) ─► collected every 5 min ─► data/*.sqli
 |---|---|
 | `server/sources/` | One file per source (`locate()` + `collect()`) |
 | `server/newsroom/cluster.js` | From events to stories, and the fact sheets the model writes from |
-| `server/newsroom/prompts.js` | The writers' style guide, in both languages |
+| `docs/STYLE.md` | The style guide: one voice, in English and Italian |
+| `server/newsroom/voice.js` | The style guide as the writers read it (the examples are checked against `docs/STYLE.md`) |
+| `server/newsroom/prompts.js` | The writers' instructions: the facts, the formats, the columns |
 | `server/newsroom/fallback.*.js` | The automatic typesetting (templates, one file per language) |
 | `server/newsroom/scenes.js` | The cartoon catalogue (the drawings are in `web/src/components/Cartoon.jsx`) |
 | `server/newsroom/edition.js` | Printing an edition, and the newsroom's desk operations |

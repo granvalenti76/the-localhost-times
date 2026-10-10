@@ -11,7 +11,7 @@
  */
 import { tr, L, lang } from '../i18n.js';
 import { parseJson } from './llm.js';
-import { lint } from './lint.js';
+import { lint, registerCheck } from './lint.js';
 import { numbersCheck, figures } from './factcheck.js';
 import { wordCount } from './prompts.js';
 import { say } from './chatter.js';
@@ -46,7 +46,10 @@ function editorPrompt(text, facts, flags) {
 - the nut: does the piece say why the hour mattered?
 - every claim stands on the facts; nothing is invented, nothing is guessed about what was on screen;
 - concrete details beat adjectives; no padding, no repetitions, no lecture;
-- the headline says something, in few words.
+- it reads as a newspaper, not a dashboard ("signals", "the system records", counts and times in a row) and not as a machine ("it's not just X, it's Y", inflated drama);
+- the house voice: cultivated, amused, a touch superior, never cruel; irony from facts placed side by side, the exact verb, a dry closing line;
+- the headline is an idea, not a log entry ("app + action + time of day"), in 8 words at most; the dek carries the information;
+- the length follows the facts: a short note that says one thing well passes; never ask for more length the facts can't support.
 You don't rewrite it yourself. Either it passes, or you send it back with at most three notes, each one precise and doable ("open on the 40 minutes of Xcode, not on the time"; "cut the last sentence: it repeats the second"). Never ask for facts the paper doesn't have.
 Reply ONLY with JSON: {"verdict": "ok" | "rework", "notes": ["…"], "praise": "one thing that works, in one sentence"}`
         : `Sei ${editor.name}, caporedattore del Localhost Times, un quotidiano scritto alla maniera del New Yorker sul Mac di una persona. Leggi la bozza di un cronista accanto ai fatti da cui è nata e la giudichi come farebbe un caporedattore vero:
@@ -54,7 +57,10 @@ Reply ONLY with JSON: {"verdict": "ok" | "rework", "notes": ["…"], "praise": "
 - il senso: il pezzo dice perché quell'ora conta?
 - ogni affermazione sta sui fatti; niente inventato, niente supposto su cosa ci fosse sullo schermo;
 - i dettagli concreti battono gli aggettivi; niente riempitivi, ripetizioni, lezioncine;
-- il titolo dice qualcosa, in poche parole.
+- si legge come un giornale, non come un cruscotto («segnali», «il sistema registra», conteggi e orari in fila) né come una macchina («non è X, ma Y», drammi gonfiati);
+- la voce della casa: colta, divertita, un filo superiore, mai cattiva; l'ironia dai fatti accostati, il verbo esatto, una chiusa asciutta;
+- il titolo è un'idea, non una voce di registro («app + azione + momento della giornata»), in massimo 8 parole; il sommario porta l'informazione;
+- la lunghezza segue i fatti: una nota breve che dice bene una cosa passa; non chiedere mai più lunghezza di quella che i fatti reggono.
 Non riscrivi tu. O il pezzo passa, o lo rimandi indietro con al massimo tre note, ognuna precisa ed eseguibile («apri sui 40 minuti di Xcode, non sull'orario»; «taglia l'ultima frase: ripete la seconda»). Non chiedere mai fatti che il giornale non ha.
 Rispondi SOLO con JSON: {"verdict": "ok" | "rework", "notes": ["…"], "praise": "una cosa riuscita, in una frase"}`,
     },
@@ -125,6 +131,59 @@ export function badSentences(body, facts) {
  * The copy desk on a finished text: the figures first (the model fixes the sentences when it
  * can, otherwise the sentence goes, unless it is all the paragraph has), then the small things.
  */
+/**
+ * The phrasing desk, sentence by sentence: the sentences with machine-made phrasing ("it's not X,
+ * it's Y") or dashboard talk ("signals", "the system records") are sent back one by one and replaced
+ * where they stand. Small models rewrite a sentence well and a whole piece badly; the rest of the
+ * text is never touched. Used on the hourly articles and on the inquiry.
+ */
+export async function phrasingDesk(paras, { llm, config, chat } = {}) {
+  if (!llm || !paras?.length) return paras;
+  const split = paras.map((p) => sentences(p));
+  const bad = [];
+  split.forEach((ss, pi) => ss.forEach((t, si) => {
+    const r = registerCheck(t);
+    if (r.slop.length || r.words.length) bad.push({ pi, si, t, why: [...r.slop, ...r.words.map((x) => x.w)] });
+  }));
+  if (!bad.length) return paras;
+  const list = bad.slice(0, 14);
+  try {
+    const j = parseJson(await chat(llm, config, [
+      {
+        role: 'system',
+        content: tr({
+          en: `You are the copy chief of a good magazine. Rewrite each numbered sentence so that it says the same facts plainly:
+- "it's not X, it's Y" → say Y directly; drop the X;
+- system words (signals, events, data, activity, session, peak, interactions, consultations, recorded) → say what the person did: opened, read, went back to, wrote;
+- no counts, no times of day added; keep the names of things and any quotation word for word;
+- one sentence each, the same length or shorter; invent nothing.
+Reply ONLY with JSON: {"fixes": [{"n": 1, "to": "..."}]}`,
+          it: `Sei la correttrice di un buon magazine. Riscrivi ogni frase numerata perché dica gli stessi fatti in modo semplice:
+- «non è X, ma Y» → di' direttamente Y; togli la X;
+- parole da sistema (segnali, eventi, dati, attività, sessione, picco, interazioni, consultazioni, registrato) → di' cosa ha fatto la persona: ha aperto, ha letto, è tornato su, ha scritto;
+- niente conteggi, niente orari aggiunti; tieni i nomi delle cose e ogni citazione parola per parola;
+- una frase ciascuna, lunga uguale o più corta; non inventare nulla.
+Rispondi SOLO con JSON: {"fixes": [{"n": 1, "to": "..."}]}`,
+        }),
+      },
+      { role: 'user', content: `${tr({ en: 'THE MOVEMENT', it: 'IL MOVIMENTO' })}:\n${paras.join('\n\n')}\n\n${tr({ en: 'THE SENTENCES TO FIX', it: 'LE FRASI DA CORREGGERE' })}:\n${list.map((b, n) => `${n + 1}. ${b.t}\n   (${b.why.join('; ')})`).join('\n')}` },
+    ], 2400));
+    let fixed = 0;
+    for (const f of Array.isArray(j.fixes) ? j.fixes : []) {
+      const b = list[Number(f.n) - 1];
+      const to = String(f?.to || '').replace(/\s+/g, ' ').trim();
+      if (!b || !to || to.length > b.t.length * 1.3 + 20) continue;
+      const before = registerCheck(b.t);
+      const after = registerCheck(to);
+      // keep the quotes the sentence had
+      const quotes = [...b.t.matchAll(/[«“]([^»”]+)[»”]/g)].map((m) => m[1]);
+      if (quotes.some((x) => !to.includes(x))) continue;
+      if (after.slop.length + after.words.length < before.slop.length + before.words.length) { split[b.pi][b.si] = to; fixed++; }
+    }
+    return fixed ? split.map((ss) => ss.join(' ')) : paras;
+  } catch { return paras; }
+}
+
 export async function copyDesk(text, facts, { llm, config, chat } = {}) {
   const fixes = [];
   let body = [...text.body];

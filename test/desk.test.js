@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setLang } from '../server/i18n.js';
 import { printEdition } from '../server/newsroom/edition.js';
-import { interviewRound, answerCall, openCalls, closingRound, closingCall, matchesOf, templateQuestion } from '../server/newsroom/calls.js';
+import { interviewRound, answerCall, openCalls, closingRound, closingCall, closingVariant, matchesOf, templateQuestion, followLead } from '../server/newsroom/calls.js';
 import { getSteer, nextEditionId } from '../server/newsroom/next.js';
 import { addTip, matchTip, tipsFromNotes } from '../server/newsroom/tips.js';
 import { checkRecords, peekRecords, metrics } from '../server/newsroom/sport.js';
@@ -75,6 +75,58 @@ for (const l of ['en', 'it']) {
     } finally { cleanup(); setLang('en'); }
   });
 
+  test(`[${l}] interview: a lead besides the answer, the reporter takes note and the piece grows`, async () => {
+    setLang(l);
+    const { config, store, cleanup } = sandbox();
+    try {
+      const h = hourStart(Date.now()) - 3 * HOUR;
+      store.insertEvents(hourOfChess(h));
+      const call = await interviewRound(store, config, { now: h + 30 * MIN, log: quiet, useLLM: false });
+      const plain = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
+      const before = plain.articles.find((x) => x.id === call.storyId);
+      // a fresh call on the same story, answered with a lead
+      store.saveItem({ ...store.getItem('call', call.id), printedIn: null });
+      const r = answerCall(store, config, call.id, { text: 'Lost to bob, as usual', lead: 'look at the openings: always the same one' }, h + 35 * MIN);
+      assert.equal(r.call.lead, 'look at the openings: always the same one');
+      assert.equal(r.follow, null);
+      const ed = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
+      const a = ed.articles.find((x) => x.id === call.storyId);
+      assert.ok(a.body.some((p) => p.includes('Lost to bob, as usual')), 'quote missing');
+      assert.ok(a.body.some((p) => p.includes('always the same one')), 'the lead was not followed');
+      assert.ok(a.body.length > before.body.length, 'the piece did not grow');
+      assert.equal(a.leads?.length, 1);
+      assert.equal(a.quotes[0].lead, 'look at the openings: always the same one');
+      assert.ok(chatter(store).some((m) => /lead|traccia/.test(m.text)), 'the reporter took no notes');
+
+      // only a lead, no statement: "no comment", and the lead still goes in
+      const c2 = store.saveItem({ kind: 'call', type: 'interview', status: 'open', ts: h + 41 * MIN, ref: 'terminal:session:all', storyId: 'terminal:session:all', editionId: ed.id, question: 'Q?', deadline: h + HOUR + 30e3 });
+      const r2 = answerCall(store, config, c2.id, { lead: 'the press broke twice before the fix' }, h + 42 * MIN);
+      assert.equal(r2.call.status, 'declined');
+      assert.throws(() => answerCall(store, config, store.saveItem({ ...c2, id: undefined, status: 'open' }).id, {}, h + 43 * MIN), /answer|risposta/);
+    } finally { cleanup(); setLang('en'); }
+  });
+
+  test(`[${l}] interview: a lead after the press expands the printed article`, async () => {
+    setLang(l);
+    const { config, store, cleanup } = sandbox();
+    try {
+      const h = hourStart(Date.now()) - 3 * HOUR;
+      store.insertEvents(hourOfChess(h));
+      const ed = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
+      const aid = ed.articles[0].id;
+      const c = store.saveItem({ kind: 'call', type: 'interview', status: 'open', ts: h + 41 * MIN, ref: aid, storyId: aid, editionId: ed.id, printedIn: ed.id, question: 'Q?', deadline: h + HOUR + 30e3 });
+      const r = answerCall(store, config, c.id, { text: 'It was a long hour', lead: 'ask about the second monitor' }, h + HOUR + 5 * MIN);
+      assert.deepEqual(r.follow, { editionId: ed.id, articleId: aid });
+      const done = await followLead(store, config, r.follow, c.id, quiet);
+      assert.equal(done.rewritten, false); // no writer in the sandbox: the typesetting adds it
+      const a = store.getEdition(ed.id).articles.find((x) => x.id === aid);
+      assert.ok(a.body.some((p) => p.includes('It was a long hour')), 'the late quote was lost');
+      assert.ok(a.body.some((p) => p.includes('second monitor')), 'the late lead is missing');
+      assert.equal(a.leads.at(-1).late, true);
+      assert.doesNotMatch(a.body.join(' '), BROKEN);
+    } finally { cleanup(); setLang('en'); }
+  });
+
   test(`[${l}] closing at :55: the Editor picks the lead, the steering follows`, () => {
     setLang(l);
     const { config, store, cleanup } = sandbox();
@@ -92,11 +144,12 @@ for (const l of ['en', 'it']) {
   });
 }
 
-test('closing: the three kinds of question', () => {
+test('closing: the two kinds of question (the voice is never asked)', () => {
   const p = { willMerge: false, stories: [{ id: 'a', topic: 'chess.com', inPaper: true }, { id: 'b', topic: 'YouTube', inPaper: true }, { id: 'c', topic: 'Mail', inPaper: true }] };
   assert.equal(closingCall(p, 'lead').options.filter((o) => o.action?.op === 'boost').length, 3);
   assert.equal(closingCall(p, 'cut').options[0].action.story, 'c');
-  assert.equal(closingCall(p, 'tone').options[0].action.op, 'note');
+  assert.equal(closingVariant(new Date(2026, 9, 10, 14).getTime()), 'cut');
+  assert.equal(closingVariant(new Date(2026, 9, 10, 15).getTime()), 'lead');
   assert.equal(closingCall({ ...p, willMerge: true }, 'lead'), null);
 });
 
@@ -267,7 +320,7 @@ test('the bench: a paragraph liked becomes an example, keep and cut are counted'
     await paragraphAction(store, config, ed.id, a.id, { index: 0, op: 'like' });
     assert.equal(getTaste(store).liked.length, 1);
     assert.match(tastePrompt(getLine(store), null), /LIKED/);
-    saveLine(store, { tone: 'ironic' });
+    saveLine(store, { length: 'long' });
     assert.equal(getLine(store).taste.liked.length, 1, 'the taste was lost saving the line');
     assert.equal(store.getSetting('line').taste, undefined, 'the taste leaked into the line');
     if (a.body.length >= 2) {

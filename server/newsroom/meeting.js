@@ -3,7 +3,7 @@
  * The managing editor replies and may propose actions; nothing changes until the editor applies them.
  */
 import { connectLLM, chat } from './llm.js';
-import { getLine, saveLine, TONES, toneId, isTone } from './line.js';
+import { getLine, saveLine } from './line.js';
 import { meetingPrompt } from './prompts.js';
 import { buildStories, factSheet } from './cluster.js';
 import { board } from './spotlight/desk.js';
@@ -140,8 +140,6 @@ function validActions(actions, ctx) {
       out.push({ type: t, article: x.article, instruction: t === 'rewrite' ? String(x.instruction).trim().slice(0, 300) : undefined });
     } else if (t === 'note' && String(x.text || '').trim()) {
       out.push({ type: 'note', text: String(x.text).trim().slice(0, 300) });
-    } else if (t === 'tone' && isTone(x.tone)) {
-      out.push({ type: 'tone', tone: toneId(x.tone) });
     } else if (t === 'editorial' && ctx.kind === 'evening') {
       out.push({ type: 'editorial', instruction: String(x.instruction || '').trim().slice(0, 300) });
     } else if ((t === 'lead_next' || t === 'drop_next') && nextIds.has(x.story)) {
@@ -163,7 +161,6 @@ function validActions(actions, ctx) {
         lead: `Lead with ${title}`,
         spike: `Drop ${title} from the edition`,
         note: `Add to the editor's notes: ${q(x.text)}`,
-        tone: `Change the tone to ${q(TONES[x.tone]?.label)}`,
         editorial: `Rewrite the editorial${x.instruction ? `: ${x.instruction}` : ''}`,
         lead_next: `Next edition: lead with ${q(x.topic)}`,
         drop_next: `Next edition: leave out ${q(x.topic)}`,
@@ -175,7 +172,6 @@ function validActions(actions, ctx) {
         lead: `Metti in apertura ${title}`,
         spike: `Togli dall'edizione ${title}`,
         note: `Aggiungi alle note del direttore: ${q(x.text)}`,
-        tone: `Cambia il tono in ${q(TONES[x.tone]?.label)}`,
         editorial: `Riscrivi l'editoriale${x.instruction ? `: ${x.instruction}` : ''}`,
         lead_next: `Prossima edizione: apertura su ${q(x.topic)}`,
         drop_next: `Prossima edizione: lascia fuori ${q(x.topic)}`,
@@ -306,7 +302,6 @@ export async function applyAction({ store, config, threadId, msgIndex, actionInd
         result.line = saveLine(store, { notes });
         break;
       }
-      case 'tone': result.line = saveLine(store, { tone: action.tone }); break;
       case 'editorial': result.evening = await rewriteEditorial(store, config, EVENING.exec(threadId)[1], action.instruction, log); break;
       case 'lead_next': result.steer = steer(store, config, { op: 'boost', story: action.story }); break;
       case 'drop_next': result.steer = steer(store, config, { op: 'bury', story: action.story }); break;

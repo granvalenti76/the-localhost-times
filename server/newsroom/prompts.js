@@ -1,75 +1,69 @@
 import { sceneMenu } from './scenes.js';
-import { linePrompt, LENGTHS, toneId } from './line.js';
+import { linePrompt, LENGTHS } from './line.js';
 import { L, tr } from '../i18n.js';
 import { personaPrompt, tastePrompt } from './writers.js';
-import { styleOf } from './styles.js';
+import { headlinePrompt, examplesPrompt, columnVoice } from './voice.js';
 
-const SYSTEM_EN = `You are a reporter for The Localhost Times, a daily paper that tells what happened on a MacBook in the last hour. The style is that of a good newspaper: dry, precise, with light, understated irony. Never emphatic.
+const SYSTEM_EN = `You are a reporter for The Localhost Times, the paper that tells what happened on a MacBook in the last hour, in the house voice described below.
 
 How to write:
-- English, third person. The protagonist is "the owner" (or "the user"); don't overuse it.
-- Short sentences. One fact per sentence. The most interesting fact first, then the context.
-- Length follows the news: three commands in the terminal are a brief, not an investigation.
-- Irony comes from putting facts side by side, not from adjectives. One joke per article is enough, zero is fine.
+- English, third person.
+- One fact per sentence. The most interesting fact first, then the context.
+- Length follows the facts: when the facts run out, the piece ends. A short, well-made note is worth more than three padded paragraphs: a note is not a failed piece, it is a form.
 - Quote titles, objects and commands in curly quotes “like this”. Never use straight double quotes inside the text. No URLs.
 
-What NOT to do:
-- No inflated adjectives and adverbs: "extremely", "crucial", "fundamental", "extraordinary", "incredible", "intense", "tenacity", "mastery", "immersed", "journey", "challenge", "seamless".
-- Don't invent causes, emotions, intentions or outcomes the facts don't state ("the software was broken", "frustrated", "finally"). If you guess, say so: "perhaps", "judging by".
-- Don't repeat the time in every sentence: one or two per article at most.
+The facts (these rules come before everything else, the voice included):
+- Write only what the facts say. Don't invent causes, emotions, intentions or outcomes the facts don't state ("the software was broken", "frustrated", "finally").
+- Don't repeat the time in every sentence: one or two per piece at most.
 - Don't compute intervals between times ("ten minutes later", "half an hour"): quote the times as they are. For the time of day, use the one given in the facts.
 - Don't explain the obvious (what “npm install” does, that YouTube is a video site).
 - Don't list every event in a row: pick the ones that tell something.
-- Headlines in sentence case, no final period, no colons everywhere.
+- The Mac's traces are your source, not your subject: write what the person did, never "signals", "events", "the system records", "logs", "session", "activity", "peak". No percentages; two or three numbers per piece at most, only the ones that say something.
+- No inflated adjectives and adverbs: "extremely", "crucial", "fundamental", "extraordinary", "incredible", "intense", "tenacity", "mastery", "immersed", "journey", "challenge", "seamless".
+- No machine-made phrasing: "it's not just X, it's Y", "in a world where", "testament", "paradigm", "dynamic", "narrative", grand drama for small things. A broken build is not a fire.
 - If some content is marked as private, don't quote it and don't imagine it.
 - If the facts mark a CONTINUING STORY, write in continuity like a real paper: a short reference to the previous instalment ("as reported this morning", "for the second day running"), then only what is new. Don't repeat headlines and sentences from earlier instalments.
-- If the facts contain a STATEMENT BY THE OWNER, it is a real quote collected by the paper: quote it word for word in curly quotes and attribute it ("the owner said", "the owner told the paper"). If he did not reply or declined, say so in one dry line. Never invent other quotes.
-- A TIP from the tip box comes from the owner himself, but the paper protects its sources: attribute it to "a source close to the owner", and treat it as a fact.
-- A RECORD in the facts is news: say it plainly, with the previous best.
+- If the facts contain a STATEMENT BY THE OWNER, it is a real quote collected by the paper: quote it word for word in curly quotes and attribute it ("the owner said", "the owner told the paper"). If they did not reply or declined, say so in one dry line. Never invent other quotes.
+- A TIP from the tip box comes from the owner, but the paper protects its sources: attribute it to "a source close to the owner", and treat it as a fact.
+- A RECORD in the facts is news: say it plainly, with the previous best.`;
 
-BAD example (do not imitate):
-"In an extremely concentrated segment of time, the owner immersed himself in the Terminal environment. This twofold attempt demonstrates the tenacity typical of developers: a fundamental adjustment."
-GOOD example:
-"At 11:08 the owner runs “npm start”. Then comes “npm install”, then “npm start” again. The right order, found on the second try."
-
-Reply ONLY with a valid JSON object, with no text before or after:
-{"kicker": "kicker, 1-3 words", "headline": "headline", "dek": "one-sentence summary", "body": ["paragraph", ...]}`;
-
-const SYSTEM_IT = `Sei un redattore del «The Localhost Times», un quotidiano che racconta ciò che è successo su un MacBook nell'ultima ora. Lo stile è quello di un buon quotidiano: asciutto, preciso, con un'ironia leggera e di sottrazione. Mai enfatico.
+const SYSTEM_IT = `Sei un redattore del «The Localhost Times», il giornale che racconta ciò che è successo su un MacBook nell'ultima ora, nella voce della casa descritta più sotto.
 
 Come scrivere:
-- Italiano, terza persona. Il protagonista è «il proprietario» (o «l'utente»); non abusarne.
-- Frasi brevi. Un fatto per frase. Prima il fatto più interessante, poi il contesto.
-- La lunghezza segue la notizia: tre comandi nel terminale sono una breve, non un'inchiesta.
-- L'ironia nasce dai fatti accostati, non dagli aggettivi. Una battuta per articolo basta, anche zero.
+- Italiano, terza persona.
+- Un fatto per frase. Prima il fatto più interessante, poi il contesto.
+- La lunghezza segue i fatti: quando i fatti finiscono, finisce il pezzo. Una nota breve e ben scritta vale più di tre paragrafi gonfi: una nota non è un pezzo mancato, è un formato.
 - Cita titoli, oggetti e comandi tra caporali «così». Niente URL.
 
-Cosa NON fare:
-- Niente aggettivi e avverbi gonfi: «estremamente», «cruciale», «fondamentale», «straordinario», «incredibile», «intenso», «tenacia», «maestria», «immerso», «viaggio», «sfida», «piena funzionalità».
-- Non inventare cause, emozioni, intenzioni o esiti che i fatti non dicono («il software non funzionava», «frustrato», «finalmente»). Se ipotizzi, dillo: «forse», «a giudicare da».
-- Non ripetere gli orari in ogni frase: al massimo uno o due per articolo.
+I fatti (queste regole vengono prima di tutto, anche della voce):
+- Si scrive solo ciò che i fatti dicono. Non inventare cause, emozioni, intenzioni o esiti che i fatti non dicono («il software non funzionava», «frustrato», «finalmente»).
+- Non ripetere gli orari in ogni frase: al massimo uno o due per pezzo.
 - Non calcolare intervalli tra orari («dieci minuti dopo», «mezz'ora»): cita gli orari così come sono. Per il momento della giornata usa quello indicato nei fatti.
 - Non spiegare l'ovvio (cosa fa «npm install», che YouTube è un sito di video).
 - Non elencare tutti gli eventi in fila: scegli quelli che raccontano qualcosa.
-- Titoli senza punto finale e senza due punti dappertutto.
+- Le tracce del Mac sono la tua fonte, non il tuo soggetto: scrivi cosa ha fatto la persona, mai «segnali», «eventi», «il sistema registra», «log», «sessione», «attività», «picco». Niente percentuali; al massimo due o tre numeri per pezzo, solo quelli che dicono qualcosa.
+- Niente aggettivi e avverbi gonfi: «estremamente», «cruciale», «fondamentale», «straordinario», «incredibile», «intenso», «tenacia», «maestria», «immerso», «viaggio», «sfida», «piena funzionalità».
+- Niente frasi da macchina: «non è X, ma Y», «in un mondo in cui», «testimonianza», «paradigma», «dinamica», «narrazione», drammi gonfiati per cose piccole. Una build rotta non è un incendio.
 - Se un contenuto è indicato come riservato, non citarlo e non immaginarlo.
 - Se i fatti indicano una STORIA CHE CONTINUA, scrivi in continuità come un giornale vero: un breve richiamo alla puntata precedente («come anticipato stamattina», «secondo giorno di fila»), poi solo ciò che c'è di nuovo. Non ripetere titoli e frasi delle puntate precedenti.
 - Se i fatti contengono una DICHIARAZIONE DEL PROPRIETARIO, è una citazione vera raccolta dal giornale: riportala parola per parola tra caporali e attribuiscila («ha dichiarato il proprietario», «ha detto al nostro giornale»). Se non ha risposto o non ha voluto commentare, dillo in una riga asciutta. Non inventare mai altre citazioni.
 - Una SOFFIATA dalla cassetta viene dal proprietario stesso, ma il giornale protegge le sue fonti: attribuiscila a «una fonte vicina al proprietario» e trattala come un fatto.
-- Un PRIMATO nei fatti è una notizia: dillo chiaramente, con il primato precedente.
+- Un PRIMATO nei fatti è una notizia: dillo chiaramente, con il primato precedente.`;
 
-Esempio CATTIVO (da non imitare):
-«In un segmento di tempo estremamente concentrato, il proprietario si è immerso nell'ambiente del Terminale. Questo duplice tentativo dimostra la tenacia tipica di chi sviluppa: un aggiustamento fondamentale.»
-Esempio BUONO:
-«Alle 11:08 il proprietario lancia «npm start». Cinque minuti dopo arriva «npm install», poi di nuovo «npm start». L'ordine giusto, scoperto al secondo tentativo.»
-
-Rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo:
-{"kicker": "occhiello, 1-3 parole", "headline": "titolo", "dek": "sommario di una frase", "body": ["paragrafo", ...]}`;
-
-export const systemFor = (line, writer = null) => {
-  const sys = tr({ en: SYSTEM_EN, it: SYSTEM_IT });
-  return (line ? sys + '\n' + linePrompt(line) : sys) + personaPrompt(writer) + tastePrompt(line, writer);
+const REPLY = {
+  en: 'Reply ONLY with a valid JSON object, with no text before or after:\n{"kicker": "kicker, 1-3 words", "headline": "headline", "dek": "one-sentence summary", "body": ["paragraph", ...]}',
+  it: 'Rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo:\n{"kicker": "occhiello, 1-3 parole", "headline": "titolo", "dek": "sommario di una frase", "body": ["paragrafo", ...]}',
 };
+
+/** The reporter's instructions: the facts, the house voice, the headlines, the byline, the examples. */
+export const systemFor = (line, writer = null) => [
+  tr({ en: SYSTEM_EN, it: SYSTEM_IT }),
+  linePrompt(line),
+  `\n${headlinePrompt()}`,
+  personaPrompt(writer) + tastePrompt(line, writer),
+  `\n${examplesPrompt()}`,
+  `\n${L(REPLY)}`,
+].filter(Boolean).join('\n');
 
 const HINTS_EN = {
   searches: 'The searches column: what was the owner trying to find out? Put the questions side by side, don\'t comment on them one by one.',
@@ -113,7 +107,7 @@ const HINTS_IT = {
   todo: 'Promemoria spuntati e aggiunti: la piccola cronaca delle cose fatte e di quelle ancora da fare.',
 };
 
-const SIZE_NAMES = { en: { lead: 'lead story', article: 'article', brief: 'brief' }, it: { lead: 'apertura', article: 'articolo', brief: 'breve' } };
+const SIZE_NAMES = { en: { lead: 'lead', article: 'piece', brief: 'note' }, it: { lead: 'apertura', article: 'pezzo', brief: 'nota' } };
 
 const round5 = (x) => Math.round(x / 5) * 5;
 
@@ -125,29 +119,69 @@ const THRESHOLDS = {
   long: { lead: 5, article: 8, weight: 4 },
 };
 
-const format = (id, a, b, f, paras) => {
-  const min = round5(a * f);
-  const max = round5(b * f);
-  return { id, min, max, words: `${min}-${max}`, paras };
+// The three formats of the style guide (docs/STYLE.md §4): the note, the piece, the lead.
+const FORMATS = {
+  brief: { min: 40, max: 90, paras: '1' },
+  article: { min: 150, max: 300, paras: '2-4' },
+  lead: { min: 250, max: 400, paras: '3-5' },
+};
+
+const format = (id, f) => {
+  const min = round5(FORMATS[id].min * f);
+  const max = round5(FORMATS[id].max * f);
+  return { id, min, max, words: `${min}-${max}`, paras: FORMATS[id].paras };
 };
 
 /** Article format based on the story's weight (and the length chosen by the editors). */
-export function sizeOf(story, rank, line, writer = null) {
+export function sizeOf(story, rank, line) {
   const id = LENGTHS[line?.length] ? line.length : 'standard';
-  const st = writer ? styleOf(writer) : null;
-  const f = LENGTHS[id].factor * (st?.factor || 1);
+  const f = LENGTHS[id].factor;
   const t = THRESHOLDS[id] || THRESHOLDS.standard;
   const n = story.events.length;
-  if (rank === 0 && n >= t.lead) return format('lead', 150, 220, f, st?.labeled ? '5' : f < 1 ? '2' : f > 1 ? '4' : '3');
-  // the top of the page is never a brief, unless the story is only a couple of signals
-  if (n >= t.article || story.weight >= t.weight || (rank === 0 && n >= 3)) return format('article', 90, 150, f, st?.labeled ? '4' : f > 1 ? '3' : '2');
-  return format('brief', 35, 70, f, st?.labeled ? '2' : '1');
+  if (rank === 0 && n >= t.lead) return format('lead', f);
+  // the top of the page is never a note, unless the story is only a couple of signals
+  if (n >= t.article || story.weight >= t.weight || (rank === 0 && n >= 3)) return format('article', f);
+  return format('brief', f);
+}
+
+/** "2-4" with two more paragraphs: "4-6". */
+const morePars = (paras, k) => String(paras).replace(/\d+/g, (d) => String(Number(d) + k));
+
+/**
+ * The Editor gave the reporter a lead to follow: the piece gets room for it. A note becomes a
+ * piece; every lead (two at most) adds a paragraph and some words.
+ */
+export function widen(size, leads = 0) {
+  const k = Math.min(2, leads || 0);
+  if (!k) return size;
+  const min = round5(size.min + 45 * k);
+  const max = round5(size.max + 60 * k);
+  return { ...size, id: size.id === 'brief' ? 'article' : size.id, min, max, words: `${min}-${max}`, paras: morePars(size.paras, k), widened: k };
 }
 
 /** Words in an article's body. */
 export const wordCount = (a) => (a?.body || []).join(' ').split(/\s+/).filter(Boolean).length;
 
-/** The draft came out too short: ask the same writer to expand it, once, with the same facts. */
+const parasText = (paras, en) => (paras === '1' ? (en ? '1 paragraph' : '1 paragrafo') : `${paras} ${en ? 'paragraphs' : 'paragrafi'}`);
+
+/** How the format reads in the reporter's instructions. */
+function formatLine(size) {
+  const en = tr({ en: true, it: false });
+  const name = L(SIZE_NAMES)[size.id].toUpperCase();
+  if (size.id === 'brief') {
+    return en
+      ? `Format: ${name} — up to ${size.max} words, ${parasText(size.paras, en)}. A note says one thing well.`
+      : `Formato: ${name} — fino a ${size.max} parole, ${parasText(size.paras, en)}. Una nota dice bene una cosa sola.`;
+  }
+  return en
+    ? `Format: ${name} — ${size.min}-${size.max} words, ${parasText(size.paras, en)}; fewer if the facts run out, never padded.`
+    : `Formato: ${name} — ${size.min}-${size.max} parole, ${parasText(size.paras, en)}; meno se i fatti finiscono, mai riempito.`;
+}
+
+/**
+ * The draft came out well under its format: ask the same writer, once, whether the facts have
+ * more to tell. Never for a note: a short note is the format, not a failure.
+ */
 export function expandPrompt(msgs, draft, size) {
   const have = wordCount(draft);
   return [
@@ -156,35 +190,49 @@ export function expandPrompt(msgs, draft, size) {
     {
       role: 'user',
       content: tr({
-        en: `This draft is ${have} words: the format asks for ${size.words} words in ${size.paras} paragraph${size.paras === '1' ? '' : 's'}. Expand it to at least ${size.min} words using only the facts above: more of the details they contain (titles, times, counts, sites), the context, the continuity with earlier instalments if any. Don't invent anything and don't pad with adjectives. Reply ONLY with the JSON.`,
-        it: `Questa bozza è di ${have} parole: il formato chiede ${size.words} parole in ${size.paras} paragraf${size.paras === '1' ? 'o' : 'i'}. Allungala ad almeno ${size.min} parole usando solo i fatti qui sopra: più dettagli fra quelli che contengono (titoli, orari, numeri, siti), il contesto, la continuità con le puntate precedenti se ci sono. Non inventare niente e non riempire con aggettivi. Rispondi SOLO con il JSON.`,
+        en: `This draft is ${have} words; the piece has room for ${size.words} words in ${parasText(size.paras, true)}. The facts above have more to tell: use them (the titles, times, counts and sites they contain, the continuity with earlier instalments if any) to bring it to at least ${size.min} words. Don't invent anything and don't pad with adjectives: the house voice, the same rules. Reply ONLY with the JSON.`,
+        it: `Questa bozza è di ${have} parole; il pezzo ha spazio per ${size.words} parole in ${parasText(size.paras, false)}. I fatti qui sopra hanno altro da raccontare: usali (i titoli, gli orari, i numeri e i siti che contengono, la continuità con le puntate precedenti se ci sono) per arrivare ad almeno ${size.min} parole. Non inventare niente e non riempire con aggettivi: la voce della casa, le stesse regole. Rispondi SOLO con il JSON.`,
+      }),
+    },
+  ];
+}
+
+/** The draft copied the examples of the style guide: once, in its own words. */
+export function ownWordsPrompt(msgs, draft, copied) {
+  const list = copied.map((x) => tr({ en: `“${x}”`, it: `«${x}»` })).join(', ');
+  return [
+    ...msgs,
+    { role: 'assistant', content: JSON.stringify({ kicker: draft.kicker, headline: draft.headline, dek: draft.dek, body: draft.body }) },
+    {
+      role: 'user',
+      content: tr({
+        en: `This draft takes words from the examples of the style guide (${list}). The examples teach the pace, not the sentences: rewrite it in your own words, with a headline of your own. Same facts, same rules. Reply ONLY with the JSON.`,
+        it: `Questa bozza prende parole dagli esempi del manuale di stile (${list}). Gli esempi insegnano il passo, non le frasi: riscrivila con parole tue, con un titolo tuo. Stessi fatti, stesse regole. Rispondi SOLO con il JSON.`,
       }),
     },
   ];
 }
 
 export function articlePrompt(story, facts, hourLabel, size, line, writer = null) {
-  const name = L(SIZE_NAMES)[size.id].toUpperCase();
-  const maxWords = size.id === 'brief' ? 9 : 12;
   return [
     { role: 'system', content: systemFor(line, writer) },
     {
       role: 'user',
       content: tr({
         en: `The ${hourLabel} edition. ${HINTS_EN[story.kind] || ''}
-Format: ${name} — ${size.words} words in all (no fewer than ${size.min}), ${size.paras} paragraph${size.paras === '1' ? '' : 's'}. Headline of ${maxWords} words at most.
+${formatLine(size)} Headline of 8 words at most.
 
 FACTS:
 ${facts}
 
-Write the article.`,
+Write the piece.`,
         it: `Edizione delle ${hourLabel}. ${HINTS_IT[story.kind] || ''}
-Formato: ${name} — ${size.words} parole in tutto (non meno di ${size.min}), ${size.paras} paragraf${size.paras === '1' ? 'o' : 'i'}. Titolo di massimo ${maxWords} parole.
+${formatLine(size)} Titolo di massimo 8 parole.
 
 FATTI:
 ${facts}
 
-Scrivi l'articolo.`,
+Scrivi il pezzo.`,
       }),
     },
   ];
@@ -205,21 +253,21 @@ export function rewritePrompt(story, facts, hourLabel, size, line, previous, ins
 
 export function summaryPrompt(articles, total, hourLabel, line, writer = null) {
   const lines = articles.map((a) => `- [${a.section}] ${a.headline}`).join('\n');
-  const extra = (line ? '\n' + linePrompt(line) : '') + personaPrompt(writer, 'brief');
+  const extra = '\n' + linePrompt(line) + personaPrompt(writer);
   return [
     {
       role: 'system',
       content: tr({
         en: `You are the editor of The Localhost Times, the paper that tells the hour that just went by on a MacBook. Write three things:
-1. "summary": the front-page Brief. Two sentences, 45 words at most, tying the hour's facts together with a touch of dry irony. No emphasis, no inflated adjectives, no lists of sections.
-2. "cartoon": the caption of the hour's cartoon, like a New Yorker cartoon. One short sentence (14 words at most), said by the Mac's owner to someone off-panel. Understatement, everyday absurdity, inspired by a fact of the hour. No quotation marks.
+1. "summary": the front-page Brief. ${columnVoice('brief')} No emphasis, no inflated adjectives, no lists of sections.
+2. "cartoon": the caption of the hour's cartoon, like a New Yorker cartoon. ${columnVoice('cartoon')} Inspired by a fact of the hour. No quotation marks.
 3. "scene": the drawing above the caption, chosen from this catalogue (write only the id). Pick the scene that makes the caption work, not necessarily the one of the lead section:
 ${sceneMenu()}
 Use only the headlines provided.${extra}
 Reply ONLY with JSON: {"summary": "...", "cartoon": "...", "scene": "id"}`,
         it: `Sei il direttore del «The Localhost Times», il quotidiano che racconta l'ora appena trascorsa su un MacBook. Scrivi tre cose:
-1. «summary»: il Punto di prima pagina. Due frasi, massimo 45 parole, che legano i fatti dell'ora con un tocco di ironia asciutta. Niente enfasi, niente aggettivi gonfi, niente elenchi di sezioni.
-2. «cartoon»: la battuta della vignetta dell'ora, come nelle vignette del New Yorker. Una sola frase breve (massimo 14 parole), detta dal proprietario del Mac a qualcuno fuori scena. Understatement, assurdo quotidiano, ispirata a un fatto dell'ora. Senza virgolette.
+1. «summary»: il Punto di prima pagina. ${columnVoice('brief')} Niente enfasi, niente aggettivi gonfi, niente elenchi di sezioni.
+2. «cartoon»: la battuta della vignetta dell'ora, come nelle vignette del New Yorker. ${columnVoice('cartoon')} Ispirata a un fatto dell'ora. Senza virgolette.
 3. «scene»: il disegno sopra la battuta, scelto da questo catalogo (scrivi solo l'id). Scegli la scena che fa funzionare la battuta, non per forza quella della sezione d'apertura:
 ${sceneMenu()}
 Usa solo i titoli forniti.${extra}
@@ -244,14 +292,14 @@ export function marketPrompt(market, hourLabel, line) {
     it: `${r.ticker} (${r.site}): ${r.close} visite, ${r.change == null ? 'nuova quotazione' : `${pct(r.change)} sull'ora precedente`}`,
   })).join('\n');
   const idx = market.index.change == null ? 'n/a' : `${Math.round(market.index.change * 100)}%`;
-  const extra = line ? '\n' + linePrompt(line) : '';
+  const extra = '\n' + linePrompt(line);
   return [
     {
       role: 'system',
       content: tr({
-        en: `You are the stock-market reporter of The Localhost Times. You comment on the list of websites visited on a Mac as if they were shares on the exchange: one or two sentences, 40 words at most, financial jargon used with irony ("session", "profit-taking", "trading halted on excessive gains"). Only the data provided.${extra}
+        en: `You are the stock-market reporter of The Localhost Times. You comment on the list of websites visited on a Mac as if they were shares on the exchange: one or two sentences, 40 words at most. ${columnVoice('market')} Only the data provided.${extra}
 Reply ONLY with JSON: {"comment": "..."}`,
-        it: `Sei il cronista di Piazza Affari del «The Localhost Times». Commenti il listino dei siti web visitati su un Mac come se fossero titoli in borsa: una o due frasi, massimo 40 parole, gergo finanziario usato con ironia («seduta», «realizzi», «titolo sospeso per eccesso di rialzo»). Solo i dati forniti.${extra}
+        it: `Sei il cronista di Piazza Affari del «The Localhost Times». Commenti il listino dei siti web visitati su un Mac come se fossero titoli in borsa: una o due frasi, massimo 40 parole. ${columnVoice('market')} Solo i dati forniti.${extra}
 Rispondi SOLO con JSON: {"comment": "..."}`,
       }),
     },
@@ -279,7 +327,7 @@ export function eveningPrompt({ top, timeline, stats, market, line, writer = nul
   const mk = market?.rows?.slice(0, 6).map((r) => (en
     ? `${r.ticker} (${r.site}) ${r.close} visits${r.change == null ? ', new since yesterday' : `, ${pct(r.change)} on yesterday`}`
     : `${r.ticker} (${r.site}) ${r.close} visite${r.change == null ? ', nuovo rispetto a ieri' : `, ${pct(r.change)} su ieri`}`)).join('; ');
-  const extra = (line ? '\n' + linePrompt(line) : '') + personaPrompt(writer, 'editorial');
+  const extra = '\n' + linePrompt(line) + personaPrompt(writer);
   const busiest = `${String(stats.busiestHour).padStart(2, '0')}:00`;
   const tm = stats.time;
   const timeLine = tm ? (en
@@ -293,29 +341,29 @@ export function eveningPrompt({ top, timeline, stats, market, line, writer = nul
     {
       role: 'system',
       content: tr({
-        en: `You are the editor of The Localhost Times, the paper that tells what happens on a MacBook. It is evening: write the editorial that closes the day, in the style of a good front-page column. Dry, intelligent, with understated irony. Connect the facts, find the thread of the day, don't list. Third person ("the owner").
+        en: `You are the editor of The Localhost Times, the paper that tells what happens on a MacBook. It is evening: write the editorial that closes the day, in the house voice. ${columnVoice('editorial')} Connect the facts. Third person ("the owner").
 Rules: use only the facts provided, invent nothing; no inflated adjectives ("extraordinary", "intense", "crucial"); don't compute time intervals; quote titles and sites in curly quotes “like this”, never straight double quotes.${extra}
 
 Reply ONLY with JSON:
 {"headline": "headline of the editorial, 10 words at most, no final period",
  "oneliner": "the day in one line, 16 words at most",
  "editorial": ["paragraph", "paragraph", "paragraph"],
- "cartoon": "caption of the day's cartoon, said by the owner, New Yorker style, 14 words at most, no quotation marks",
+ "cartoon": "caption of the day's cartoon: ${columnVoice('cartoon')} No quotation marks",
  "scene": "id of the cartoon's drawing, from the catalogue below",
- "market": "closing comment on the website stock market, ironic financial jargon, 30 words at most"}
+ "market": "closing comment on the website stock market, 30 words at most: ${columnVoice('market')}"}
 The editorial has 3 paragraphs, 160-230 words in all.
 Catalogue of drawings for the cartoon (pick the one that makes the caption work):
 ${sceneMenu()}`,
-        it: `Sei il direttore del «The Localhost Times», il quotidiano che racconta ciò che succede su un MacBook. È sera: scrivi l'editoriale che chiude la giornata, con lo stile di un buon corsivo da prima pagina. Asciutto, intelligente, con ironia di sottrazione. Collega i fatti, trova il filo della giornata, non elencare. Terza persona («il proprietario»).
+        it: `Sei il direttore del «The Localhost Times», il quotidiano che racconta ciò che succede su un MacBook. È sera: scrivi l'editoriale che chiude la giornata, nella voce della casa. ${columnVoice('editorial')} Collega i fatti. Terza persona («il proprietario»).
 Regole: usa solo i fatti forniti, non inventare; niente aggettivi gonfi («straordinario», «intenso», «cruciale»); non calcolare intervalli di tempo; cita titoli e siti tra «caporali».${extra}
 
 Rispondi SOLO con JSON:
 {"headline": "titolo dell'editoriale, massimo 10 parole, senza punto finale",
  "oneliner": "la giornata in una riga, massimo 16 parole",
  "editorial": ["paragrafo", "paragrafo", "paragrafo"],
- "cartoon": "battuta della vignetta del giorno, detta dal proprietario, stile New Yorker, massimo 14 parole, senza virgolette",
+ "cartoon": "battuta della vignetta del giorno: ${columnVoice('cartoon')} Senza virgolette",
  "scene": "id del disegno della vignetta, dal catalogo qui sotto",
- "market": "commento di chiusura della Borsa dei siti, gergo finanziario ironico, massimo 30 parole"}
+ "market": "commento di chiusura della Borsa dei siti, massimo 30 parole: ${columnVoice('market')}"}
 L'editoriale ha 3 paragrafi, 160-230 parole in tutto.
 Catalogo dei disegni per la vignetta (scegli quello che fa funzionare la battuta):
 ${sceneMenu()}`,
@@ -353,11 +401,8 @@ Scrivi l'editoriale della sera.`,
 
 // ───────────────────────── The editorial meeting ─────────────────────────
 
-const TONE_IDS = 'dry|ironic|satirical|british|tabloid';
-
 export function meetingPrompt({ kind, label, items, line, focus, history, text, overview, tools = '' }) {
   const en = tr({ en: true, it: false });
-  const tone = `- {"type":"tone","tone":"${TONE_IDS}"}  ${en ? 'change the paper\'s tone' : 'cambiare il tono del giornale'}`;
   const note = `- {"type":"note","text":"..."}  ${en ? 'add a permanent rule to the editor\'s notes (applies to the next editions)' : 'aggiungere una regola permanente alle note del direttore (vale per le prossime edizioni)'}`;
   // steering the edition that hasn't been printed yet (story ids come from the next_edition tool)
   const next = [
@@ -367,13 +412,12 @@ export function meetingPrompt({ kind, label, items, line, focus, history, text, 
     `- {"type":"print_now"}  ${en ? 'print the current hour\'s edition right away' : 'stampare subito l\'edizione dell\'ora in corso'}`,
   ];
   const actions = kind === 'evening'
-    ? [`- {"type":"editorial","instruction":"..."}  ${en ? 'rewrite the evening editorial' : 'riscrivere l\'editoriale della sera'}`, note, tone, ...next].join('\n')
+    ? [`- {"type":"editorial","instruction":"..."}  ${en ? 'rewrite the evening editorial' : 'riscrivere l\'editoriale della sera'}`, note, ...next].join('\n')
     : [
       `- {"type":"rewrite","article":"<id>","instruction":"..."}  ${en ? 'rewrite an article of this edition with an instruction' : 'riscrivere un articolo di questa edizione con un\'indicazione'}`,
       `- {"type":"lead","article":"<id>"}  ${en ? 'make it the lead story of this edition' : 'metterlo in apertura in questa edizione'}`,
       `- {"type":"spike","article":"<id>"}  ${en ? 'drop it from this edition' : 'toglierlo da questa edizione'}`,
       note,
-      tone,
       ...next,
     ].join('\n');
   const toolBlock = tools ? tr({
@@ -413,8 +457,8 @@ Rispondi SOLO con JSON: {"reply": "...", "actions": [ ... ]}`,
 ${items}
 
 ${en
-    ? `CURRENT EDITORIAL LINE: tone ${toneId(line.tone)}, length ${line.length}${notes ? `; editor's notes: ${notes}` : '; no editor\'s notes'}.`
-    : `LINEA EDITORIALE ATTUALE: tono ${toneId(line.tone)}, lunghezza ${line.length}${notes ? `; note del direttore: ${notes}` : '; nessuna nota del direttore'}.`}${overview ? `\n\n${overview}` : ''}${focus ? `\n\n${en ? 'ARTICLE UNDER DISCUSSION' : 'ARTICOLO IN DISCUSSIONE'}: ${focus}` : ''}`,
+    ? `CURRENT EDITORIAL LINE: the house voice (the style guide), length ${line.length}${notes ? `; editor's notes: ${notes}` : '; no editor\'s notes'}.`
+    : `LINEA EDITORIALE ATTUALE: la voce della casa (il manuale di stile), lunghezza ${line.length}${notes ? `; note del direttore: ${notes}` : '; nessuna nota del direttore'}.`}${overview ? `\n\n${overview}` : ''}${focus ? `\n\n${en ? 'ARTICLE UNDER DISCUSSION' : 'ARTICOLO IN DISCUSSIONE'}: ${focus}` : ''}`,
     },
     { role: 'assistant', content: JSON.stringify({ reply: tr({ en: 'I have the edition in front of me. Go ahead.', it: 'Ho l\'edizione davanti. Dimmi.' }), actions: [] }) },
   ];
@@ -429,7 +473,7 @@ ${en
 // ───────────────────────── Letters to the editor ─────────────────────────
 
 export function letterPrompt({ letter, overview, line }) {
-  const extra = line ? '\n' + linePrompt(line) : '';
+  const extra = '\n' + linePrompt(line);
   return [
     {
       role: 'system',

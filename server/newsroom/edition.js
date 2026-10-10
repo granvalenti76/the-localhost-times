@@ -1,5 +1,5 @@
 import { buildStories, factSheet, crossFacts } from './cluster.js';
-import { deskChain, chainFor } from './chain.js';
+import { deskChain, chainFor, phrasingDesk } from './chain.js';
 import { SECTIONS, SECTION_ORDER } from './sections.js';
 import { fallbackArticle, fallbackBrief, fallbackSummary } from './fallback.js';
 import { autoScene, validScene, sceneCaption } from './scenes.js';
@@ -7,7 +7,8 @@ import { factCheck, numbersCheck } from './factcheck.js';
 import { getSteer, applySteer, steerLine, clearSteer, carrySteer } from './next.js';
 import { writerFor, columnist, byline } from './writers.js';
 import { connectLLM, chat, parseJson } from './llm.js';
-import { articlePrompt, rewritePrompt, expandPrompt, summaryPrompt, marketPrompt, sizeOf, wordCount } from './prompts.js';
+import { articlePrompt, rewritePrompt, expandPrompt, ownWordsPrompt, summaryPrompt, marketPrompt, sizeOf, widen, wordCount } from './prompts.js';
+import { copiedFromExamples } from './voice.js';
 import { getLine } from './line.js';
 import { computeMarket, fallbackMarketComment } from './market.js';
 import { illustrate } from './photos.js';
@@ -15,7 +16,7 @@ import { findSeries, seriesInfo, seriesFacts } from './series.js';
 import { lettersForEdition } from './letters.js';
 import { pendingScoop } from './spotlight/desk.js';
 import { computeTime, computeMac, isAmbient } from './time.js';
-import { interviewFacts, quoteParagraph, closingOf } from './calls.js';
+import { interviewFacts, quoteParagraph, leadParagraph, closingOf } from './calls.js';
 import { tipsForEdition, tipFolders, isTipNote } from './tips.js';
 import { metrics, checkRecords, recordFact, reportCards, matchesFrom } from './sport.js';
 import { oracleRound } from './oracle.js';
@@ -72,11 +73,12 @@ function fromLLM(j, story, model) {
 const maxTokensFor = (size) => (size.id === 'brief' ? 1800 : size.id === 'article' ? 2600 : 3600);
 
 /**
- * Local models tend to write well under the length they are asked for. A draft under 80% of the
- * minimum goes back to the writer once to be expanded; the longer version is kept only if valid.
+ * Local models tend to write well under the length they are asked for. A piece under 60% of its
+ * minimum goes back to the writer once, to use what the facts still hold; the longer version is
+ * kept only if valid. Never a note: when the facts run out, the piece ends.
  */
 async function ensureLength(text, msgs, story, size, ctx) {
-  if (wordCount(text) >= size.min * 0.8) return text;
+  if (size.id === 'brief' || wordCount(text) >= size.min * 0.6) return text;
   try {
     const raw = await ctx.chat(ctx.llm, ctx.config, expandPrompt(msgs, text, size), maxTokensFor(size));
     const longer = fromLLM(parseJson(raw), story, ctx.llm.model);
@@ -87,11 +89,26 @@ async function ensureLength(text, msgs, story, size, ctx) {
   return text;
 }
 
+/** A draft that copied the style guide's examples goes back once; the new one is kept if it copies less. */
+async function ensureOwnWords(text, msgs, story, size, ctx) {
+  const copied = copiedFromExamples(text);
+  if (!copied.length) return text;
+  try {
+    const raw = await ctx.chat(ctx.llm, ctx.config, ownWordsPrompt(msgs, text, copied), maxTokensFor(size));
+    const own = fromLLM(parseJson(raw), story, ctx.llm.model);
+    if (copiedFromExamples(own).length < copied.length) return { ...own, expanded: text.expanded };
+  } catch (e) {
+    ctx.log(tr({ en: `[newsroom] ${story.id}: could not rewrite the copied draft (${e.message})`, it: `[redazione] ${story.id}: non sono riuscito a far riscrivere la bozza copiata (${e.message})` }));
+  }
+  return text;
+}
+
 async function writeArticle(story, rank, ctx) {
   const { llm, config, hourLabel, log, line } = ctx;
   let text = null;
   const writer = writerFor(line, story.source); // the byline of the section
-  const size = sizeOf(story, rank, line, writer);
+  // a lead from the Editor gives the piece room to follow it
+  const size = widen(sizeOf(story, rank, line, writer), story.leads?.length);
   if (llm) {
     try {
       const facts = factSheet(story) + seriesFacts(story.series, Date.now()) + (story.extra || '');
@@ -99,8 +116,11 @@ async function writeArticle(story, rank, ctx) {
       const raw = await chat(llm, config, msgs, maxTokensFor(size));
       text = fromLLM(parseJson(raw), story, llm.model);
       text = await ensureLength(text, msgs, story, size, { ...ctx, chat });
+      text = await ensureOwnWords(text, msgs, story, size, { ...ctx, chat });
       // the managing editor reads it, the reporter rewrites if sent back, the copy desk checks the figures
       if (chainFor(config, rank)) text = await deskChain(text, { facts, msgs, size, ctx, chat, maxTokens: maxTokensFor(size), fromLLM, story, writer });
+      // the phrasing desk: "it's not X, it's Y" and dashboard talk, fixed sentence by sentence
+      text.body = await phrasingDesk(text.body, { llm, config, chat });
       text.check = numbersCheck(text, facts); // figures the facts don't contain
       text.byline = byline(writer);
     } catch (e) {
@@ -114,6 +134,8 @@ async function writeArticle(story, rank, ctx) {
     if (said) continue;
     if (qt.answer || isTypeset(text.writer)) text.body = [...text.body, quoteParagraph(qt)];
   }
+  // without a writer, the typesetting follows the Editor's leads in a paragraph of its own
+  if (isTypeset(text.writer)) for (const ld of story.leads || []) text.body = [...text.body, leadParagraph(ld.text)];
   text.lint = lint(text.body);
   return {
     id: story.id,
@@ -130,6 +152,7 @@ async function writeArticle(story, rank, ctx) {
     image: null,
     sources: sourcesOf(story),
     quotes: story.quotes?.length ? story.quotes : undefined,
+    leads: story.leads?.length ? story.leads : undefined,
     record: story.records?.length ? story.records : undefined,
     tipped: story.tipped || undefined,
   };
@@ -278,8 +301,9 @@ export async function printEdition({ store, config, start, final = true, force =
   const tipped = featureOn(line, 'tips') ? safely(() => tipsForEdition(store, main, { end, editionId: id }), { facts: new Map(), box: [] }, log) : { facts: new Map(), box: [] };
   const metricList = records.length ? metrics({ news, stats, time }) : [];
   for (const s of main) {
-    const iv = featureOn(line, 'interview') ? safely(() => interviewFacts(store, s, { windowStart, end, editionId: id }), { facts: '', quotes: [] }, log) : { facts: '', quotes: [] };
+    const iv = featureOn(line, 'interview') ? safely(() => interviewFacts(store, s, { windowStart, end, editionId: id }), { facts: '', quotes: [], leads: [] }, log) : { facts: '', quotes: [], leads: [] };
     s.quotes = iv.quotes;
+    s.leads = iv.leads;
     s.records = records.filter((r) => metricList.find((m) => m.key === r.key)?.story(s));
     s.tipped = tipped.facts.has(s.id);
     s.extra = iv.facts + (tipped.facts.get(s.id) || '') + s.records.map(recordFact).join('') + safely(() => crossFacts(s, events), '', log);
@@ -288,8 +312,8 @@ export async function printEdition({ store, config, start, final = true, force =
   const llm = await connectLLM(config);
   const ctx = { llm, config, hourLabel, log, line, store, hour: windowStart };
   log(tr({
-    en: `[newsroom] edition ${id}${windowStart < hour ? ` (since ${hhmm(windowStart)})` : ''}: ${news.length} events, ${stories.length} stories, writer ${llm ? llm.model : 'offline → automatic typesetting'}, tone ${line.tone}`,
-    it: `[redazione] edizione ${id}${windowStart < hour ? ` (dalle ${hhmm(windowStart)})` : ''}: ${news.length} eventi, ${stories.length} storie, redattore ${llm ? llm.model : 'offline → tipografia'}, tono ${line.tone}`,
+    en: `[newsroom] edition ${id}${windowStart < hour ? ` (since ${hhmm(windowStart)})` : ''}: ${news.length} events, ${stories.length} stories, writer ${llm ? llm.model : 'offline → automatic typesetting'}`,
+    it: `[redazione] edizione ${id}${windowStart < hour ? ` (dalle ${hhmm(windowStart)})` : ''}: ${news.length} eventi, ${stories.length} storie, redattore ${llm ? llm.model : 'offline → tipografia'}`,
   }));
 
   const articles = await mapLimit(main, llm ? config.llm.concurrency : 8, (s, i) => writeArticle(s, i, ctx));
@@ -351,7 +375,6 @@ export async function printEdition({ store, config, start, final = true, force =
     number: existing?.number ?? store.editionNumber(windowStart),
     createdAt: Date.now(),
     writer: llm ? llm.model : 'typesetting',
-    tone: line.tone,
     steered: steer.boost.length || steer.bury.length || steer.notes.length ? { boost: steer.boost, bury: steer.bury, notes: steer.notes } : null,
     summary,
     summaryBy,
@@ -486,7 +509,11 @@ async function ctxFor(store, config, ed, log) {
   return { llm, config, hourLabel: hhmm(ed.hour ?? ed.start), log, line: getLine(store), store };
 }
 
-export async function rewriteArticle(store, config, id, aid, instruction, log = console.log) {
+/**
+ * The article written again from its facts, with the editor's instruction. `extra` adds facts (the
+ * Editor's statements and leads), `leads` widens the format as at print.
+ */
+export async function rewriteArticle(store, config, id, aid, instruction, log = console.log, { extra = '', leads = 0 } = {}) {
   const ed = load(store, id);
   const i = findArticle(ed, aid);
   const prev = ed.articles[i];
@@ -496,8 +523,9 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   if (!story) throw new DeskError(tr({ en: 'The facts behind this article are no longer available.', it: 'Non trovo più i fatti di questo articolo.' }), 409);
   story.series = prev.series || null;
   const writer = writerFor(ctx.line, story.source);
-  const size = sizeOf(story, i, ctx.line, writer);
-  const msgs = rewritePrompt(story, factSheet(story) + seriesFacts(story.series, Date.now()), ctx.hourLabel, size, ctx.line, prev, instruction, writer);
+  const size = widen(sizeOf(story, i, ctx.line, writer), leads);
+  const facts = factSheet(story) + seriesFacts(story.series, Date.now()) + extra;
+  const msgs = rewritePrompt(story, facts, ctx.hourLabel, size, ctx.line, prev, instruction, writer);
   const raw = await chat(ctx.llm, config, msgs, maxTokensFor(size));
   let text;
   try {
@@ -510,7 +538,7 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   // the edition may have changed in the meantime
   const fresh = load(store, id);
   const k = findArticle(fresh, aid);
-  text.check = numbersCheck(text, factSheet(story) + seriesFacts(story.series, Date.now()));
+  text.check = numbersCheck(text, facts);
   text.byline = byline(writer);
   fresh.articles[k] = { ...fresh.articles[k], ...text, size: size.id, rewrittenWith: instruction || null };
   return touch(store, fresh);

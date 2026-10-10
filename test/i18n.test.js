@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setLang, tr, lang } from '../server/i18n.js';
 import { SECTIONS, sectionBySlug } from '../server/newsroom/sections.js';
-import { TONES, toneId, lengthId } from '../server/newsroom/line.js';
+import { lengthId } from '../server/newsroom/line.js';
 
 test('language switch and fallback to English', () => {
   assert.equal(setLang('it'), 'it');
@@ -24,16 +24,8 @@ test('section names follow the language, slugs of both languages resolve', () =>
   setLang('en');
 });
 
-test('tone and length ids from older versions are migrated', () => {
-  assert.equal(toneId('asciutto'), 'dry');
-  assert.equal(toneId('strillone'), 'tabloid');
-  assert.equal(toneId('british'), 'british');
-  assert.equal(toneId('whatever'), 'dry');
+test('length ids from older versions are migrated', () => {
   assert.equal(lengthId('corti'), 'short');
   assert.equal(lengthId('lunghi'), 'long');
-  for (const l of ['en', 'it']) {
-    setLang(l);
-    for (const t of Object.values(TONES)) assert.ok(t.label && t.prompt);
-  }
-  setLang('en');
+  assert.equal(lengthId('whatever'), 'standard');
 });

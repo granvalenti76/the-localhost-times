@@ -52,9 +52,18 @@ export default function Masthead({ edition, evening, day, status, activeSlug }) 
         <a href={href.spotlight()} className={`spot-link ${activeSlug === 'spotlight' ? 'on' : ''}`}>Spotlight</a>
         <a href={href.features()} className={activeSlug === 'features' ? 'on' : ''}>{tr({ en: 'Long reads', it: 'Approfondimenti' })}</a>
         <a href={href.archive()} className={activeSlug === 'archive' ? 'on' : ''}>{tr({ en: 'Archive', it: 'Archivio' })}</a>
-        <a href={href.desk()} className={`desk-link ${activeSlug === 'newsroom' ? 'on' : ''}`}>
-          {tr({ en: 'Newsroom', it: 'Redazione' })}{status?.drafts ? <span className="badge">{status.drafts}</span> : null}
-        </a>
+        {/* the newsroom and its rooms: hover (or focus) opens the submenu */}
+        <span className="nav-drop">
+          <a href={href.desk()} className={`desk-link ${activeSlug === 'newsroom' ? 'on' : ''}`} aria-haspopup="true">
+            {tr({ en: 'Newsroom', it: 'Redazione' })}{status?.drafts ? <span className="badge">{status.drafts}</span> : null}
+            <span className="nav-caret" aria-hidden="true">▾</span>
+          </a>
+          <span className="nav-sub" role="menu">
+            <a role="menuitem" href={href.desk()}>{tr({ en: 'The desk', it: 'Il tavolo' })}<em>{tr({ en: 'editions, drafts, the line', it: 'edizioni, bozze, la linea' })}</em></a>
+            <a role="menuitem" href={href.inquiry()}>{tr({ en: 'Inquiry', it: 'Inchiesta' })}<em>{tr({ en: 'a long piece, built together', it: 'un pezzo lungo, costruito insieme' })}</em></a>
+            <a role="menuitem" href={href.editorDesk()}>Editor desk<em>{tr({ en: 'sources, structure, style', it: 'fonti, struttura, stile' })}</em></a>
+          </span>
+        </span>
       </nav>
     </header>
   );

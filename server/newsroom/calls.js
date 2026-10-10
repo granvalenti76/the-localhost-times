@@ -4,20 +4,23 @@
  *  interview  a reporter asks the owner about a story while it is happening; the answer becomes a
  *             real quote in the article ("«…», the owner said"), silence becomes "did not reply".
  *             An answer that arrives after the edition is printed is added as an update.
- *  closing    at :55 the desk asks which story should lead, whether to cut one, or which tone.
+ *             Besides the answer, the Editor can give a lead ("look into…"): the reporter takes note,
+ *             the writer follows it and the piece grows; a late lead has the printed article rewritten.
+ *  closing    at :55 the desk asks which story should lead, or whether to cut one.
  *  serial     the serial's readers choose how the next episode goes (see serial.js).
  *
  * Calls are items of kind 'call': { type, status: open | answered | declined | expired, question,
- * options, deadline, storyId, editionId, answer }.
+ * options, deadline, storyId, editionId, answer, lead }.
  */
 import { tr, lang } from '../i18n.js';
 import { buildStories } from './cluster.js';
-import { editionWindow, cleanEvents, DeskError } from './edition.js';
+import { editionWindow, cleanEvents, rewriteArticle, isTypeset, DeskError } from './edition.js';
 import { preview, steer as applySteerOp } from './next.js';
 import { getLine, featureOn } from './line.js';
 import { writerFor, byline, personaPrompt } from './writers.js';
 import { isSensitive } from './spotlight/detectors.js';
 import { connectLLM, chat, parseJson } from './llm.js';
+import { lint } from './lint.js';
 import { say } from './chatter.js';
 import { hourStart, hhmm } from '../util.js';
 
@@ -72,29 +75,41 @@ export const callView = (c, now = Date.now()) => ({
   minutesLeft: Math.max(0, Math.round((c.deadline - now) / MIN)),
   printedIn: c.printedIn || null,
   answer: c.answer || null,
+  lead: c.lead || null,
 });
 
 /**
- * The editor answers: text (interview), an option (closing, serial), or "no comment".
- * Returns { call, update } where update is the article that got the late quote, if any.
+ * The editor answers: text (interview), an option (closing, serial), or "no comment". An interview
+ * can also carry a lead for the article, with the answer or instead of it ("no comment, but…").
+ * Returns { call, update, follow }: update is the article that got the late quote, follow the
+ * printed article a late lead should expand (see followLead).
  */
-export function answerCall(store, config, id, { text, option, decline } = {}, now = Date.now()) {
+export function answerCall(store, config, id, { text, option, decline, lead } = {}, now = Date.now()) {
   const c = getCall(store, id);
   if (c.status !== 'open') throw new DeskError(tr({ en: 'This question has already been answered or has expired.', it: 'A questa domanda hai già risposto, o è scaduta.' }), 409);
   let update = null;
+  let follow = null;
   if (c.type === 'interview') {
-    if (decline) {
+    const t = String(text || '').trim().slice(0, 400);
+    const ld = String(lead || '').replace(/\s+/g, ' ').trim().slice(0, 600);
+    const quiet = decline || !t;
+    if (quiet && !ld && !decline) throw new DeskError(tr({ en: 'Write your answer (or choose “no comment”).', it: 'Scrivi la risposta (o scegli «nessun commento»).' }), 400);
+    if (ld) Object.assign(c, { lead: ld, leadAt: now });
+    if (quiet) {
       Object.assign(c, { status: 'declined', answeredAt: now });
     } else {
-      const t = String(text || '').trim().slice(0, 400);
-      if (!t) throw new DeskError(tr({ en: 'Write your answer (or choose “no comment”).', it: 'Scrivi la risposta (o scegli «nessun commento»).' }), 400);
       Object.assign(c, { status: 'answered', answer: t, answeredAt: now });
       if (c.printedIn) update = lateQuote(store, c, now);
     }
+    if (ld && c.printedIn) follow = { editionId: c.printedIn, articleId: c.storyId };
     const w = c.by?.name || tr({ en: 'The reporter', it: 'Il cronista' });
-    say(store, c.by?.id || 'desk', decline
-      ? tr({ en: `${w}: the Editor won't comment. “No comment” it is.`, it: `${w}: il Direttore non commenta. Scrivo «nessun commento».` })
-      : tr({ en: `${w}: got the quote! It goes in the piece.`, it: `${w}: ho la dichiarazione! Va nel pezzo.` }), now);
+    say(store, c.by?.id || 'desk', quiet
+      ? (ld
+        ? tr({ en: `${w}: nothing on the record, but the Editor gave me a lead. Taking notes: I'm on it.`, it: `${w}: niente dichiarazioni, ma il Direttore mi ha dato una traccia. Prendo appunti: la seguo.` })
+        : tr({ en: `${w}: the Editor won't comment. “No comment” it is.`, it: `${w}: il Direttore non commenta. Scrivo «nessun commento».` }))
+      : (ld
+        ? tr({ en: `${w}: got the quote, and a lead to follow. Taking notes: the piece grows.`, it: `${w}: ho la dichiarazione, e pure una traccia da seguire. Prendo appunti: il pezzo cresce.` })
+        : tr({ en: `${w}: got the quote! It goes in the piece.`, it: `${w}: ho la dichiarazione! Va nel pezzo.` })), now);
   } else {
     const o = (c.options || []).find((x) => String(x.id) === String(option));
     if (!o) throw new DeskError(tr({ en: 'Choose one of the options.', it: 'Scegli una delle opzioni.' }), 400);
@@ -108,7 +123,7 @@ export function answerCall(store, config, id, { text, option, decline } = {}, no
     if (c.type === 'closing') say(store, 'desk', tr({ en: `Desk: the Editor has spoken — ${o.label}.`, it: `Desk: il Direttore ha deciso — ${o.label}.` }), now);
   }
   store.saveItem(c);
-  return { call: callView(c, now), update };
+  return { call: callView(c, now), update, follow };
 }
 
 // ───────────────────────── Interviews ─────────────────────────
@@ -265,9 +280,10 @@ export async function interviewRound(store, config, { now = Date.now(), log = ()
  */
 export function interviewFacts(store, story, { windowStart, end, editionId }) {
   const calls = store.items(KIND, { ref: story.id, after: windowStart, before: end, limit: 5 }).filter((c) => c.type === 'interview');
-  if (!calls.length) return { facts: '', quotes: [] };
+  if (!calls.length) return { facts: '', quotes: [], leads: [] };
   const lines = [];
   const quotes = [];
+  const leads = [];
   for (const c of calls) {
     const at = hhmm(c.ts);
     if (c.status === 'answered' && c.answer) {
@@ -275,17 +291,36 @@ export function interviewFacts(store, story, { windowStart, end, editionId }) {
         en: `STATEMENT BY THE OWNER (real, collected by the paper at ${at}): asked ${q(c.question)}, he answered: ${q(c.answer)}`,
         it: `DICHIARAZIONE DEL PROPRIETARIO (vera, raccolta dal giornale alle ${at}): alla domanda ${q(c.question)} ha risposto: ${q(c.answer)}`,
       }));
-      quotes.push({ question: c.question, answer: c.answer, at: c.answeredAt || c.ts });
+      quotes.push({ question: c.question, answer: c.answer, at: c.answeredAt || c.ts, lead: c.lead || undefined });
     } else if (c.status === 'declined') {
       lines.push(tr({ en: `The owner, asked at ${at} (${q(c.question)}), declined to comment.`, it: `Il proprietario, interpellato alle ${at} (${q(c.question)}), non ha voluto commentare.` }));
-      quotes.push({ question: c.question, answer: null, declined: true, at: c.ts });
+      quotes.push({ question: c.question, answer: null, declined: true, at: c.ts, lead: c.lead || undefined });
     } else {
       lines.push(tr({ en: `The owner, asked at ${at} (${q(c.question)}), had not replied by the time the paper went to press.`, it: `Il proprietario, interpellato alle ${at} (${q(c.question)}), non aveva risposto al momento di andare in stampa.` }));
       quotes.push({ question: c.question, answer: null, at: c.ts });
     }
+    if (c.lead) {
+      lines.push(leadFact(c));
+      leads.push({ text: c.lead, at: c.leadAt || c.answeredAt || c.ts });
+    }
     if (!c.printedIn) store.saveItem({ ...c, printedIn: editionId });
   }
-  return { facts: `\n${lines.join('\n')}`, quotes };
+  return { facts: `\n${lines.join('\n')}`, quotes, leads };
+}
+
+/** The lead as the writer reads it: something to follow and expand on, not a line to quote. */
+function leadFact(c) {
+  const at = hhmm(c.leadAt || c.answeredAt || c.ts);
+  return tr({
+    en: `LEAD FROM THE OWNER (given to the reporter at ${at}, alongside the interview: background, not a statement — don't put it in quotation marks): ${q(c.lead)}. The reporter took notes: follow it. Give it at least one paragraph of its own and tie it to the facts above; what it says counts as reported by the owner, invent nothing beyond it.`,
+    it: `TRACCIA DEL PROPRIETARIO (data al cronista alle ${at}, a margine dell'intervista: è un'indicazione, non una dichiarazione — non metterla tra virgolette): ${q(c.lead)}. Il cronista ha preso nota: seguila. Dedicale almeno un paragrafo e collegala ai fatti qui sopra; ciò che dice vale come riferito dal proprietario, non inventare oltre.`,
+  });
+}
+
+/** The typesetting's paragraph for a lead (when no writer is there to follow it). */
+export function leadParagraph(text) {
+  const t = cut(text, 400).replace(/[\s.;:,]+$/, '');
+  return tr({ en: `The owner pointed the paper to a lead worth following: ${t}.`, it: `Il proprietario ha indicato al nostro giornale una pista da seguire: ${t}.` });
 }
 
 /** The typesetting's paragraph for a statement (the model weaves it in; without it, this is added). */
@@ -311,27 +346,52 @@ function lateQuote(store, c, now) {
   return { editionId: ed.id, articleId: a.id };
 }
 
+/**
+ * A lead after the press: the reporter goes back to the printed article and expands it, following
+ * the lead (without a writer, the typesetting adds a paragraph). The Editor's quotes stay in.
+ */
+export async function followLead(store, config, { editionId, articleId }, callId, log = () => {}) {
+  const c = store.getItem(KIND, callId);
+  const a = store.getEdition(editionId)?.articles?.find((x) => x.id === articleId);
+  if (!c?.lead || !a) return null;
+  const w = c.by?.name || tr({ en: 'The reporter', it: 'Il cronista' });
+  const instruction = tr({ en: `follow the Editor's lead and expand the piece: ${q(c.lead)}`, it: `segui la traccia del Direttore e amplia il pezzo: ${q(c.lead)}` });
+  let rewritten = true;
+  try {
+    await rewriteArticle(store, config, editionId, articleId, instruction, log, { extra: `\n${leadFact(c)}`, leads: (a.leads?.length || 0) + 1 });
+  } catch (e) {
+    rewritten = false;
+    log(tr({ en: `[newsroom] ${articleId}: could not rewrite with the lead (${e.message}), the typesetting adds it`, it: `[redazione] ${articleId}: non riesco a riscrivere con la traccia (${e.message}), la aggiunge la tipografia` }));
+  }
+  const ed = store.getEdition(editionId);
+  const b = ed?.articles?.find((x) => x.id === articleId);
+  if (!b) return null;
+  const lead = { text: c.lead, at: c.leadAt || Date.now(), late: true };
+  b.leads = [...(b.leads || []).filter((x) => x.text !== c.lead), lead];
+  const qt = (b.quotes || []).find((x) => x.question === c.question);
+  if (qt) qt.lead = c.lead;
+  else b.quotes = [...(b.quotes || []), { question: c.question, answer: c.answer || null, declined: c.status === 'declined' || undefined, at: c.answeredAt || Date.now(), lead: c.lead, late: true }];
+  // a rewrite must not lose what the Editor said on the record
+  for (const x of b.quotes || []) {
+    if (x.answer && !b.body.some((p) => p.includes(x.answer.slice(0, 40)))) b.body = [...b.body, quoteParagraph(x)];
+  }
+  if (!rewritten || isTypeset(b.writer)) {
+    const p = leadParagraph(c.lead);
+    if (!b.body.includes(p)) b.body = [...b.body, p];
+  }
+  b.lint = lint(b.body);
+  store.saveEdition(ed);
+  say(store, c.by?.id || 'desk', rewritten
+    ? tr({ en: `${w}: followed the Editor's lead. The piece is longer now.`, it: `${w}: ho seguito la traccia del Direttore. Il pezzo adesso è più lungo.` })
+    : tr({ en: `${w}: the Editor's lead is in the piece, at the bottom.`, it: `${w}: la traccia del Direttore è nel pezzo, in fondo.` }));
+  return { editionId, articleId, rewritten };
+}
+
 // ───────────────────────── The closing at :55 ─────────────────────────
 
-const TONE_NOTES = () => tr({
-  en: [
-    { id: 'serious', label: 'Serious', note: 'A serious edition: dry, precise, no jokes.' },
-    { id: 'ironic', label: 'Ironic', note: 'An ironic edition: one joke per paragraph, always grounded in the facts.' },
-    { id: 'tabloid', label: 'Tabloid', note: 'A tabloid edition: punchy headlines, exclamation marks allowed in headlines, facts still true.' },
-  ],
-  it: [
-    { id: 'serious', label: 'Seria', note: 'Un\'edizione seria: asciutta, precisa, niente battute.' },
-    { id: 'ironic', label: 'Ironica', note: 'Un\'edizione ironica: una battuta per paragrafo, sempre fondata sui fatti.' },
-    { id: 'tabloid', label: 'Strillona', note: 'Un\'edizione da tabloid: titoli a effetto, punti esclamativi ammessi nei titoli, fatti sempre veri.' },
-  ],
-});
-
-/** Which question the desk asks this hour: mostly the lead, sometimes a cut or the tone. */
+/** Which question the desk asks this hour: mostly the lead, sometimes a cut (the voice is the house's, not asked). */
 export function closingVariant(hour) {
-  const h = new Date(hour).getHours();
-  const day = new Date(hour).getDate();
-  if (h % 3 !== 2) return 'lead';
-  return day % 2 ? 'tone' : 'cut';
+  return new Date(hour).getHours() % 3 === 2 ? 'cut' : 'lead';
 }
 
 /** The closing question for the edition about to be printed (null if there's nothing to choose). */
@@ -339,12 +399,6 @@ export function closingCall(p, variant) {
   const inPaper = p.stories.filter((s) => s.inPaper);
   if (inPaper.length < 2 || p.willMerge) return null;
   const desk = { id: 'desk', label: tr({ en: 'Let the desk decide', it: 'Decida la redazione' }) };
-  if (variant === 'tone') {
-    return {
-      question: tr({ en: 'The edition closes in five minutes. What kind of paper do you want?', it: 'Si chiude tra cinque minuti. Che edizione vuole, Direttore?' }),
-      options: [...TONE_NOTES().map((t) => ({ id: t.id, label: t.label, action: { op: 'note', text: t.note } })), desk],
-    };
-  }
   if (variant === 'cut' && inPaper.length >= 3) {
     const weak = inPaper.at(-1);
     return {

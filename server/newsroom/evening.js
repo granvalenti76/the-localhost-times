@@ -152,7 +152,6 @@ export async function printEvening({ store, config, day, until = Date.now(), log
     createdAt: Date.now(),
     writer: written ? llm.model : 'typesetting',
     byline: written ? byline(columnist(line)) : null,
-    tone: line.tone,
     editorial: { headline: ed.headline, oneliner: ed.oneliner, body: ed.body },
     cartoon: written?.cartoon
       ? { caption: written.cartoon, scene: written.scene || autoScene(top.map((t) => ({ ...t, id: t.articleId })), stats), by: 'writer' }

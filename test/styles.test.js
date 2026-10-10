@@ -18,30 +18,40 @@ test('styles: every style is complete in both languages', () => {
   setLang('en');
 });
 
-test('styles: each writer has one, the editor can change it, the prompt follows', () => {
+test('styles: the long reads keep them; the writers have one voice, and an optional deviation', () => {
   setLang('en');
   const { store, cleanup } = sandbox();
   try {
-    assert.equal(staff(getLine(store)).tech.house, 'tech');
-    assert.match(personaPrompt(writerFor(getLine(store), 'terminal')), /TECH NEWS/);
-    const line = saveLine(store, { staff: { tech: { house: 'noir' }, web: { house: 'giraffe' } } });
-    assert.equal(line.staff.tech.house, 'noir');
-    assert.equal(line.staff.web?.house, undefined); // unknown styles are dropped
+    const w0 = writerFor(getLine(store), 'terminal');
+    assert.equal(w0.house, undefined);
+    assert.match(personaPrompt(w0), /YOUR BYLINE: you are Walt Brenner/);
+    assert.doesNotMatch(personaPrompt(w0), /TECH NEWS|DEVIATION/);
+    const line = saveLine(store, { staff: { tech: { deviation: 'Keener on the numbers.' } } });
     const w = writerFor(line, 'terminal');
-    assert.equal(w.name, 'Walt Brenner');
-    assert.match(personaPrompt(w), /NOIR/);
-    assert.equal(byline(w).house, 'noir');
-    // the Brief never gets a house style; an editorial skips the labelled newsletter
-    assert.doesNotMatch(personaPrompt(w, 'brief'), /NOIR/);
-    const nl = { ...w, house: 'newsletter' };
-    assert.doesNotMatch(personaPrompt(nl, 'editorial'), /NEWSLETTER/);
-    assert.match(personaPrompt(nl), /Why it matters:/);
-    // a newsletter runs shorter, in more paragraphs; noir a little longer
-    const plain = sizeOf(story(20), 0, { length: 'standard' }, { house: 'daily' });
-    const news = sizeOf(story(20), 0, { length: 'standard' }, nl);
-    assert.ok(news.min < plain.min && news.paras === '5');
-    assert.ok(sizeOf(story(20), 0, { length: 'standard' }, w).min > plain.min);
+    assert.match(personaPrompt(w), /YOUR DEVIATION \(from the editor\): Keener on the numbers\./);
+    assert.deepEqual(Object.keys(byline(w)).sort(), ['id', 'name', 'role']);
+    // the length is the format's, whoever writes it
+    assert.deepEqual(sizeOf(story(20), 0, { length: 'standard' }, { house: 'newsletter' }), sizeOf(story(20), 0, { length: 'standard' }));
   } finally {
     cleanup();
+  }
+});
+
+test('styles: a line saved by an older version loses the tone and the house styles; a voice becomes a deviation', () => {
+  setLang('it');
+  const { store, cleanup } = sandbox();
+  try {
+    store.setSetting('line', { tone: 'tabloid', length: 'long', staff: { web: { house: 'explainer' }, tech: { house: 'noir', style: 'Scrive come un detective.' } } });
+    const line = getLine(store);
+    assert.equal(line.tone, undefined);
+    assert.deepEqual(line.staff.web, {});
+    assert.deepEqual(line.staff.tech, { deviation: 'Scrive come un detective.' });
+    const saved = saveLine(store, {});
+    assert.equal(saved.tone, undefined);
+    assert.deepEqual(saved.staff, { tech: { deviation: 'Scrive come un detective.' } });
+    assert.match(personaPrompt(writerFor(saved, 'terminal')), /LA TUA DEVIAZIONE \(decisa dal direttore\): Scrive come un detective\./);
+  } finally {
+    cleanup();
+    setLang('en');
   }
 });

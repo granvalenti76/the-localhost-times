@@ -8,6 +8,7 @@ import { siteOf } from './cluster.js';
 import { matchesOf } from './calls.js';
 import { isGeneric, registrable } from './cluster.js';
 import { hhmm, dayKey } from '../util.js';
+import { columnVoice } from './voice.js';
 
 const KEY = 'records';
 /** A record counts only once the paper has seen enough editions, and the metric often enough. */
@@ -206,9 +207,9 @@ export function cardsPrompt(cards, line) {
     {
       role: 'system',
       content: tr({
-        en: `You write the report cards of The Localhost Times's sports page: the apps and sites of the hour judged like football players after a match (marks out of 10, already given). For each one write ONE line, at most 16 words, in the voice of a sports paper: football metaphors, wry, grounded in the facts given. Don't change the marks, don't invent numbers.${line?.notes ? `\nEditor's notes: ${line.notes}` : ''}
+        en: `You write the report cards of The Localhost Times's sports page: the apps and sites of the hour judged like football players after a match (marks out of 10, already given). For each one write ONE line, at most 16 words: football metaphors, grounded in the facts given. ${columnVoice('sport')} Don't change the marks, don't invent numbers.${line?.notes ? `\nEditor's notes: ${line.notes}` : ''}
 Reply ONLY with JSON: {"lines": {"<id>": "...", ...}}`,
-        it: `Scrivi le pagelle della pagina sportiva del «The Localhost Times»: le app e i siti dell'ora giudicati come calciatori dopo una partita (i voti sono già dati, in decimi). Per ciascuno scrivi UNA riga, massimo 16 parole, con la voce della Gazzetta: metafore calcistiche, sorniona, fondata sui fatti forniti. Non cambiare i voti, non inventare numeri.${line?.notes ? `\nNote del direttore: ${line.notes}` : ''}
+        it: `Scrivi le pagelle della pagina sportiva del «The Localhost Times»: le app e i siti dell'ora giudicati come calciatori dopo una partita (i voti sono già dati, in decimi). Per ciascuno scrivi UNA riga, massimo 16 parole: metafore calcistiche, fondata sui fatti forniti. ${columnVoice('sport')} Non cambiare i voti, non inventare numeri.${line?.notes ? `\nNote del direttore: ${line.notes}` : ''}
 Rispondi SOLO con JSON: {"lines": {"<id>": "...", ...}}`,
       }),
     },

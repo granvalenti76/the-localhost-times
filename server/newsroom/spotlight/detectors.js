@@ -70,6 +70,7 @@ const SENSITIVE = new RegExp([
   'suicid', 'autolesion', 'self-harm', 'adhd', 'deficit di attenzione', 'attention deficit', 'autis', 'asperger', 'bipolar', 'disturbo', 'disorder', 'dislessi', 'dyslexi', 'dolore', '\\bpain\\b', 'analisi del sangue', 'blood test', 'vaccin', 'covid', 'hiv',
   // money troubles
   'debit', '\\bdebt', 'prestit', '\\bloan', 'mutuo', 'mortgage', 'fallimento', 'bankrupt', 'pignorament', 'stipendi', 'salary',
+  'estratto conto', 'bank statement', 'bonifico', 'wire transfer', 'carta di credito', 'credit card',
   'tasse arretrate', 'equitalia', 'agenzia entrate', 'cartella esattoriale', 'gambling', 'scommess', 'casino', 'betting',
   // love, sex, family
   'dating', 'tinder', 'bumble', 'hinge', 'grindr', 'meetic', 'divorz', 'divorce', 'separazione', 'tradiment', 'cheating',

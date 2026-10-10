@@ -8,7 +8,7 @@ import http from 'node:http';
 import { setLang } from '../server/i18n.js';
 import { printEdition } from '../server/newsroom/edition.js';
 import { enrichEdition } from '../server/newsroom/extras.js';
-import { interviewRound, answerCall, openCalls } from '../server/newsroom/calls.js';
+import { interviewRound, answerCall, openCalls, followLead } from '../server/newsroom/calls.js';
 import { addTip } from '../server/newsroom/tips.js';
 import { createFeature, briefFeature, getFeature, approveOutline, blockAction, reviewFeature, editFeature } from '../server/newsroom/features.js';
 import { paragraphAction, headlineOptions } from '../server/newsroom/bench.js';
@@ -161,4 +161,38 @@ test('with a writer: interview question, quote in the piece, extras after the pr
     cleanup();
     server.close();
   }
+});
+
+test('with a writer: the Editor\'s lead reaches the writer, widens the piece, and a late one has it rewritten', async () => {
+  setLang('en');
+  const { server, calls, port } = await mockServer();
+  const { config, store, cleanup } = sandbox();
+  config.llm.baseUrl = `http://127.0.0.1:${port}/v1`;
+  config.llm.timeoutMs = 5000;
+  try {
+    const h = hourStart(Date.now()) - 3 * HOUR;
+    store.insertEvents(hourOfChess(h));
+    const call = await interviewRound(store, config, { now: h + 30 * MIN, log: quiet });
+    answerCall(store, config, call.id, { text: 'Bob is a machine', lead: 'he always opens with the same gambit' }, h + 33 * MIN);
+    const ed = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
+    const a = ed.articles.find((x) => x.id === call.storyId);
+    const prompt = calls.map((m) => m.map((x) => x.content).join('\n')).find((t) => /LEAD FROM THE OWNER/.test(t));
+    assert.ok(prompt, 'the lead never reached the writer');
+    assert.match(prompt, /same gambit/);
+    assert.equal(a.leads[0].text, 'he always opens with the same gambit');
+    assert.ok(a.body.some((p) => p.includes('Bob is a machine')));
+
+    // a lead after the press, on another printed article: rewritten by the writer, quotes kept
+    const other = ed.articles.find((x) => x.id !== call.storyId) || a;
+    const c2 = store.saveItem({ kind: 'call', type: 'interview', status: 'open', ts: h + 41 * MIN, ref: other.id, storyId: other.id, editionId: ed.id, printedIn: ed.id, question: 'Q?', deadline: h + HOUR + 30e3 });
+    const r = answerCall(store, config, c2.id, { text: 'Green at last', lead: 'count the red runs before it' }, h + HOUR + 5 * MIN);
+    const n = calls.length;
+    const done = await followLead(store, config, r.follow, c2.id, quiet);
+    assert.equal(done.rewritten, true);
+    assert.ok(calls.slice(n).some((m) => /follow the Editor's lead/.test(m.at(-1).content)), 'no rewrite asked');
+    const b = store.getEdition(ed.id).articles.find((x) => x.id === other.id);
+    assert.ok(b.body.some((p) => p.includes('Green at last')), 'the rewrite lost the quote');
+    assert.equal(b.leads.at(-1).text, 'count the red runs before it');
+    assert.doesNotMatch(b.body.join(' '), BROKEN);
+  } finally { cleanup(); server.close(); }
 });

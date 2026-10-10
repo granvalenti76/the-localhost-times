@@ -4,11 +4,11 @@ import { tr } from '../i18n.js';
 
 const STARTERS = tr({
   en: {
-    edition: ['What is coming in the next edition?', 'What would you lead with?', 'Which piece is the weakest?', 'Does the tone of this edition work?', 'Is anything missing?'],
+    edition: ['What is coming in the next edition?', 'What would you lead with?', 'Which piece is the weakest?', 'Does this edition sound like the house?', 'Is anything missing?'],
     evening: ['What is coming in the next edition?', 'Does the editorial capture the day?', 'What really mattered today?', 'What rule would you give the newsroom for tomorrow?'],
   },
   it: {
-    edition: ['Cosa esce nella prossima edizione?', 'Cosa metteresti in apertura?', 'Qual è il pezzo più debole?', 'Il tono di questa edizione ti convince?', 'Manca qualcosa?'],
+    edition: ['Cosa esce nella prossima edizione?', 'Cosa metteresti in apertura?', 'Qual è il pezzo più debole?', 'Questa edizione ha la voce della casa?', 'Manca qualcosa?'],
     evening: ['Cosa esce nella prossima edizione?', 'L\'editoriale coglie la giornata?', 'Cosa è stato davvero importante oggi?', 'Che regola daresti alla redazione per domani?'],
   },
 });
