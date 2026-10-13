@@ -4,16 +4,16 @@
  */
 import { tr, lang } from '../i18n.js';
 
-const BANNED = {
+export const BANNED = {
   en: ['extremely', 'crucial', 'fundamental', 'extraordinary', 'incredible', 'intense', 'tenacity', 'mastery', 'immersed', 'journey', 'seamless', 'testament', 'delve'],
   it: ['estremamente', 'cruciale', 'fondamentale', 'straordinario', 'incredibile', 'intenso', 'tenacia', 'maestria', 'immerso', 'viaggio', 'sfida', 'testimonianza'],
 };
 
 /** System vocabulary: the traces on the Mac told as a report, not as something a person did. */
-const DASH = /\b(segnal[ei]|registrat[oaie]|registra(?:no)?|log|eventi|evento|dati|attivit[àa]|session[ei]|picco|picchi|monitoraggio|timestamp|consultazion[ei]|interazion[ei]|signals?|recorded|records|logs?|events?|data|activity|sessions?|peaks?|monitoring|interactions?)\b/gi;
+export const DASH = /\b(segnal[ei]|registrat[oaie]|registra(?:no)?|log|eventi|evento|dati|attivit[àa]|session[ei]|picco|picchi|monitoraggio|timestamp|consultazion[ei]|interazion[ei]|signals?|recorded|records|logs?|events?|data|activity|sessions?|peaks?|monitoring|interactions?)\b/gi;
 
 /** Machine-made phrasing: the stock moves of generated prose, in both languages. */
-const SLOP = /\bnon (?:è|e'|era|sono|erano|c'è|c'era) [^.;:]{2,90}?, ma\b|\bnon si tratta (?:più |solo )?di\b[^.;]{0,90}?,? ma\b|\bin un mondo (?:in cui|dove)\b|\bquasi (?:chirurgic\w+|un sussurro)|\bviolenza\b|\bparadigm\w*|\bdinamic(?:a|he)\b|\bdimensione\b|\bnarrazion\w+|\becosistem\w+|\bsinfoni\w+|\bdanza\b|\btestimon\w+ silenzios\w+|\bantropologic\w+|\bit(?:'?s| is) not (?:just|only|merely)\b[^.;]{0,90}?,? (?:it'?s|it is|but)\b|\bin a world where\b|\btapestry\b|\bdelve\w*|\btestament to\b|\bsymphony\b|\bsurgical\b|\bsilent witness\b/gi;
+export const SLOP = /\bnon (?:è|e'|era|sono|erano|c'è|c'era) [^.;:]{2,90}?, ma\b|\bnon si tratta (?:più |solo )?di\b[^.;]{0,90}?,? ma\b|\bin un mondo (?:in cui|dove)\b|\bquasi (?:chirurgic\w+|un sussurro)|\bviolenza\b|\bparadigm\w*|\bdinamic(?:a|he)\b|\bdimensione\b|\bnarrazion\w+|\becosistem\w+|\bsinfoni\w+|\bdanza\b|\btestimon\w+ silenzios\w+|\bantropologic\w+|\bit(?:'?s| is) not (?:just|only|merely)\b[^.;]{0,90}?,? (?:it'?s|it is|but)\b|\bin a world where\b|\btapestry\b|\bdelve\w*|\btestament to\b|\bsymphony\b|\bsurgical\b|\bsilent witness\b/gi;
 
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 

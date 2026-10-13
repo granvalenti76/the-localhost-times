@@ -155,6 +155,12 @@ export class Store {
   }
 
   /** Raw events older than `before` are deleted: the editions written from them stay. */
+  /** One event removed (a dispatch the Editor withdrew), with its entry in the archive's index. */
+  deleteEvent(id) {
+    this.db.prepare(`DELETE FROM search WHERE kind = 'event' AND ref = ?`).run(id);
+    return Number(this.db.prepare(`DELETE FROM events WHERE id = ?`).run(id).changes);
+  }
+
   pruneEvents(before) {
     this.db.prepare(`DELETE FROM search WHERE kind = 'event' AND ts < ?`).run(before);
     return Number(this.db.prepare(`DELETE FROM events WHERE ts < ?`).run(before).changes);

@@ -3,7 +3,7 @@
  */
 import { computeTime } from './time.js';
 import { SECTIONS } from './sections.js';
-import { hhmm } from '../util.js';
+import { hhmm, dayKey } from '../util.js';
 import { tr, lang } from '../i18n.js';
 
 const log2 = (n) => Math.log2(Math.max(1, n));
@@ -58,7 +58,9 @@ export function isGeneric(title = '', site = '') {
 const normSubject = (s = '') =>
   s.replace(/^\s*((re|r|fwd?|i|inoltra|aw|wg|tr|rif)\s*(\[\d+\])?\s*:\s*)+/i, '').trim().toLowerCase();
 
-const TRIVIAL = new Set(['ls', 'cd', 'clear', 'pwd', 'exit', 'll', 'la', 'cls', 'history', 'z', 'which', 'echo', 'cat']);
+// housekeeping commands: counted, never quoted (moving around, looking, setting up the shell)
+const TRIVIAL = new Set(['ls', 'cd', 'clear', 'pwd', 'exit', 'll', 'la', 'l', 'cls', 'history', 'z', 'j', 'which', 'echo', 'cat', 'nvm', 'source', 'export', 'tree', 'eza', 'exa', 'man', 'open', 'reset', 'whoami', 'date', 'true']);
+export const isTrivial = (e) => TRIVIAL.has(e.meta?.family);
 
 function story(source, kind, key, events, weight, extra = {}) {
   return {
@@ -74,8 +76,37 @@ function story(source, kind, key, events, weight, extra = {}) {
   };
 }
 
-function safariStories(evs) {
+const BROWSER = /safari|chrome|arc|firefox|brave|edge|orion|vivaldi|opera|zen/i;
+
+/**
+ * Attention: how many minutes each site really had. A visit owns the time until the next visit
+ * (ten minutes at most), counted only while a browser was the app in front (the Apps source). A
+ * feed reloaded a hundred times in five minutes weighs five minutes; an article read for forty,
+ * forty. Without the Apps source there is no attention (null), and the counts decide as before.
+ */
+export function attentionBySite(visits, focus) {
+  const browser = focus.filter((e) => e.kind === 'focus' && BROWSER.test(e.meta?.app || ''));
+  if (!focus.length) return null;
+  const sorted = [...visits].sort((a, b) => a.ts - b.ts);
+  const out = new Map();
+  for (let i = 0; i < sorted.length; i++) {
+    const from = sorted[i].ts;
+    const to = Math.min(sorted[i + 1]?.ts ?? from + 10 * 60e3, from + 10 * 60e3);
+    let ms = 0;
+    for (const f of browser) {
+      const a = Math.max(from, f.ts);
+      const b = Math.min(to, f.meta?.end ?? f.ts + (f.meta?.seconds || 60) * 1000);
+      if (b > a) ms += b - a;
+    }
+    const site = siteOf(sorted[i].meta?.host || '');
+    out.set(site, (out.get(site) || 0) + ms);
+  }
+  return new Map([...out].map(([k, v]) => [k, Math.round(v / 60e3)]));
+}
+
+function safariStories(evs, all = []) {
   const out = [];
+  const attention = attentionBySite(evs.filter((e) => e.kind === 'visit'), all.filter((e) => e.source === 'apps'));
   const searches = evs.filter((e) => e.kind === 'search');
   const visits = evs.filter((e) => e.kind === 'visit');
   const uniqSearches = uniqBy(searches, (e) => e.title.toLowerCase());
@@ -92,8 +123,13 @@ function safariStories(evs) {
       const informative = pages.filter((p) => !p.generic).length;
       // informative titles first (longer = more specific), generic ones last
       pages.sort((a, b) => (a.generic - b.generic) || (b.clean.length - a.clean.length));
-      out.push(story('safari', 'site', site, list, 1.2 + log2(informative + 1) * 1.4 + log2(list.length) * 0.3, {
-        topic: site, pages, informative,
+      // the time really spent on it, when known; otherwise how many pages were opened
+      const minutes = attention ? attention.get(site) || 0 : null;
+      const weight = minutes == null
+        ? 1.2 + log2(informative + 1) * 1.4 + log2(list.length) * 0.3
+        : 1.2 + log2(informative + 1) * 0.6 + log2(minutes + 1) * 1.4 - (minutes < 3 ? 0.8 : 0);
+      out.push(story('safari', 'site', site, list, weight, {
+        topic: site, pages, informative, minutes,
       }));
     } else small.push(...list);
   }
@@ -147,8 +183,42 @@ function mailStories(all) {
   return out;
 }
 
-function terminalStories(evs) {
+/**
+ * Where each command ran, as far as the history tells: it has no working directory, but the `cd`
+ * commands say where the owner moved. Commands after a `cd` into a known project belong to it.
+ */
+export function projectOfCommands(evs, projects) {
+  const names = [...projects].filter(Boolean).map((p) => p.toLowerCase());
+  const out = new Map();
+  if (!names.length) return out;
+  let cwd = '';
+  for (const e of [...evs].sort((a, b) => a.ts - b.ts)) {
+    const m = /^\s*cd\s+(.+?)\s*(?:&&.*)?$/.exec(e.title || '');
+    if (m) {
+      const to = m[1].replace(/^["']|["']$/g, '');
+      if (to.startsWith('/') || to.startsWith('~')) cwd = to;
+      else if (to === '-' || to === '') cwd = '';
+      else for (const part of to.split('/')) cwd = part === '..' ? cwd.split('/').slice(0, -1).join('/') : part === '.' ? cwd : `${cwd}/${part}`;
+    }
+    const low = cwd.toLowerCase();
+    const hit = names.find((p) => low.split('/').includes(p));
+    if (hit) out.set(e.id, hit);
+  }
+  return out;
+}
+
+function terminalStories(evs, all = [], projects = new Set()) {
   if (!evs.length) return [];
+  // commands run inside a known project go to that project's story (see mergeProjects)
+  const where = projectOfCommands(evs, projects);
+  const byProject = groupBy(evs.filter((e) => where.has(e.id)), (e) => where.get(e.id));
+  const rest = evs.filter((e) => !where.has(e.id));
+  const out = [...byProject].map(([p, list]) => ({ ...sessionStory(list, `project-${p}`), project: p }));
+  if (rest.length) out.push(sessionStory(rest, 'all'));
+  return out;
+}
+
+function sessionStory(evs, key) {
   const serious = evs.filter((e) => !TRIVIAL.has(e.meta.family));
   const fam = [...groupBy(serious, (e) => e.meta.family)].map(([f, l]) => ({ family: f, count: l.length }))
     .sort((a, b) => b.count - a.count);
@@ -161,10 +231,10 @@ function terminalStories(evs) {
     .filter(Boolean);
   const hosts = serious.filter((e) => e.meta.family === 'ssh').map((e) => e.title.split(/\s+/).pop());
   const weight = serious.length ? 2 + log2(serious.length + 1) * 1.3 + commits.length * 0.6 : 0.5;
-  return [story('terminal', 'session', 'all', evs, weight, {
+  return story('terminal', 'session', key, evs, weight, {
     topic: fam[0]?.family || tr({ en: 'terminal', it: 'terminale' }), families: fam.slice(0, 8), commits, hosts: [...new Set(hosts)],
     serious: serious.length,
-  })];
+  });
 }
 
 function perKey(source, kind, keyFn, baseWeight, weightFn) {
@@ -196,7 +266,8 @@ function filesStories(evs) {
     if (list.length >= 3) {
       out.push(story('files', 'folder', folder, list, 1.5 + log2(list.length + 1) * 1.1 + (list[0].meta.project ? 0.6 : 0), {
         topic: folder,
-        project: list[0].meta.project,
+        project: list[0].meta.project ? String(list[0].meta.project).toLowerCase() : null,
+        projectName: list[0].meta.project || null,
         files,
         created: list.filter((e) => e.kind === 'created').length,
         exts: countBy(list, (e) => e.meta.ext).slice(0, 5),
@@ -277,7 +348,7 @@ function gitStories(evs) {
       ? 2.4 + log2(commits.length + 1) * 1.4 + Math.min(1.5, log2((added + removed) / 80 + 1) * 0.5) + (list.some((e) => e.kind === 'merge') ? 0.5 : 0)
       : 0.9 + list.length * 0.2;
     out.push(story('terminal', 'commits', `git-${repo}`, list, weight, {
-      topic: repo, repo, commits: commits.length, branches,
+      topic: repo, repo, project: String(repo || '').toLowerCase() || null, projectName: repo, commits: commits.length, branches,
       lines: sized ? { added, removed, files: commits.reduce((t, e) => t + (e.meta.files || 0), 0) } : null,
     }));
   }
@@ -300,12 +371,90 @@ const BUILDERS = {
   apps: appsStories, photos: photosStories, git: gitStories, reminders: remindersStories,
 };
 
+// the apps where the work on a project happens (the editor, the terminal, the assistant)
+const DEV_APPS = /code|cursor|xcode|zed|nova|sublime|bbedit|intellij|webstorm|pycharm|android studio|terminal|iterm|ghostty|warp|kitty|alacritty|wezterm|claude|chatgpt|tower|fork|sourcetree|github desktop|electron/i;
+
+/**
+ * One story per project: when a project shows up in more than one source (its folder saved, its
+ * repository committed, commands run inside it), the pieces become one. The page then tells the
+ * work as it was: the files, the commits, the commands, the tools in front, the project's pages
+ * on GitHub.
+ */
+export function mergeProjects(stories, events = []) {
+  const groups = groupBy(stories.filter((x) => x.project), (x) => x.project);
+  const out = stories.filter((x) => !x.project);
+  for (const [p, list] of groups) {
+    const kinds = new Set(list.map((x) => x.kind));
+    if (list.length < 2 || kinds.size < 2) { out.push(...list); continue; }
+    const evs = list.flatMap((x) => x.events).sort((a, b) => a.ts - b.ts);
+    const first = evs[0].ts;
+    const last = evs.at(-1).ts;
+    const folder = list.find((x) => x.kind === 'folder');
+    const git = list.find((x) => x.kind === 'commits');
+    const sessions = list.filter((x) => x.kind === 'session');
+    // the tools in front while the work went on, and the project's own pages on GitHub
+    const tm = computeTime(events, first - 5 * 60e3, last + 5 * 60e3);
+    const tools = (tm?.apps || []).filter((a) => DEV_APPS.test(a.name)).slice(0, 4);
+    const pages = events.filter((e) => e.source === 'safari' && e.kind === 'visit' && e.ts >= first - 30 * 60e3 && e.ts <= last + 30 * 60e3
+      && /github\.com|gitlab\.com/.test(e.meta?.host || '') && String(e.url || '').toLowerCase().includes(`/${p}`));
+    const commands = sessions.flatMap((x) => x.events);
+    out.push(story('terminal', 'project', p, evs, Math.max(...list.map((x) => x.weight)) + 1 + log2(list.length) * 0.5 + (tools.length ? 0.3 : 0), {
+      topic: list.find((x) => x.projectName)?.projectName || p,
+      project: p,
+      folder: folder ? { saves: folder.events.length, created: folder.created, exts: folder.exts, dirs: folder.dirs } : null,
+      git: git ? { repo: git.repo, commits: git.commits, branches: git.branches, lines: git.lines, events: git.events } : null,
+      commands: commands.length ? { all: commands.length, serious: commands.filter((e) => !isTrivial(e)).length, families: sessions.flatMap((x) => x.families).slice(0, 6), events: commands } : null,
+      tools,
+      pages: uniqBy(pages, (e) => e.title).slice(0, 6),
+    }));
+  }
+  return out;
+}
+
 export function buildStories(events) {
   const out = [];
-  for (const [src, list] of groupBy(events, (e) => e.source)) {
-    if (BUILDERS[src]) out.push(...BUILDERS[src](list));
+  const bySource = groupBy(events, (e) => e.source);
+  // the projects known to the files and git sources: the terminal follows the owner into them
+  const projects = new Set([
+    ...(bySource.get('files') || []).map((e) => e.meta?.project && String(e.meta.project).toLowerCase()),
+    ...(bySource.get('git') || []).map((e) => e.meta?.repo && String(e.meta.repo).toLowerCase()),
+  ].filter(Boolean));
+  for (const [src, list] of bySource) {
+    if (src === 'editor') continue; // the Editor's dispatches: placed below, once the stories exist
+    if (src === 'terminal') out.push(...terminalStories(list, events, projects));
+    else if (src === 'safari') out.push(...safariStories(list, events));
+    else if (BUILDERS[src]) out.push(...BUILDERS[src](list));
   }
-  return out.sort((a, b) => b.weight - a.weight);
+  return placeDispatches(mergeProjects(out, events), bySource.get('editor') || []).sort((a, b) => b.weight - a.weight);
+}
+
+const DISPATCH_WEIGHT = { brief: 4, article: 8, lead: 14 };
+
+/**
+ * The Editor's dispatches: one tied to a story in the works becomes a fact of that story (and
+ * pushes it up); the others become pieces of their own, in the section the Editor chose, as big as
+ * the Editor asked.
+ */
+export function placeDispatches(stories, dispatches) {
+  for (const e of dispatches) {
+    const target = e.meta?.storyId && stories.find((s) => s.id === e.meta.storyId);
+    const w = DISPATCH_WEIGHT[e.meta?.size] ?? DISPATCH_WEIGHT.article;
+    if (target) {
+      target.dispatches = [...(target.dispatches || []), e];
+      target.weight += w / 3;
+      continue;
+    }
+    const section = SECTIONS[e.meta?.section] ? e.meta.section : 'notes';
+    stories.push(story(section, 'dispatch', e.id.split(':')[1], [e], w, { topic: e.title, dispatches: [e], size: e.meta?.size || 'article' }));
+  }
+  return stories;
+}
+
+/** How the paper may attribute the Editor's note. */
+function attributionLine(a, T) {
+  if (a === 'editor') return T('Attribute it to the Editor: “the Editor reports”, “according to the Editor”.', 'Attribuiscilo al Direttore: «riferisce il Direttore», «secondo il Direttore».');
+  if (a === 'source') return T('Attribute it to “a source close to the owner”: never name the Editor.', 'Attribuiscilo a «una fonte vicina al proprietario»: non nominare mai il Direttore.');
+  return T('The paper knows it: tell it as a fact, without attribution.', 'Il giornale lo sa: raccontalo come un fatto, senza attribuzione.');
 }
 
 function moment(ms) {
@@ -327,9 +476,12 @@ export function factSheet(s) {
   const q = (x) => (en ? `“${x}”` : `«${x}»`);
   const T = (e, i) => (en ? e : i);
   const L = [];
-  const t = (e) => hhmm(e.ts);
+  // a story that crosses midnight (a daily or weekly paper) says the day as well as the time
+  const days = dayKey(s.first) !== dayKey(s.last);
+  const wd = new Intl.DateTimeFormat(en ? 'en-GB' : 'it-IT', { weekday: 'short' });
+  const t = (e) => (days ? `${wd.format(e.ts)} ${hhmm(e.ts)}` : hhmm(e.ts));
   L.push(T(`Section: ${s.section}`, `Sezione: ${s.section}`));
-  L.push(T(`Time span: ${hhmm(s.first)}–${hhmm(s.last)} (time of day: ${moment(s.first)})`, `Intervallo: ${hhmm(s.first)}–${hhmm(s.last)} (momento della giornata: ${moment(s.first)})`));
+  L.push(T(`Time span: ${t({ ts: s.first })}–${t({ ts: s.last })} (time of day: ${moment(s.first)})`, `Intervallo: ${t({ ts: s.first })}–${t({ ts: s.last })} (momento della giornata: ${moment(s.first)})`));
   switch (s.kind) {
     case 'searches':
       L.push(T(`Web searches (${s.events.length}):`, `Ricerche fatte sul web (${s.events.length}):`));
@@ -337,6 +489,8 @@ export function factSheet(s) {
       break;
     case 'site':
       L.push(T(`Site: ${s.topic} — ${s.events.length} visits, ${s.pages.length} different pages.`, `Sito: ${s.topic} — ${s.events.length} visite, ${s.pages.length} pagine diverse.`));
+      // the time really spent on it: many visits in few minutes is scrolling, few visits in many minutes is reading
+      if (s.minutes != null) L.push(T(`Time with the site in front: about ${s.minutes} min${s.minutes < 3 && s.events.length > 10 ? ' (many pages in little time: scrolling, not reading)' : ''}.`, `Tempo con il sito davanti: circa ${s.minutes} min${s.minutes < 3 && s.events.length > 10 ? ' (tante pagine in poco tempo: scorrere, non leggere)' : ''}.`));
       [...s.pages].sort((a, b) => a.ts - b.ts).slice(0, 25).forEach((e) => L.push(`- ${t(e)} ${q(e.clean)}${e.generic ? T(' (generic page)', ' (pagina generica)') : ''}`));
       break;
     case 'roundup':
@@ -450,6 +604,27 @@ export function factSheet(s) {
       L.push(T('The pictures themselves, the places and the people are never seen: only what kind of shot and when.', 'Le immagini, i luoghi e le persone non si vedono mai: solo il tipo di scatto e l\'ora.'));
       break;
     }
+    case 'project': {
+      L.push(T(`Work on the project ${q(s.topic)}, seen from several sides of the Mac.`, `Lavoro sul progetto ${q(s.topic)}, visto da più parti del Mac.`));
+      if (s.folder) {
+        L.push(T(`Files: ${s.folder.saves} saves, ${s.folder.created} new files. File names are private.`, `File: ${s.folder.saves} salvataggi, ${s.folder.created} file nuovi. I nomi dei file sono riservati.`));
+        if (s.folder.exts?.length) L.push(`${T('File types', 'Tipi di file')}: ${s.folder.exts.map((x) => `.${x.k} ×${x.n}`).join(', ')}`);
+        if (s.folder.dirs?.length > 1) L.push(`${T('Parts of the project', 'Parti del progetto')}: ${s.folder.dirs.map((x) => `${x.k} ×${x.n}`).join(', ')}`);
+      }
+      if (s.git) {
+        const commits = s.git.events.filter((e) => ['commit', 'amend', 'merge'].includes(e.kind));
+        L.push(T(`Git: ${commits.length} commit${commits.length === 1 ? '' : 's'}${s.git.branches.length ? ` on ${s.git.branches.map(q).join(', ')}` : ''}${s.git.lines ? `, +${s.git.lines.added} −${s.git.lines.removed} lines` : ''}.`, `Git: ${commits.length} commit${s.git.branches.length ? ` sul ramo ${s.git.branches.map(q).join(', ')}` : ''}${s.git.lines ? `, +${s.git.lines.added} −${s.git.lines.removed} righe` : ''}.`));
+        commits.slice(-10).forEach((e) => L.push(`- ${t(e)} ${T('commit', 'commit')}: ${q(e.title)}`));
+      }
+      if (s.commands) {
+        L.push(T(`Terminal, inside the project: ${s.commands.all} commands, ${s.commands.serious} non-trivial.`, `Terminale, dentro il progetto: ${s.commands.all} comandi, ${s.commands.serious} non banali.`));
+        s.commands.events.filter((e) => !TRIVIAL.has(e.meta.family)).slice(-12).forEach((e) => L.push(`- ${e.meta.timed ? t(e) : '~'} $ ${e.title.slice(0, 140)}`));
+      }
+      if (s.tools?.length) L.push(`${T('Tools in front meanwhile', 'Strumenti in primo piano intanto')}: ${s.tools.map((a) => `${a.name} ${a.minutes} min`).join(', ')}.`);
+      if (s.pages?.length) L.push(`${T('The project\'s pages read on the web', 'Pagine del progetto lette sul web')}: ${s.pages.map((e) => q(e.title)).join(', ')}.`);
+      L.push(T('Tell the work as one thing: what was being built, how far it went. Commit messages are the owner\'s: quote them as they are. No lessons on programming.', 'Racconta il lavoro come una cosa sola: cosa si stava costruendo, fin dove è arrivato. I messaggi di commit sono del proprietario: citali così come sono. Niente lezioni di programmazione.'));
+      break;
+    }
     case 'commits': {
       const commits = s.events.filter((e) => ['commit', 'amend', 'merge'].includes(e.kind));
       L.push(T(
@@ -476,6 +651,14 @@ export function factSheet(s) {
       }
       break;
     }
+    case 'dispatch': {
+      const e = s.dispatches[0];
+      L.push(T(`A dispatch from the Editor (it happened at ${t(e)}): ${q(e.title)}.`, `Una traccia del Direttore (è successo alle ${t(e)}): ${q(e.title)}.`));
+      L.push(`${T('The note', 'L\'appunto')}: ${e.detail}`);
+      L.push(attributionLine(e.meta?.attribution, T));
+      L.push(T('These are the only facts: write the piece from the note, invent nothing it doesn\'t say. What the Mac recorded at the same time is below, if any.', 'Sono gli unici fatti: scrivi il pezzo a partire dall\'appunto, non inventare nulla che non dica. Quello che il Mac ha registrato nello stesso momento è qui sotto, se c\'è.'));
+      break;
+    }
     case 'book': {
       const e = s.events[0];
       const opened = s.events.filter((x) => x.kind === 'opened').at(-1);
@@ -483,6 +666,13 @@ export function factSheet(s) {
       if (opened?.meta.progress != null) L.push(`${T('Reading progress', 'Avanzamento lettura')}: ${Math.round(opened.meta.progress * 100)}%.`);
       s.events.filter((x) => x.kind === 'highlight').forEach((h) => L.push(`- ${T('Highlighted at', 'Evidenziato alle')} ${t(h)}: ${q(h.meta.text)}${h.meta.note ? ` (${T('note', 'nota')}: ${h.meta.note})` : ''}`));
       break;
+    }
+  }
+  // a dispatch the Editor tied to this story: their note, with how to attribute it
+  if (s.kind !== 'dispatch') {
+    for (const e of s.dispatches || []) {
+      L.push(T(`THE EDITOR'S NOTE on this story (${t(e)}): ${q(e.title)} — ${e.detail}`, `L'APPUNTO DEL DIRETTORE su questa storia (${t(e)}): ${q(e.title)} — ${e.detail}`));
+      L.push(attributionLine(e.meta?.attribution, T));
     }
   }
   return L.join('\n');

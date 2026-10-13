@@ -21,7 +21,10 @@ import { gather, timeline, dataSheet, typeset, suggestions } from './investigati
 import { isSensitive } from './spotlight/detectors.js';
 import { seriesFacts } from './series.js';
 import { getLine, linePrompt, LENGTHS } from './line.js';
-import { writerFor, columnist, byline, directorByline, personaPrompt, tastePrompt } from './writers.js';
+import { writerFor, columnist, correspondent, byline, directorByline, personaPrompt, tastePrompt } from './writers.js';
+
+/** Who writes a long piece: the special correspondent, if the paper has one, takes the long reads; otherwise the section's writer, or the columnist. */
+const writerOfPiece = (line, target, source) => (target === 'longread' && correspondent(line)) || (source ? writerFor(line, source) : null) || columnist(line);
 import { STYLES, isStyle } from './styles.js';
 import { connectLLM, chat, parseJson } from './llm.js';
 import { numbersCheck, figures } from './factcheck.js';
@@ -143,7 +146,7 @@ export async function createFeature(store, config, { editionId, articleId, story
   if (d?.numbers.total) parts.push(`${tr({ en: `THE ARCHIVE, LAST ${span} DAYS`, it: `L'ARCHIVIO, ULTIMI ${span} GIORNI` })}:\n${dataSheet(subject, d, tl, from, now)}`);
   if (!parts.length) throw new DeskError(tr({ en: `The archive has nothing on ${q(subject)} in the last ${span} days.`, it: `L'archivio non ha niente su ${q(subject)} negli ultimi ${span} giorni.` }), 404);
   const dossier = parts.join('\n\n');
-  const persona = story ? writerFor(line, story.source) : columnist(line);
+  const persona = writerOfPiece(line, target, story?.source);
   const llm = await connectLLM(config);
   const asked = (llm ? await writtenQuestions(llm, config, subject, dossier, persona) : null)
     || [story ? templateQuestion(story) : null, ...genericQuestions(subject)].filter(Boolean).slice(0, 3);
@@ -284,7 +287,7 @@ function blockPrompt(f, i, line, persona, instruction = null) {
 async function writeBlock(store, config, llm, id, i, { instruction = null } = {}) {
   let f = getFeature(store, id);
   const line = getLine(store);
-  const persona = f.persona ? writerFor(line, f.origin?.source) || columnist(line) : columnist(line);
+  const persona = f.persona ? writerOfPiece(line, f.target, f.origin?.source) : columnist(line);
   f.blocks[i] = { ...f.blocks[i], status: 'writing' };
   save(store, f);
   let paras = null;
@@ -383,7 +386,7 @@ async function plan(store, config, id, log) {
   const llm = await connectLLM(config);
   let f = getFeature(store, id);
   const line = getLine(store);
-  const persona = writerFor(line, f.origin?.source) || columnist(line);
+  const persona = writerOfPiece(line, f.target, f.origin?.source);
   const ts = typesetOutline(f);
   let o = null;
   if (llm) {
@@ -645,7 +648,7 @@ export function approveFeature(store, id, { placement = 'inside' } = {}, now = D
   if (!f.blocks.some((b) => b.paragraphs?.length)) throw new DeskError(tr({ en: 'There is nothing to print yet.', it: 'Non c\'è ancora niente da stampare.' }), 409);
   if (f.status === 'published' && f.printedIn) throw new DeskError(tr({ en: 'This piece has already been printed.', it: 'Questo pezzo è già stato stampato.' }), 409);
   f.headline ||= f.workingHeadline || f.topic;
-  Object.assign(f, checks(f), { status: 'approved', placement: placement === 'lead' ? 'lead' : 'inside', approvedAt: now, forEdition: nextEditionId(now) });
+  Object.assign(f, checks(f), { status: 'approved', placement: placement === 'lead' ? 'lead' : 'inside', approvedAt: now, forEdition: nextEditionId(now, store) });
   save(store, f);
   say(store, 'desk', tr({ en: `Desk: the Editor approved ${q(f.headline)} for the next edition${f.placement === 'lead' ? ', as the lead' : ''}.`, it: `Desk: il Direttore ha approvato ${q(f.headline)} per la prossima edizione${f.placement === 'lead' ? ', in apertura' : ''}.` }), now);
   return getFeature(store, f.id);

@@ -8,6 +8,7 @@ import '@fontsource/libre-caslon-text/400-italic.css';
 import '@fontsource/libre-caslon-text/700.css';
 import '@fontsource-variable/libre-franklin';
 import './styles.css';
+import './redazione.css';
 import App from './App.jsx';
 import { lang } from './i18n.js';
 

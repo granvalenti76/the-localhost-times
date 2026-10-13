@@ -1,10 +1,11 @@
 import { sceneMenu } from './scenes.js';
 import { linePrompt, LENGTHS } from './line.js';
 import { L, tr } from '../i18n.js';
-import { personaPrompt, tastePrompt } from './writers.js';
-import { headlinePrompt, examplesPrompt, columnVoice } from './voice.js';
+import { personaPrompt, tastePrompt, traitLines } from './writers.js';
+import { headlinePrompt, examplesPrompt, columnVoice, voicePrompt } from './voice.js';
+import { cadenceOf, periodText, lengthBoost } from './cadence.js';
 
-const SYSTEM_EN = `You are a reporter for The Localhost Times, the paper that tells what happened on a MacBook in the last hour, in the house voice described below.
+const SYSTEM_EN = `You are a reporter for The Localhost Times, the paper that tells what happened on a MacBook {PERIOD}, in the house voice described below.
 
 How to write:
 - English, third person.
@@ -27,7 +28,7 @@ The facts (these rules come before everything else, the voice included):
 - A TIP from the tip box comes from the owner, but the paper protects its sources: attribute it to "a source close to the owner", and treat it as a fact.
 - A RECORD in the facts is news: say it plainly, with the previous best.`;
 
-const SYSTEM_IT = `Sei un redattore del «The Localhost Times», il giornale che racconta ciò che è successo su un MacBook nell'ultima ora, nella voce della casa descritta più sotto.
+const SYSTEM_IT = `Sei un redattore del «The Localhost Times», il giornale che racconta ciò che è successo su un MacBook {PERIOD}, nella voce della casa descritta più sotto.
 
 Come scrivere:
 - Italiano, terza persona.
@@ -55,15 +56,33 @@ const REPLY = {
   it: 'Rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo:\n{"kicker": "occhiello, 1-3 parole", "headline": "titolo", "dek": "sommario di una frase", "body": ["paragrafo", ...]}',
 };
 
-/** The reporter's instructions: the facts, the house voice, the headlines, the byline, the examples. */
-export const systemFor = (line, writer = null) => [
-  tr({ en: SYSTEM_EN, it: SYSTEM_IT }),
-  linePrompt(line),
-  `\n${headlinePrompt()}`,
-  personaPrompt(writer) + tastePrompt(line, writer),
-  `\n${examplesPrompt()}`,
-  `\n${L(REPLY)}`,
-].filter(Boolean).join('\n');
+/**
+ * The reporter's instructions, layer by layer: how to write, the facts, the house voice and the
+ * editor's notes, the headlines, the byline, the examples, the reply. The Editor can read each
+ * layer in the Publishing House and replace some of them with a version of their own
+ * (`line.manual`); the facts and the reply format stay as they are, the program relies on them.
+ */
+export function systemLayers(line, writer = null) {
+  const sys = tr({ en: SYSTEM_EN, it: SYSTEM_IT }).replace('{PERIOD}', periodText(cadenceOf(line)));
+  const cut = sys.search(/\n\n(The facts|I fatti) \(/);
+  const head = sys.slice(0, cut);
+  const nl = head.indexOf('\n\n');
+  const intro = head.slice(0, nl);
+  const how = head.slice(nl + 2);
+  const own = line?.manual || {};
+  return [
+    { id: 'how', text: `${intro}\n\n${own.how || how}`, base: how, own: own.how || null },
+    { id: 'facts', text: sys.slice(cut + 2), locked: true },
+    { id: 'voice', text: linePrompt(line), base: voicePrompt(), own: own.voice || null },
+    { id: 'headlines', text: `\n${own.headlines || headlinePrompt()}`, base: headlinePrompt(), own: own.headlines || null },
+    { id: 'persona', text: personaPrompt(writer), auto: true },
+    { id: 'taste', text: tastePrompt(line, writer), auto: true },
+    { id: 'examples', text: `\n${own.examples || examplesPrompt()}`, base: examplesPrompt(), own: own.examples || null },
+    { id: 'reply', text: `\n${L(REPLY)}`, locked: true },
+  ];
+}
+
+export const systemFor = (line, writer = null) => systemLayers(line, writer).map((x) => x.text).filter(Boolean).join('\n');
 
 const HINTS_EN = {
   searches: 'The searches column: what was the owner trying to find out? Put the questions side by side, don\'t comment on them one by one.',
@@ -83,6 +102,8 @@ const HINTS_EN = {
   shots: 'The photographer: photos, videos and screenshots of the hour, counted. Never imagine what is in the pictures, where, or who: only how many, what kind, when.',
   downloads: 'What arrived in the Downloads folder, and from which sites.',
   commits: 'Work on a software project, told through its git commits: what changed, in the owner\'s own commit messages, and how big it was. Plain words, no lessons on git.',
+  dispatch: 'A dispatch from the Editor: a fact the Mac could not record, told by the Editor. Write the piece from the note, attribute it as the facts say, invent nothing.',
+  project: 'A project worked on from several sides (files, commits, the terminal, the tools in front): one piece about the work, what was being built and how far it got. Plain words.',
   todo: 'Reminders ticked off and added: the small news of things done and things still to do.',
 };
 
@@ -104,6 +125,8 @@ const HINTS_IT = {
   shots: 'Il fotografo: foto, video e screenshot dell\'ora, contati. Non immaginare mai cosa c\'è nelle immagini, dove o chi: solo quante, di che tipo, quando.',
   downloads: 'Cosa è arrivato nella cartella Download, e da quali siti.',
   commits: 'Lavoro su un progetto software raccontato dai commit git: cosa è cambiato, con i messaggi di commit del proprietario, e quanto era grande. Parole semplici, niente lezioni di git.',
+  dispatch: 'Una traccia del Direttore: un fatto che il Mac non poteva registrare, raccontato dal Direttore. Scrivi il pezzo dall\'appunto, attribuiscilo come dicono i fatti, non inventare nulla.',
+  project: 'Un progetto lavorato da più parti (file, commit, terminale, strumenti in primo piano): un solo pezzo sul lavoro, cosa si stava costruendo e fin dove è arrivato. Parole semplici.',
   todo: 'Promemoria spuntati e aggiunti: la piccola cronaca delle cose fatte e di quelle ancora da fare.',
 };
 
@@ -135,7 +158,9 @@ const format = (id, f) => {
 /** Article format based on the story's weight (and the length chosen by the editors). */
 export function sizeOf(story, rank, line) {
   const id = LENGTHS[line?.length] ? line.length : 'standard';
-  const f = LENGTHS[id].factor;
+  const f = LENGTHS[id].factor * lengthBoost(cadenceOf(line));
+  // the Editor's dispatch: as much room as the Editor asked for
+  if (story.kind === 'dispatch') return format(story.size === 'lead' ? 'lead' : story.size === 'brief' ? 'brief' : 'article', f);
   const t = THRESHOLDS[id] || THRESHOLDS.standard;
   const n = story.events.length;
   if (rank === 0 && n >= t.lead) return format('lead', f);
@@ -213,20 +238,28 @@ export function ownWordsPrompt(msgs, draft, copied) {
   ];
 }
 
+/** "The 14:00 edition." / "The Daily of Wednesday 14 October." */
+function editionLine(hourLabel, line) {
+  const k = cadenceOf(line).kind;
+  if (k === 'daily') return tr({ en: `The Daily of ${hourLabel}.`, it: `Il Quotidiano di ${hourLabel}.` });
+  if (k === 'weekly') return tr({ en: `The Weekly, ${hourLabel}.`, it: `Il Settimanale, ${hourLabel}.` });
+  return tr({ en: `The ${hourLabel} edition.`, it: `Edizione delle ${hourLabel}.` });
+}
+
 export function articlePrompt(story, facts, hourLabel, size, line, writer = null) {
   return [
     { role: 'system', content: systemFor(line, writer) },
     {
       role: 'user',
       content: tr({
-        en: `The ${hourLabel} edition. ${HINTS_EN[story.kind] || ''}
+        en: `${editionLine(hourLabel, line)} ${HINTS_EN[story.kind] || ''}
 ${formatLine(size)} Headline of 8 words at most.
 
 FACTS:
 ${facts}
 
 Write the piece.`,
-        it: `Edizione delle ${hourLabel}. ${HINTS_IT[story.kind] || ''}
+        it: `${editionLine(hourLabel, line)} ${HINTS_IT[story.kind] || ''}
 ${formatLine(size)} Titolo di massimo 8 parole.
 
 FATTI:
@@ -251,9 +284,14 @@ export function rewritePrompt(story, facts, hourLabel, size, line, previous, ins
   return msgs;
 }
 
-export function summaryPrompt(articles, total, hourLabel, line, writer = null) {
+export function summaryPrompt(articles, total, hourLabel, line, writer = null, cartoonist = null) {
   const lines = articles.map((a) => `- [${a.section}] ${a.headline}`).join('\n');
-  const extra = '\n' + linePrompt(line) + personaPrompt(writer);
+  // the paper's cartoonist, if it has one, writes the caption: their character, their lessons
+  const pen = cartoonist ? tr({
+    en: `\nTHE CARTOON'S CAPTION is by ${cartoonist.name}, the paper's cartoonist.${traitLines(cartoonist.traits).length ? ` Their character: ${traitLines(cartoonist.traits).join(' ')}` : ''}${cartoonist.deviation ? ` ${cartoonist.deviation}` : ''}`,
+    it: `\nLA BATTUTA DELLA VIGNETTA è di ${cartoonist.name}, il vignettista del giornale.${traitLines(cartoonist.traits).length ? ` Il suo carattere: ${traitLines(cartoonist.traits).join(' ')}` : ''}${cartoonist.deviation ? ` ${cartoonist.deviation}` : ''}`,
+  }) : '';
+  const extra = '\n' + linePrompt(line) + personaPrompt(writer) + pen;
   return [
     {
       role: 'system',
@@ -277,8 +315,8 @@ Rispondi SOLO con JSON: {"summary": "...", "cartoon": "...", "scene": "id"}`,
     {
       role: 'user',
       content: tr({
-        en: `The ${hourLabel} edition, ${total} signals.\nHeadlines:\n${lines}`,
-        it: `Edizione delle ${hourLabel}, ${total} segnali.\nTitoli:\n${lines}`,
+        en: `${editionLine(hourLabel, line).replace(/\.$/, '')}, ${total} signals.\nHeadlines:\n${lines}`,
+        it: `${editionLine(hourLabel, line).replace(/\.$/, '')}, ${total} segnali.\nTitoli:\n${lines}`,
       }),
     },
   ];
@@ -473,7 +511,13 @@ ${en
 // ───────────────────────── Letters to the editor ─────────────────────────
 
 export function letterPrompt({ letter, overview, line }) {
-  const extra = '\n' + linePrompt(line);
+  // a regular reader writing about a piece (readers.js), not the owner: the answer is for them
+  const reader = letter.reader ? tr({
+    en: `\nThis letter is NOT from the owner: it is from a reader of the paper, ${letter.signature}, about a piece by ${letter.about?.writer?.name || 'the newsroom'}. Answer the reader, defend the piece where it deserves it, concede where they are right.`,
+    it: `\nQuesta lettera NON è del proprietario: è di un lettore del giornale, ${letter.signature}, su un pezzo di ${letter.about?.writer?.name || 'redazione'}. Rispondi al lettore, difendi il pezzo dove lo merita, concedi dove ha ragione.`,
+  }) : '';
+  const about = letter.about ? tr({ en: `\n\nTHE PIECE: “${letter.about.headline}”`, it: `\n\nIL PEZZO: «${letter.about.headline}»` }) : '';
+  const extra = '\n' + linePrompt(line) + reader;
   return [
     {
       role: 'system',
@@ -487,8 +531,8 @@ Rispondi SOLO con JSON: {"title": "titolo della lettera, massimo 8 parole, senza
     {
       role: 'user',
       content: tr({
-        en: `${overview}\n\nTHE LETTER (signed “${letter.signature}”):\n${letter.text}`,
-        it: `${overview}\n\nLA LETTERA (firmata «${letter.signature}»):\n${letter.text}`,
+        en: `${overview}${about}\n\nTHE LETTER (signed “${letter.signature}”):\n${letter.text}`,
+        it: `${overview}${about}\n\nLA LETTERA (firmata «${letter.signature}»):\n${letter.text}`,
       }),
     },
   ];

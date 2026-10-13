@@ -288,6 +288,32 @@ const W = {
     };
   },
 
+  dispatch(s) {
+    const e = s.dispatches[0];
+    const who = { editor: 'the Editor reports', source: 'a source close to the owner reports' }[e.meta?.attribution];
+    return {
+      kicker: s.section,
+      headline: short(e.title, 90),
+      dek: who ? `So ${who}.` : '',
+      body: String(e.detail).split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean),
+    };
+  },
+
+  project(s, P) {
+    const commits = (s.git?.events || []).filter((e) => ['commit', 'amend', 'merge'].includes(e.kind));
+    const size = s.git?.lines ? `+${s.git.lines.added} −${s.git.lines.removed} lines` : null;
+    return {
+      kicker: 'Workshop',
+      headline: commits.length ? P([`${q(s.topic)}, an afternoon's work`, `${q(s.topic)} moves on by ${commits.length} commits`]) : P([`Work on ${q(s.topic)}`, `${q(s.topic)} on the bench`]),
+      dek: `${cap(span(s))}: ${list([s.folder ? plural(s.folder.saves, 'save', 'saves') : null, commits.length ? plural(commits.length, 'commit', 'commits') : null, s.commands ? plural(s.commands.serious, 'command', 'commands') : null].filter(Boolean))}.`,
+      body: [
+        commits.length ? `The commit messages, in order: ${list(commits.slice(-4).map((e) => q(short(e.title, 90))))}${size ? ` (${size})` : ''}.` : '',
+        s.folder ? `In the files: ${plural(s.folder.saves, 'save', 'saves')}, ${plural(s.folder.created, 'new file', 'new files')}${s.folder.exts?.length ? `, mostly ${list(s.folder.exts.slice(0, 3).map((x) => `.${x.k}`))}` : ''}.` : '',
+        s.tools?.length ? `In front, meanwhile: ${list(s.tools.map((a) => `${a.name} (${a.minutes} min)`))}.` : '',
+      ].filter(Boolean),
+    };
+  },
+
   commits(s, P) {
     const commits = s.events.filter((e) => ['commit', 'amend', 'merge'].includes(e.kind));
     const last = commits.at(-1);

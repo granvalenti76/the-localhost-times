@@ -14,7 +14,8 @@
  */
 import { tr, lang } from '../i18n.js';
 import { buildStories } from './cluster.js';
-import { editionWindow, cleanEvents, rewriteArticle, isTypeset, DeskError } from './edition.js';
+import { editionWindow, cleanEvents, rewriteArticle, isTypeset, DeskError, weightedStories } from './edition.js';
+import { cadenceOf, workHour } from './cadence.js';
 import { preview, steer as applySteerOp } from './next.js';
 import { getLine, featureOn } from './line.js';
 import { writerFor, byline, personaPrompt } from './writers.js';
@@ -130,13 +131,10 @@ export function answerCall(store, config, id, { text, option, decline, lead } = 
 
 /** The stories forming in the current hour (same window and weights as the next edition). */
 export function formingStories(store, config, now = Date.now()) {
-  const { windowStart, id } = editionWindow(store, config, hourStart(now));
   const line = getLine(store);
-  const events = cleanEvents(store.eventsBetween(windowStart, now), config);
-  const stories = buildStories(events)
-    .map((s) => ({ ...s, weight: s.weight * (line.sectionWeights[s.source] ?? 1) }))
-    .filter((s) => s.weight > 0)
-    .sort((a, b) => b.weight - a.weight);
+  const { windowStart, id } = editionWindow(store, config, workHour(cadenceOf(line), now));
+  const events = cleanEvents(store.eventsBetween(windowStart, now), config, line);
+  const stories = weightedStories(events, line);
   return { stories, windowStart, editionId: id, line };
 }
 

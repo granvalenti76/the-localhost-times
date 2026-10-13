@@ -45,6 +45,13 @@ export function parseRoute(hash) {
   // the newsroom's own rooms: the inquiry and the Editor desk
   if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'inquiry' || p[1] === 'inchiesta')) return { inquiry: p[2] || true };
   if ((p[0] === 'newsroom' || p[0] === 'redazione') && p[1] === 'editor-desk') return { editorDesk: p[2] || true };
+  // the two rooms that take the whole page: the writing room and the proof round
+  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'write' || p[1] === 'scrittura')) return { room: 'write', sid: p[2] || null };
+  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'proofs' || p[1] === 'bozze')) return { room: 'proofs', sid: p[2] || null };
+  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'sources' || p[1] === 'fonti')) return { dispatches: true };
+  // the editorial line moved to the Publishing House
+  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'linea' || p[1] === 'line')) return { house: 'masthead' };
+  if (p[0] === 'house' || p[0] === 'casa-editrice') return { house: p[1] || 'masthead' };
   if (p[0] === 'newsroom' || p[0] === 'redazione') return { desk: true, edition: p[1] || null };
   if ((p[0] === 'evening' || p[0] === 'sera') && p[1]) return { evening: p[1] };
   if (p[0] === 'letters' || p[0] === 'lettere') return { letters: true };
@@ -82,6 +89,12 @@ export const href = {
   inquiry: (id) => (id ? `#/newsroom/inquiry/${id}` : '#/newsroom/inquiry'),
   editorDesk: (id) => (id ? `#/newsroom/editor-desk/${id}` : '#/newsroom/editor-desk'),
   bench: (id) => (id ? `#/newsroom/banco/${encodeURIComponent(id)}` : '#/newsroom/banco'),
+  line: () => '#/house',
+  write: (sid) => (sid ? `#/newsroom/write/${encodeURIComponent(sid)}` : '#/newsroom/write'),
+  proofs: (sid) => (sid ? `#/newsroom/proofs/${encodeURIComponent(sid)}` : '#/newsroom/proofs'),
+  house: (tab) => (tab ? `#/house/${tab}` : '#/house'),
+  nextDetail: () => '#/newsroom/next',
+  dispatches: () => '#/newsroom/sources',
   sport: () => '#/sport',
 };
 
@@ -150,6 +163,11 @@ export const writerLabel = (w) => {
 
 /** "The 14:00 edition" / "Edizione delle 14:00" */
 export const editionLabel = (ms) => tr({ en: `The ${hhmm(ms)} edition`, it: `Edizione delle ${hhmm(ms)}` });
+
+/** An edition's name, whatever the paper's cadence: "The 14:00 edition", "The Daily", "The Weekly". */
+export const editionName = (e) => (e?.cadence === 'daily'
+  ? tr({ en: 'The Daily', it: 'Il Quotidiano' })
+  : e?.cadence === 'weekly' ? tr({ en: 'The Weekly', it: 'Il Settimanale' }) : editionLabel(edHour(e)));
 
 /** The "continuing story" tag on articles. */
 export const episodeLabel = (n) => tr({ en: `Continuing · part ${n}`, it: `Segue · ${n}ª puntata` });

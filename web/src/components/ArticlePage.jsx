@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { href, hhmm, writerLabel, edHour, shortDate, episodeLabel, readingTime } from '../lib.js';
+import { api, href, hhmm, writerLabel, edHour, shortDate, episodeLabel, readingTime } from '../lib.js';
+import { Toast, useDirector } from './Rooms.jsx';
 import Para from './Para.jsx';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
@@ -45,12 +46,40 @@ function Lede({ p, last }) {
   return <p className={`dropcap lede${last ? ' end' : ''}`}>{m ? <><span className="lede-caps">{m[1]}</span>{m[2]}</> : p}</p>;
 }
 
+/**
+ * ♥ on a paragraph, right on the page: the writer learns from it (it becomes an example of what the
+ * Editor likes) and is cheered up; the Editor earns copies.
+ */
+function Heart({ edition, a, i, liked, onLiked }) {
+  const [busy, setBusy] = useState(false);
+  async function like() {
+    if (liked || busy) return;
+    setBusy(true);
+    try {
+      const r = await api(`/editions/${encodeURIComponent(edition.id)}/articles/${encodeURIComponent(a.id)}/paragraph`, { method: 'POST', json: { index: i, op: 'like' } });
+      onLiked(i, r?.award);
+    } catch { /* the page stays as it is */ } finally { setBusy(false); }
+  }
+  const who = a.byline?.name;
+  const label = liked
+    ? tr({ en: who ? `${who} will remember this one` : 'Marked', it: who ? `${who} se lo ricorderà` : 'Segnato' })
+    : tr({ en: 'I like this paragraph', it: 'Mi piace questo paragrafo' });
+  return <button className={`para-heart ${liked ? 'on' : ''}`} onClick={like} disabled={busy} aria-pressed={liked} aria-label={label} title={label}>♥</button>;
+}
+
 export default function ArticlePage({ edition, article: a, xray: xrayAtStart = false }) {
   const [xray, setXray] = useState(xrayAtStart);
+  const [liked, setLiked] = useState(() => Object.fromEntries(Object.entries(a.marks || {}).filter(([, v]) => v === 'like').map(([k]) => [k, true])));
+  const { gain, toast } = useDirector();
+  const onLiked = (i, award) => {
+    setLiked((x) => ({ ...x, [i]: true }));
+    gain(award || { gained: 0 }, a.byline?.name ? tr({ en: `${a.byline.name} takes note`, it: `${a.byline.name} prende nota` }) : null);
+  };
   const others = edition.articles.filter((x) => x.id !== a.id).slice(0, 4);
   const pq = pullQuote(a.body);
   return (
     <div className="story-wrap">
+      <Toast toast={toast} />
       <div className="story-top">
         <a className="back" href={href.edition(edition.id)}>← {tr({ en: `The ${hhmm(edHour(edition))} front page`, it: `Prima pagina delle ${hhmm(edHour(edition))}` })}</a>
         <span className="story-top-right">
@@ -88,7 +117,10 @@ export default function ArticlePage({ edition, article: a, xray: xrayAtStart = f
           <div className="story-body">
             {a.body.map((p, i) => (
               <React.Fragment key={i}>
-                {i === 0 && p.length > 160 ? <Lede p={p} last={a.body.length === 1} /> : <Para a={a} p={p} className={i === a.body.length - 1 ? 'end' : ''} />}
+                <div className="para-wrap">
+                  <Heart edition={edition} a={a} i={i} liked={!!liked[i]} onLiked={onLiked} />
+                  {i === 0 && p.length > 160 ? <Lede p={p} last={a.body.length === 1} /> : <Para a={a} p={p} className={i === a.body.length - 1 ? 'end' : ''} />}
+                </div>
                 {pq && pq.after === i && <blockquote className="pullquote" aria-hidden="true">{pq.text}</blockquote>}
               </React.Fragment>
             ))}

@@ -71,7 +71,9 @@ const DEFAULTS = {
   },
   desk: {
     closingMinute: 55,   // when the desk asks the Editor about the edition about to close
-    chain: 'top',        // which articles the managing editor and the copy desk read: 'top' (first three), 'all', 'lead', 'off'
+    chain: 'triage',     // which articles the managing editor reads: 'triage' (first three + any the rules flag), 'all', 'top' (first three), 'lead', 'off'
+    rounds: [20, 40],    // minutes of the hour when the reporters draft the next edition ([] = only at the press)
+    draftTop: 5,         // how many of the strongest stories get a draft during the hour
   },
   tips: {
     notesFolder: '',     // a Notes folder used as the tip box ("Redazione" and "Newsroom" always work)

@@ -4,7 +4,7 @@ import { setLang } from '../server/i18n.js';
 import { demoEvents } from '../server/demo.js';
 import { buildStories, factSheet } from '../server/newsroom/cluster.js';
 import { fallbackArticle, fallbackSummary } from '../server/newsroom/fallback.js';
-import { printEdition, editCartoon, spikeArticle, restoreArticle } from '../server/newsroom/edition.js';
+import { printEdition, editCartoon, spikeArticle, restoreArticle, editArticle } from '../server/newsroom/edition.js';
 import { printEvening } from '../server/newsroom/evening.js';
 import { rssFeed } from '../server/feed.js';
 import { hourStart, dayKey } from '../server/util.js';
@@ -60,6 +60,12 @@ for (const l of ['en', 'it']) {
       assert.equal((xml.match(/<item>/g) || []).length, (xml.match(/<\/item>/g) || []).length);
       assert.ok(xml.includes(ed.articles[0].headline.replace(/&/g, '&amp;').replace(/</g, '&lt;')));
       assert.equal(rssFeed(store, { base: 'x', section: 'nope' }), null);
+      // the Editor's hand joins the piece's passages, and the text before it is kept as the draft
+      const before = ed.articles[0].headline;
+      const edited = editArticle(store, ed.id, first, { headline: 'A headline by hand' }).articles.find((a) => a.id === first);
+      assert.equal(edited.draft.headline, before);
+      assert.equal(edited.chain.at(-1).who, 'chief');
+      assert.equal(edited.chain.at(-1).kind, 'headline');
     } finally {
       cleanup();
       setLang('en');

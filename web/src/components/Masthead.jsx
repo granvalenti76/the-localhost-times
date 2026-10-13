@@ -1,5 +1,5 @@
 import React from 'react';
-import { longDate, hhmm, dayFromKey, href, SECTIONS, writerLabel, edHour, edSince, editionLabel } from '../lib.js';
+import { longDate, dayFromKey, href, SECTIONS, writerLabel, edSince, editionName } from '../lib.js';
 import { tr, lang } from '../i18n.js';
 
 export default function Masthead({ edition, evening, day, status, activeSlug }) {
@@ -16,11 +16,11 @@ export default function Masthead({ edition, evening, day, status, activeSlug }) 
             <span>{tr({ en: 'Evening edition', it: 'Edizione della sera' })}</span>
           ) : edition ? (
             <span>
-              {editionLabel(edHour(edition))}{edSince(edition)}
+              {editionName(edition)}{edition.cadence && edition.cadence !== 'hourly' ? '' : edSince(edition)}
               {!edition.final && <em className="live"> · {tr({ en: 'in progress', it: 'in corso' })}</em>}
             </span>
           ) : (
-            <span>{status?.demo ? tr({ en: 'Demo edition', it: 'Edizione dimostrativa' }) : tr({ en: 'Hourly edition', it: 'Edizione oraria' })}</span>
+            <span>{status?.demo ? tr({ en: 'Demo edition', it: 'Edizione dimostrativa' }) : status?.cadence?.kind === 'daily' ? tr({ en: 'Daily edition', it: 'Edizione quotidiana' }) : status?.cadence?.kind === 'weekly' ? tr({ en: 'Weekly edition', it: 'Edizione settimanale' }) : tr({ en: 'Hourly edition', it: 'Edizione oraria' })}</span>
           )}
           {edition && <span className="muted">{tr({ en: `${edition.stats.total} signals · ${edition.articles.length} articles`, it: `${edition.stats.total} segnali · ${edition.articles.length} articoli` })}</span>}
           {evening && <span className="muted">{tr({ en: `${evening.stats.total} signals · ${evening.editions} editions`, it: `${evening.stats.total} segnali · ${evening.editions} edizioni` })}</span>}
@@ -59,9 +59,13 @@ export default function Masthead({ edition, evening, day, status, activeSlug }) 
             <span className="nav-caret" aria-hidden="true">▾</span>
           </a>
           <span className="nav-sub" role="menu">
-            <a role="menuitem" href={href.desk()}>{tr({ en: 'The desk', it: 'Il tavolo' })}<em>{tr({ en: 'editions, drafts, the line', it: 'edizioni, bozze, la linea' })}</em></a>
+            <a role="menuitem" href={href.desk()}>{tr({ en: 'The desk', it: 'La scrivania' })}<em>{tr({ en: 'where the next edition stands', it: 'a che punto è il prossimo numero' })}</em></a>
+            <a role="menuitem" href={href.dispatches()}>{tr({ en: 'Sources', it: 'Fonti' })}<em>{tr({ en: 'what the Mac can\'t know: your traces', it: 'quello che il Mac non sa: le tue tracce' })}</em></a>
+            <a role="menuitem" href={href.write()}>{tr({ en: 'Writing room', it: 'Sala scrittura' })}<em>{tr({ en: 'the pieces as they are typed', it: 'i pezzi mentre vengono scritti' })}</em></a>
+            <a role="menuitem" href={href.proofs()}>{tr({ en: 'Proof round', it: 'Giro di bozze' })}<em>{tr({ en: 'the red pencil, one draft at a time', it: 'la matita rossa, una bozza alla volta' })}</em></a>
             <a role="menuitem" href={href.inquiry()}>{tr({ en: 'Inquiry', it: 'Inchiesta' })}<em>{tr({ en: 'a long piece, built together', it: 'un pezzo lungo, costruito insieme' })}</em></a>
             <a role="menuitem" href={href.editorDesk()}>Editor desk<em>{tr({ en: 'sources, structure, style', it: 'fonti, struttura, stile' })}</em></a>
+            <a role="menuitem" href={href.house()}>{tr({ en: 'Publishing House', it: 'Casa Editrice' })}<em>{tr({ en: 'what paper to make: cadence, wires, staff, style', it: 'che giornale fare: uscita, agenzie, redattori, stile' })}</em></a>
           </span>
         </span>
       </nav>

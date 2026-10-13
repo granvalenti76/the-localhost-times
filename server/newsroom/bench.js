@@ -7,7 +7,7 @@
  */
 import { tr } from '../i18n.js';
 import { buildStories, factSheet } from './cluster.js';
-import { load, findArticle, touch, cleanEvents, cleanHeadline, spikeArticle, DeskError } from './edition.js';
+import { load, findArticle, touch, cleanEvents, cleanHeadline, spikeArticle, DeskError, byHand } from './edition.js';
 import { seriesFacts } from './series.js';
 import { getLine } from './line.js';
 import { writerFor } from './writers.js';
@@ -15,6 +15,7 @@ import { connectLLM, chat, parseJson } from './llm.js';
 import { systemFor } from './prompts.js';
 import { lint } from './lint.js';
 import { say } from './chatter.js';
+import { nudge } from './people.js';
 import { hhmm } from '../util.js';
 
 const TASTE = 'taste';
@@ -65,14 +66,16 @@ export async function paragraphAction(store, config, id, aid, { index, op, instr
     store.setSetting(TASTE, t);
     a.marks = { ...(a.marks || {}), [i]: op };
     store.saveEdition(ed);
+    nudge(store, a.byline || writerFor(line, a.source), op);
     if (op === 'like' && a.byline?.name) say(store, w, tr({ en: `${a.byline.name}: the Editor liked my paragraph. Framing it.`, it: `${a.byline.name}: al Direttore è piaciuto il mio paragrafo. Me lo incornicio.` }));
     return ed;
   }
   if (op === 'cut') {
     if (a.body.length < 2) throw new DeskError(tr({ en: 'It is the only paragraph: spike the article instead.', it: 'È l\'unico paragrafo: cestina l\'articolo, piuttosto.' }), 400);
+    byHand(a, { kind: 'cut', para: i });
+    nudge(store, a.byline || writerFor(getLine(store), a.source), 'cut');
     a.body.splice(i, 1);
     a.marks = {};
-    a.writer = /\+ (editor|direttore)$/.test(a.writer || '') ? a.writer : `${a.writer || 'typesetting'} + editor`;
     return touch(store, ed);
   }
   const instr = String(instruction || '').trim().slice(0, 300) || tr({ en: 'a better version', it: 'una versione migliore' });
@@ -98,11 +101,11 @@ export async function paragraphAction(store, config, id, aid, { index, op, instr
   const fresh = load(store, id);
   const b = fresh.articles[findArticle(fresh, aid)];
   if (b.body[i] !== a.body[i]) throw new DeskError(tr({ en: 'The article changed in the meantime: try again.', it: 'L\'articolo è cambiato nel frattempo: riprova.' }), 409);
+  byHand(b, { kind: 'paragraph', para: i, instruction: instr });
   b.body[i] = text;
   b.marks = { ...(b.marks || {}) };
   delete b.marks[i];
   b.lint = lint(b.body);
-  b.writer = /\+ (editor|direttore)$/.test(b.writer || '') ? b.writer : `${b.writer || 'typesetting'} + editor`;
   log(tr({ en: `[bench] ${aid}: paragraph ${i + 1} rewritten (“${instr}”)`, it: `[banco] ${aid}: paragrafo ${i + 1} riscritto («${instr}»)` }));
   return touch(store, fresh);
 }
@@ -110,7 +113,11 @@ export async function paragraphAction(store, config, id, aid, { index, op, instr
 /** Three other headlines for an article (the model, or simple variants without it). */
 export async function headlineOptions(store, config, id, aid) {
   const ed = load(store, id);
-  const a = ed.articles[findArticle(ed, aid)];
+  return headlinesFor(store, config, ed.articles[findArticle(ed, aid)]);
+}
+
+/** Three other headlines for any piece ({ headline, dek, body, kicker, section }): a printed one or a draft. */
+export async function headlinesFor(store, config, a) {
   const llm = await connectLLM(config);
   if (llm) {
     const line = getLine(store);
@@ -150,6 +157,7 @@ export function verdict(store, id, aid, v) {
   const t = getTaste(store);
   bump(t, a.byline?.id, v === 'keep' ? 'kept' : 'cut');
   store.setSetting(TASTE, t);
+  nudge(store, a.byline, v === 'keep' ? 'keep' : 'cut');
   ed.review = { ...(ed.review || {}), [aid]: v, at: Date.now() };
   if (v === 'keep') {
     a.reviewed = 'keep';
@@ -158,6 +166,20 @@ export function verdict(store, id, aid, v) {
   }
   store.saveEdition(ed);
   return spikeArticle(store, id, aid);
+}
+
+/** A paragraph of a draft (the proof round) marked as good or bad: the same taste as on the printed pieces. */
+export function draftTaste(store, { text, writer, op, name = null }) {
+  if (!['like', 'dislike'].includes(op)) throw new DeskError(tr({ en: 'Unknown mark', it: 'Segno sconosciuto' }), 400);
+  const t = getTaste(store);
+  const list = op === 'like' ? t.liked : t.disliked;
+  if (list.some((x) => x.text === text)) return false;
+  list.unshift({ text, writer: writer || null, at: Date.now() });
+  t[op === 'like' ? 'liked' : 'disliked'] = list.slice(0, KEEP_EXAMPLES);
+  bump(t, writer, op === 'like' ? 'liked' : 'disliked');
+  store.setSetting(TASTE, t);
+  nudge(store, writer ? { id: writer, name } : null, op);
+  return true;
 }
 
 /** The staff's scoreboard: what the Editor liked and cut, writer by writer. */

@@ -33,7 +33,9 @@ const T = tr({
     hl: { long: (n) => `A long headline (${n} words): 12 at most.`, colon: 'A headline with a colon is often two headlines: try saying it in one sentence.', good: 'A short, whole headline.', number: 'A number in the headline: concrete.' },
     headline: 'Headline', note: 'The managing editor\'s note', look: (h) => `Look at ${quote(h)}:`, see: 'See how it\'s built →',
     xray: 'How it\'s built', xrayOff: 'Hide the anatomy',
-    path: 'How the piece got here', reporter: 'Reporter', editorWho: 'Managing editor', copyWho: 'Copy desk',
+    path: 'How the piece got here', reporter: 'Reporter', editorWho: 'Managing editor', copyWho: 'Copy desk', rulesWho: 'The rules', chiefWho: 'The Editor',
+    triage: { front: 'on the front page: it goes to the managing editor', flags: (n) => `flag ${n === 1 ? 'one thing' : `${n} things`}: it goes to the managing editor`, noted: (n) => `flag ${n === 1 ? 'one thing' : `${n} things`}`, clean: 'find nothing to flag' },
+    hand: { edit: 'edits it by hand', headline: 'changes the headline', rewrite: 'has it rewritten', paragraph: 'rewrites a paragraph', cut: 'cuts a paragraph', approve: 'passes it for press', note: 'sends it back with a note' }, newFacts: 'New facts', updated: (a, b) => `${a} → ${b} signals: the reporter brings it up to date`, pressWho: 'The press', press: { approved: 'prints it as the Editor passed it', 'as-is': 'prints the draft as it was' }, phrased: (n) => `rephrases ${n === 1 ? 'one sentence' : `${n} sentences`} that read like a machine`,
     wrote: (n) => `writes the draft: ${n} words`, passes: 'passes it', sendsBack: 'sends it back', rewrote: (n) => `rewrites it: ${n} words`,
     keptFirst: { short: 'tries again, but the new version is too short: the first one stays', figures: 'tries again, but the new version invents figures: the first one stays', style: 'tries again, but the new version reads worse: the first one stays', failed: 'doesn\'t manage to rewrite it: the first one stays' },
     clean: 'checks every figure against the signals: all there', fixed: 'corrects', cut: 'cuts', left: 'flags, but leaves (it is the whole paragraph)', small: (n) => `${n} small thing${n === 1 ? '' : 's'} tidied (spaces, doubled words)`, flagged: (n) => `checks every figure against the signals: ${n === 1 ? 'one sentence' : `${n} sentences`} quoted figures that aren't there`,
@@ -73,7 +75,9 @@ const T = tr({
     hl: { long: (n) => `Titolo lungo (${n} parole): al massimo 12.`, colon: 'Un titolo con i due punti spesso sono due titoli: prova a dirlo in una frase.', good: 'Titolo corto e intero.', number: 'Un numero nel titolo: concreto.' },
     headline: 'Titolo', note: 'La nota del caporedattore', look: (h) => `Guarda ${quote(h)}:`, see: 'Vedi com\'è fatto →',
     xray: 'Come è fatto', xrayOff: 'Nascondi l\'anatomia',
-    path: 'Il percorso del pezzo', reporter: 'Cronista', editorWho: 'Caporedattore', copyWho: 'Correzione',
+    path: 'Il percorso del pezzo', reporter: 'Cronista', editorWho: 'Caporedattore', copyWho: 'Correzione', rulesWho: 'Le regole', chiefWho: 'Il Direttore',
+    triage: { front: 'in prima pagina: passa dal caporedattore', flags: (n) => `${n === 1 ? 'segnalano una cosa' : `segnalano ${n} cose`}: passa dal caporedattore`, noted: (n) => (n === 1 ? 'segnalano una cosa' : `segnalano ${n} cose`), clean: 'non trovano niente da segnalare' },
+    hand: { edit: 'lo ritocca a mano', headline: 'cambia il titolo', rewrite: 'lo fa riscrivere', paragraph: 'riscrive un paragrafo', cut: 'taglia un paragrafo', approve: 'dà il visto', note: 'lo rimanda con una nota' }, newFacts: 'Fatti nuovi', updated: (a, b) => `${a} → ${b} segnali: il cronista lo aggiorna`, pressWho: 'La stampa', press: { approved: 'lo stampa come l\'ha visto il Direttore', 'as-is': 'stampa la bozza così com\'era' }, phrased: (n) => `riformula ${n === 1 ? 'una frase' : `${n} frasi`} che suonavano da macchina`,
     wrote: (n) => `scrive la bozza: ${n} parole`, passes: 'lo passa', sendsBack: 'lo rimanda indietro', rewrote: (n) => `lo riscrive: ${n} parole`,
     keptFirst: { short: 'ci riprova, ma la nuova versione è troppo corta: resta la prima', figures: 'ci riprova, ma la nuova versione inventa cifre: resta la prima', style: 'ci riprova, ma la nuova versione si legge peggio: resta la prima', failed: 'non riesce a riscriverlo: resta la prima' },
     clean: 'controlla ogni cifra sui segnali: ci sono tutte', fixed: 'corregge', cut: 'taglia', left: 'segnala, ma lascia (è tutto il paragrafo)', small: (n) => `${n === 1 ? 'una piccolezza sistemata' : `${n} piccolezze sistemate`} (spazi, parole doppie)`, flagged: (n) => `controlla ogni cifra sui segnali: ${n === 1 ? 'una frase citava' : `${n} frasi citavano`} cifre che non ci sono`,
@@ -155,13 +159,17 @@ export function Passage({ a }) {
   const [open, setOpen] = useState(false);
   const steps = a?.chain;
   if (!steps?.length) return null;
-  const who = { reporter: T.reporter, editor: T.editorWho, copy: T.copyWho };
+  const who = { reporter: T.reporter, editor: T.editorWho, copy: T.copyWho, triage: T.rulesWho, chief: T.chiefWho, update: T.newFacts, press: T.pressWho };
   const line = (x) => {
     if (x.who === 'reporter' && x.rewrote === undefined) return T.wrote(x.words);
     if (x.who === 'reporter') return x.rewrote ? T.rewrote(x.words) : T.keptFirst[x.why] || T.keptFirst.failed;
     if (x.who === 'editor') return x.verdict === 'rework' ? T.sendsBack : T.passes;
+    if (x.who === 'triage') return x.why === 'clean' ? T.triage.clean : x.why === 'noted' ? T.triage.noted(x.flags.length) : x.flags?.length ? T.triage.flags(x.flags.length) : T.triage.front;
+    if (x.who === 'chief') return `${T.hand[x.kind] || T.hand.edit}${x.instruction ? ` ${quote(x.instruction)}` : ''}`;
+    if (x.who === 'update') return T.updated(x.signals?.[0] ?? 0, x.signals?.[1] ?? 0);
+    if (x.who === 'press') return T.press[x.kind] || '';
     const n = (x.fixes || []).length;
-    return `${n ? T.flagged(n) : T.clean}${x.small ? ` · ${T.small(x.small)}` : ''}`;
+    return `${n ? T.flagged(n) : T.clean}${x.phrasing?.length ? ` · ${T.phrased(x.phrasing.length)}` : ''}${x.small ? ` · ${T.small(x.small)}` : ''}`;
   };
   return (
     <div className="passage">

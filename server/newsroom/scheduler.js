@@ -9,6 +9,11 @@ import { enrichEdition } from './extras.js';
 import { interviewRound, closingRound, expireCalls, msToClosing, formingStories } from './calls.js';
 import { flashRound } from './flash.js';
 import { chatterRound } from './chatter.js';
+import { draftRound } from './workbench.js';
+import { readersRound } from './readers.js';
+import { getLine } from './line.js';
+import { cadenceOf, nextPress, lastPress, workHour, closingTime, hasEvening } from './cadence.js';
+import { editionId as idOf } from '../util.js';
 
 const HOUR = 3600e3;
 
@@ -48,6 +53,8 @@ export function createNewsroom({ store, config, log = console.log, notify = null
   const enrich = (ed) => {
     if (!ed) return;
     queue(busy(() => enrichEdition(store, config, ed.id, { log }))).catch((e) => log(`[extras] ${e.message}`));
+    // and a regular reader may write about one of its pieces
+    queue(() => readersRound(store, config, ed.id, { log })).catch((e) => log(`[readers] ${e.message}`));
   };
 
   const printHour = (start, final, force = false) => queue(busy(async () => {
@@ -76,17 +83,50 @@ export function createNewsroom({ store, config, log = console.log, notify = null
     }
   }
 
+  const cadence = () => cadenceOf(getLine(store));
+
+  /** When the desk next calls the Editor about the edition about to close (the cadence decides). */
+  function msToNextClosing(now = Date.now()) {
+    const cad = cadence();
+    if (cad.kind === 'hourly') return msToClosing(now, config.desk?.closingMinute ?? 55);
+    let t = closingTime(cad, config, nextPress(cad, now));
+    if (t <= now) t = closingTime(cad, config, nextPress(cad, nextPress(cad, now) + 1));
+    return t - now;
+  }
+
   function scheduleClosing() {
+    // at most an hour of sleep: a change of cadence is picked up within the hour
+    const wait = msToNextClosing();
     setTimeout(async () => {
       try {
-        await collect();
-        closingRound(store, config, { notify, log });
+        if (wait <= HOUR) {
+          await collect();
+          closingRound(store, config, { notify, log });
+        }
       } catch (e) {
         log(`[closing] ${e.message}`);
       }
       scheduleClosing();
-    }, msToClosing(Date.now(), config.desk?.closingMinute ?? 55) + 1000);
+    }, Math.min(wait, HOUR) + 1000);
   }
+
+  /**
+   * A daily or weekly paper: the edition of the last press, if it hasn't been printed for good yet
+   * (the Mac may have slept through it: a press missed by less than a day still runs).
+   */
+  async function pressIfDue(now = Date.now()) {
+    const cad = cadence();
+    const press = lastPress(cad, now);
+    if (now - press > 24 * HOUR) return [];
+    const meta = store.editionMeta(idOf(press - HOUR));
+    if (meta?.final || meta?.edited) return [];
+    const ed = await printHour(press - HOUR, true);
+    return ed ? [ed] : [];
+  }
+
+  // the hour's drafts: in the same queue as the press (one model), at the rounds or on request
+  const drafts = (force = false) => queue(busy(() => draftRound(store, config, { log, force })));
+  const draftNow = () => drafts(true);
 
   // Spotlight works in the same queue (one model, one press), after the paper
   const spotlight = (light = false) => queue(busy(() => spotlightRound(store, config, { log, notify, light })))
@@ -103,10 +143,10 @@ export function createNewsroom({ store, config, log = console.log, notify = null
     return printEveningFor(day);
   }
 
+  /** "Print now": the edition in the works, as it stands (the press will print it again, for good). */
   async function printNow() {
     await collect();
-    const start = hourStart(Date.now());
-    return printHour(start, false, true);
+    return printHour(workHour(cadence(), Date.now()), false, true);
   }
 
   async function backfill(hours = config.backfillHours) {
@@ -124,13 +164,14 @@ export function createNewsroom({ store, config, log = console.log, notify = null
   }
 
   function scheduleHourly() {
+    // the press wakes every hour; a daily or weekly paper prints only at its own hour
     const next = hourStart(Date.now()) + HOUR + 30e3;
-    state.nextEdition = next;
+    state.nextEdition = cadence().kind === 'hourly' ? next : nextPress(cadence()) + 30e3;
     setTimeout(async () => {
       try {
         await collect();
         // print the hour just closed (and, if the Mac was asleep, only the last one missed)
-        const printed = await backfill();
+        const printed = cadence().kind === 'hourly' ? await backfill() : await pressIfDue();
         // once a day (on the first press of the day, even if the Mac slept through the night),
         // drop raw signals older than keepEventsDays
         const today = dayKey(Date.now());
@@ -143,7 +184,7 @@ export function createNewsroom({ store, config, log = console.log, notify = null
         // the Spotlight desk takes a look at the leads once the hour is printed
         await spotlight();
         // at 21:00 (or the chosen time) the evening edition comes out too
-        if (new Date().getHours() === config.edition.eveningHour) notify?.evening(await eveningIfDue(true));
+        if (hasEvening(cadence()) && new Date().getHours() === config.edition.eveningHour) notify?.evening(await eveningIfDue(true));
       } catch (e) {
         log(tr({ en: `[press] error: ${e.message}`, it: `[rotativa] errore: ${e.message}` }));
       }
@@ -156,16 +197,17 @@ export function createNewsroom({ store, config, log = console.log, notify = null
     scheduleHourly();
     if (!config.demo) scheduleClosing();
     setInterval(() => {
-      collect().then(() => deskRound()).catch((e) => log(`[${tr({ en: 'collect', it: 'raccolta' })}] ${e.message}`));
+      collect().then(() => deskRound()).then(() => (config.demo ? null : drafts())).catch((e) => log(`[${tr({ en: 'collect', it: 'raccolta' })}] ${e.message}`));
       // a right of reply that has expired doesn't wait for the next hour
       spotlight(true);
     }, config.collectEveryMinutes * 60e3);
-    backfill(config.demo ? 12 : config.backfillHours)
+    (cadence().kind === 'hourly' || config.demo ? backfill(config.demo ? 12 : config.backfillHours) : pressIfDue())
       .then(() => (config.demo ? printNow() : null))
-      .then(() => (config.demo ? printEveningFor(dayKey(Date.now())) : eveningIfDue()))
+      .then(() => (config.demo ? printEveningFor(dayKey(Date.now())) : hasEvening(cadence()) ? eveningIfDue() : null))
+      .then(() => (config.demo ? draftNow() : null)) // the demo shows the next edition in the works
       .then(() => spotlight())
       .catch((e) => log(`[${tr({ en: 'backfill', it: 'arretrati' })}] ${e.message}`));
   }
 
-  return { collect, printNow, printHour, printEveningFor, backfill, start, state, spotlight, deskRound, enrich, queue };
+  return { collect, printNow, printHour, printEveningFor, backfill, start, state, spotlight, deskRound, enrich, queue, draftNow };
 }

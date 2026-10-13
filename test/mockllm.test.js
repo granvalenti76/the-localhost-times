@@ -100,10 +100,12 @@ test('with a writer: interview question, quote in the piece, extras after the pr
     assert.equal(a.body.filter((p) => p.includes('Bob is a machine')).length, 1, 'the quote was added twice');
     assert.ok(calls.some((m) => /STATEMENT BY THE OWNER/.test(m.map((x) => x.content).join('\n'))), 'the statement never reached the writer');
     assert.ok(!openCalls(store, h + 2 * HOUR).some((c) => c.id === call.id));
-    // the desk: sent back by the managing editor, rewritten, read by the copy desk
-    assert.deepEqual(a.chain.map((x) => x.who), ['reporter', 'editor', 'reporter', 'copy']);
-    assert.equal(a.chain[1].verdict, 'rework');
-    assert.equal(a.chain[2].rewrote, true);
+    // the desk: on the front page so read by the managing editor, sent back, rewritten, read by the copy desk
+    assert.deepEqual(a.chain.map((x) => x.who), ['reporter', 'triage', 'editor', 'reporter', 'editor', 'copy']);
+    assert.equal(a.chain[4].reread, true);
+    assert.equal(a.chain[1].why, 'front');
+    assert.equal(a.chain[2].verdict, 'rework');
+    assert.equal(a.chain[3].rewrote, true);
     assert.equal(a.headline, 'Bob, again');
     assert.equal(a.draft.headline, 'An evening of chess');
 

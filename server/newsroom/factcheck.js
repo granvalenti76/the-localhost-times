@@ -11,7 +11,7 @@ import { factSheet } from './cluster.js';
 
 // Numbers up to ten are spelled out (docs/STYLE.md §3): they are figures too, in both languages.
 // The models also spell out some larger ones: those are read as well, so they can't slip past.
-const WORDS = {
+export const WORDS = {
   tre: 3, quattro: 4, cinque: 5, sei: 6, sette: 7, otto: 8, nove: 9, dieci: 10,
   undici: 11, dodici: 12, tredici: 13, quattordici: 14, quindici: 15, sedici: 16, diciassette: 17, diciotto: 18, diciannove: 19, venti: 20, trenta: 30, quaranta: 40, cinquanta: 50, sessanta: 60,
   three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,

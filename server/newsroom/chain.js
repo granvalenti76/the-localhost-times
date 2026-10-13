@@ -20,15 +20,47 @@ const DESK = {
   en: { editor: { name: 'Ray Holden', role: 'managing editor' }, copy: { name: 'Ida Moss', role: 'copy chief' } },
   it: { editor: { name: 'Aldo Ferri', role: 'caporedattore' }, copy: { name: 'Ines Galli', role: 'correttrice' } },
 };
-export const deskPeople = () => L(DESK);
+import { chiefOf, chiefPrompt } from './chief.js';
 
-/** Which articles go through the whole chain: 'all', 'top' (the first three), 'lead' or 'off'. */
-export function chainFor(config, rank) {
-  const mode = config?.desk?.chain ?? 'top';
+/** The desk's people: the managing editor as the Editor set them (chief.js), the copy chief. */
+export const deskPeople = () => { const d = L(DESK); const c = chiefOf(); return { ...d, editor: { ...d.editor, name: c.name } }; };
+
+/**
+ * Which articles go through the whole chain: 'triage' (the first three, and every other piece the
+ * rules flag), 'all', 'top' (the first three), 'lead' or 'off'. The others still cross the desk:
+ * the rules read them and the copy desk tidies them (rulesDesk).
+ */
+export function chainFor(config, rank, flags = []) {
+  const mode = config?.desk?.chain ?? 'triage';
   if (mode === 'off' || mode === false) return false;
   if (mode === 'lead') return rank === 0;
   if (mode === 'all') return true;
-  return rank < 3;
+  if (mode === 'top') return rank < 3;
+  return rank < 3 || flags.length > 0;
+}
+
+/** What the rules see in a draft, before anyone reads it: figures not in the facts, the tics of small models. */
+export function triageFlags(text, facts) {
+  const unverified = numbersCheck(text, facts).unverified;
+  return [
+    ...(unverified.length ? [{ id: 'figures', msg: tr({ en: `figures not in the facts: ${unverified.join(', ')}`, it: `cifre che nei fatti non ci sono: ${unverified.join(', ')}` }) }] : []),
+    ...lint(text.body).issues.map((i) => ({ id: i.id, msg: i.msg })),
+  ];
+}
+
+/**
+ * A piece that doesn't go to the managing editor still crosses the desk, without the model: the
+ * rules' findings are noted (with 'triage' there are none, or it would have gone), the copy desk tidies.
+ */
+export async function rulesDesk(text, facts, { writer, flags = [] } = {}) {
+  const people = deskPeople();
+  const copy = await copyDesk(text, facts);
+  const chain = [
+    { who: 'reporter', name: writer?.name || null, words: wordCount(text), lint: lint(text.body).score },
+    { who: 'triage', why: flags.length ? 'noted' : 'clean', flags: flags.map((f) => f.msg) },
+    { who: 'copy', name: people.copy.name, fixes: copy.fixes, small: copy.small },
+  ];
+  return { ...copy.text, chain };
 }
 
 const sentences = (p) => String(p).split(/(?<=[.!?…»”])\s+(?=[A-ZÀ-Ý«“"0-9])/).filter(Boolean);
@@ -51,7 +83,7 @@ function editorPrompt(text, facts, flags) {
 - the headline is an idea, not a log entry ("app + action + time of day"), in 8 words at most; the dek carries the information;
 - the length follows the facts: a short note that says one thing well passes; never ask for more length the facts can't support.
 You don't rewrite it yourself. Either it passes, or you send it back with at most three notes, each one precise and doable ("open on the 40 minutes of Xcode, not on the time"; "cut the last sentence: it repeats the second"). Never ask for facts the paper doesn't have.
-Reply ONLY with JSON: {"verdict": "ok" | "rework", "notes": ["…"], "praise": "one thing that works, in one sentence"}`
+${chiefPrompt() ? `${chiefPrompt()}\n` : ''}Reply ONLY with JSON: {"verdict": "ok" | "rework", "notes": ["…"], "praise": "one thing that works, in one sentence"}`
         : `Sei ${editor.name}, caporedattore del Localhost Times, un quotidiano scritto alla maniera del New Yorker sul Mac di una persona. Leggi la bozza di un cronista accanto ai fatti da cui è nata e la giudichi come farebbe un caporedattore vero:
 - l'attacco: la prima frase fa leggere la seconda?
 - il senso: il pezzo dice perché quell'ora conta?
@@ -62,7 +94,7 @@ Reply ONLY with JSON: {"verdict": "ok" | "rework", "notes": ["…"], "praise": "
 - il titolo è un'idea, non una voce di registro («app + azione + momento della giornata»), in massimo 8 parole; il sommario porta l'informazione;
 - la lunghezza segue i fatti: una nota breve che dice bene una cosa passa; non chiedere mai più lunghezza di quella che i fatti reggono.
 Non riscrivi tu. O il pezzo passa, o lo rimandi indietro con al massimo tre note, ognuna precisa ed eseguibile («apri sui 40 minuti di Xcode, non sull'orario»; «taglia l'ultima frase: ripete la seconda»). Non chiedere mai fatti che il giornale non ha.
-Rispondi SOLO con JSON: {"verdict": "ok" | "rework", "notes": ["…"], "praise": "una cosa riuscita, in una frase"}`,
+${chiefPrompt() ? `${chiefPrompt()}\n` : ''}Rispondi SOLO con JSON: {"verdict": "ok" | "rework", "notes": ["…"], "praise": "una cosa riuscita, in una frase"}`,
     },
     {
       role: 'user',
@@ -137,7 +169,7 @@ export function badSentences(body, facts) {
  * where they stand. Small models rewrite a sentence well and a whole piece badly; the rest of the
  * text is never touched. Used on the hourly articles and on the inquiry.
  */
-export async function phrasingDesk(paras, { llm, config, chat } = {}) {
+export async function phrasingDesk(paras, { llm, config, chat, report } = {}) {
   if (!llm || !paras?.length) return paras;
   const split = paras.map((p) => sentences(p));
   const bad = [];
@@ -178,7 +210,11 @@ Rispondi SOLO con JSON: {"fixes": [{"n": 1, "to": "..."}]}`,
       // keep the quotes the sentence had
       const quotes = [...b.t.matchAll(/[«“]([^»”]+)[»”]/g)].map((m) => m[1]);
       if (quotes.some((x) => !to.includes(x))) continue;
-      if (after.slop.length + after.words.length < before.slop.length + before.words.length) { split[b.pi][b.si] = to; fixed++; }
+      if (after.slop.length + after.words.length < before.slop.length + before.words.length) {
+        split[b.pi][b.si] = to;
+        fixed++;
+        report?.push({ from: b.t, to, why: b.why });
+      }
     }
     return fixed ? split.map((ss) => ss.join(' ')) : paras;
   } catch { return paras; }
@@ -215,21 +251,13 @@ export async function copyDesk(text, facts, { llm, config, chat } = {}) {
   return { text: { ...text, body, dek }, fixes, small };
 }
 
-/**
- * The whole chain on a reporter's draft. Never throws: whatever fails, the best text so far is
- * printed. Returns the text with `chain` (and `draft` when the piece was sent back and rewritten).
- */
-export async function deskChain(text, { facts, msgs, size, ctx, chat, maxTokens, fromLLM, story, writer }) {
-  const { llm, config, log = () => {}, store } = ctx;
-  const people = deskPeople();
-  const steps = [{ who: 'reporter', name: writer?.name || null, words: wordCount(text), lint: lint(text.body).score }];
-  let best = text;
-  const check0 = numbersCheck(text, facts);
+/** The managing editor reads a version: his verdict, at most three notes, what works. */
+async function editorRead(text, facts, { llm, config, chat, log, story }) {
+  const check = numbersCheck(text, facts);
   const flags = [
-    ...(check0.unverified.length ? [tr({ en: `figures not in the facts: ${check0.unverified.join(', ')}`, it: `cifre che nei fatti non ci sono: ${check0.unverified.join(', ')}` })] : []),
+    ...(check.unverified.length ? [tr({ en: `figures not in the facts: ${check.unverified.join(', ')}`, it: `cifre che nei fatti non ci sono: ${check.unverified.join(', ')}` })] : []),
     ...lint(text.body).issues.map((i) => i.msg),
   ];
-  // 1. the managing editor
   let verdict = 'ok';
   let notes = [];
   let praise = null;
@@ -242,28 +270,53 @@ export async function deskChain(text, { facts, msgs, size, ctx, chat, maxTokens,
     log(tr({ en: `[desk] ${story.id}: the managing editor didn't answer (${e.message})`, it: `[desk] ${story.id}: il caporedattore non ha risposto (${e.message})` }));
   }
   // invented figures always send a piece back, whatever the editor thought
-  if (check0.unverified.length && !notes.some((n) => /\d/.test(n))) {
-    notes = [...notes, tr({ en: `Use only the figures in the facts: ${check0.unverified.join(', ')} are not there.`, it: `Usa solo le cifre dei fatti: ${check0.unverified.join(', ')} non ci sono.` })].slice(-3);
+  if (check.unverified.length && !notes.some((n) => /\d/.test(n))) {
+    notes = [...notes, tr({ en: `Use only the figures in the facts: ${check.unverified.join(', ')} are not there.`, it: `Usa solo le cifre dei fatti: ${check.unverified.join(', ')} non ci sono.` })].slice(-3);
     verdict = 'rework';
   }
   if (verdict === 'rework' && !notes.length) verdict = 'ok';
-  steps.push({ who: 'editor', name: people.editor.name, verdict, notes, praise });
-  if (store) say(store, people.editor.name, verdict === 'rework'
-    ? tr({ en: `${writer?.name || 'Reporter'}, “${text.headline}” comes back: ${notes[0]}`, it: `${writer?.name || 'Cronista'}, «${text.headline}» torna indietro: ${notes[0].charAt(0).toLowerCase()}${notes[0].slice(1)}` })
-    : tr({ en: `“${text.headline}” passes.${praise ? ` ${praise}` : ''}`, it: `«${text.headline}» passa.${praise ? ` ${praise}` : ''}` }));
+  return { verdict, notes, praise, check };
+}
 
-  // 2. the reporter rewrites, once
-  if (verdict === 'rework') {
+/**
+ * The whole chain on a reporter's draft. Never throws: whatever fails, the best text so far is
+ * printed. Returns the text with `chain` (and `draft` when the piece was sent back and rewritten).
+ * A piece sent back is rewritten once and read again: if the managing editor still isn't satisfied,
+ * his last notes stay on the slip, for the Editor to act on.
+ */
+export async function deskChain(text, { facts, msgs, ctx, chat, maxTokens, fromLLM, story, writer, triage = null }) {
+  const { llm, config, log = () => {}, store, progress = () => {} } = ctx;
+  const people = deskPeople();
+  const steps = [{ who: 'reporter', name: writer?.name || null, words: wordCount(text), lint: lint(text.body).score }];
+  // why the piece went to the managing editor: its place on the page, or what the rules saw
+  if (triage) steps.push({ who: 'triage', why: triage.why, flags: (triage.flags || []).map((f) => f.msg) });
+  let best = text;
+
+  // 1. the managing editor
+  progress('editor');
+  const first = await editorRead(text, facts, { llm, config, chat, log, story });
+  steps.push({ who: 'editor', name: people.editor.name, verdict: first.verdict, notes: first.notes, praise: first.praise });
+  if (store) say(store, people.editor.name, first.verdict === 'rework'
+    ? tr({ en: `${writer?.name || 'Reporter'}, “${text.headline}” comes back: ${first.notes[0]}`, it: `${writer?.name || 'Cronista'}, «${text.headline}» torna indietro: ${first.notes[0].charAt(0).toLowerCase()}${first.notes[0].slice(1)}` })
+    : tr({ en: `“${text.headline}” passes.${first.praise ? ` ${first.praise}` : ''}`, it: `«${text.headline}» passa.${first.praise ? ` ${first.praise}` : ''}` }));
+
+  // 2. the reporter rewrites, once, and the managing editor reads it again
+  if (first.verdict === 'rework') {
+    progress('rewrite');
     try {
-      const raw = await chat(llm, config, reworkPrompt(msgs, text, notes), maxTokens);
+      const raw = await chat(llm, config, reworkPrompt(msgs, text, first.notes), maxTokens, { onText: ctx.onText });
       const v2 = fromLLM(parseJson(raw), story, llm.model);
       const c2 = numbersCheck(v2, facts);
-      const okLength = wordCount(v2) >= Math.min(size.min * 0.8, wordCount(text) * 0.8);
-      const okFacts = c2.unverified.length <= check0.unverified.length;
-      const okStyle = lint(v2.body).score >= lint(text.body).score - 5;
+      // the notes often ask to cut: only a piece that collapsed is refused for its length
+      const okLength = wordCount(v2) >= Math.min(20, wordCount(text)) && wordCount(v2) >= wordCount(text) * 0.3;
+      const okFacts = c2.unverified.length <= first.check.unverified.length;
+      const okStyle = lint(v2.body).score >= lint(text.body).score - 10;
       if (okLength && okFacts && okStyle) {
         best = { ...v2, expanded: text.expanded };
         steps.push({ who: 'reporter', name: writer?.name || null, rewrote: true, words: wordCount(v2), lint: lint(v2.body).score });
+        progress('reread');
+        const again = await editorRead(v2, facts, { llm, config, chat, log, story });
+        steps.push({ who: 'editor', name: people.editor.name, reread: true, verdict: again.verdict, notes: again.notes, praise: again.praise });
       } else {
         steps.push({ who: 'reporter', name: writer?.name || null, rewrote: false, why: !okLength ? 'short' : !okFacts ? 'figures' : 'style' });
       }
@@ -274,6 +327,7 @@ export async function deskChain(text, { facts, msgs, size, ctx, chat, maxTokens,
   }
 
   // 3. the copy desk
+  progress('copy');
   const copy = await copyDesk(best, facts, { llm, config, chat });
   steps.push({ who: 'copy', name: people.copy.name, fixes: copy.fixes, small: copy.small });
   const out = { ...copy.text, chain: steps };

@@ -7,7 +7,8 @@ import { isAmbient } from './time.js';
 import { tr, lang } from '../i18n.js';
 import { buildStories } from './cluster.js';
 import { getLine } from './line.js';
-import { editionWindow, cleanEvents, DeskError } from './edition.js';
+import { editionWindow, cleanEvents, DeskError, weightedStories } from './edition.js';
+import { cadenceOf, workHour, workId, maxArticlesFor } from './cadence.js';
 import { hourStart, editionId, hhmm, dayKey } from '../util.js';
 import { SECTIONS } from './sections.js';
 import { siteOf } from './cluster.js';
@@ -76,34 +77,34 @@ export function label(s) {
     case 'inbox': return en ? 'Incoming mail' : 'Posta in arrivo';
     case 'thread': return `${en ? 'Email' : 'Mail'}: “${s.topic}”`;
     case 'folder': return `${en ? 'Folder' : 'Cartella'} ${s.project || s.topic}`;
+    case 'project': return `${en ? 'Project' : 'Progetto'} ${s.topic}`;
+    case 'dispatch': return `${en ? 'Dispatch' : 'Traccia'}: ${s.topic}`;
     case 'downloads': return en ? 'Downloads' : 'Download';
     default: return s.topic;
   }
 }
 
-/** The edition that the next press will print: the current hour's. */
-export const nextEditionId = (now = Date.now()) => editionId(hourStart(now));
+/** The edition that the next press will print (the paper's cadence decides which; without a store, the current hour's). */
+export const nextEditionId = (now = Date.now(), store = null) => (store ? workId(cadenceOf(getLine(store)), now) : editionId(hourStart(now)));
 
 export function preview(store, config, { now = Date.now(), lastCollect = null, nextPress = null } = {}) {
-  const hour = hourStart(now);
-  const { id, end, maxMerge, windowStart } = editionWindow(store, config, hour);
-  const events = cleanEvents(store.eventsBetween(windowStart, now), config);
   const line = getLine(store);
+  const cad = cadenceOf(line);
+  const hour = workHour(cad, now);
+  const { id, end, maxMerge, windowStart } = editionWindow(store, config, hour);
+  const events = cleanEvents(store.eventsBetween(windowStart, now), config, line);
   const steer = getSteer(store, id);
-  const all = buildStories(events)
-    .map((s) => ({ ...s, weight: s.weight * (line.sectionWeights[s.source] ?? 1) }))
-    .filter((s) => s.weight > 0)
-    .sort((a, b) => b.weight - a.weight);
+  const all = weightedStories(events, line);
   const ranked = applySteer(all, steer);
   const buried = all.filter((s) => steer.bury.includes(s.id));
-  const max = config.edition.maxArticles;
+  const max = maxArticlesFor(cad, config, line.strictness);
   const news = events.filter((e) => !isAmbient(e)); // time and power are measurements, not signals
   const bySource = {};
   for (const e of news) bySource[e.source] = (bySource[e.source] || 0) + 1;
   const sites = {};
   for (const e of events) if (e.meta?.host) sites[siteOf(e.meta.host)] = (sites[siteOf(e.meta.host)] || 0) + 1;
   const covered = Math.max(1, Math.round((end - Math.max(windowStart, events[0] ? hourStart(events[0].ts) : hour)) / HOUR));
-  const willMerge = news.length < (config.edition.minEvents || 0) && covered < maxMerge;
+  const willMerge = cad.kind === 'hourly' && news.length < (config.edition.minEvents || 0) && covered < maxMerge;
   const brief = (s, i) => ({
     id: s.id,
     rank: i + 1,
@@ -122,8 +123,9 @@ export function preview(store, config, { now = Date.now(), lastCollect = null, n
     editionId: id,
     hour,
     windowStart,
-    printsAt: nextPress || end + 30e3,
-    minutesLeft: Math.max(0, Math.round(((nextPress || end + 30e3) - now) / 60e3)),
+    cadence: cad,
+    printsAt: (cad.kind === 'hourly' && nextPress) || end + 30e3,
+    minutesLeft: Math.max(0, Math.round((((cad.kind === 'hourly' && nextPress) || end + 30e3) - now) / 60e3)),
     lastCollect,
     total: news.length,
     bySource,
@@ -160,7 +162,7 @@ export function previewText(p) {
 
 /** Steering changes from the newsroom page (or from an action approved in the meeting). */
 export function steer(store, config, { op, story, text, index }, now = Date.now()) {
-  const id = nextEditionId(now);
+  const id = nextEditionId(now, store);
   const s = getSteer(store, id);
   const known = new Set(preview(store, config, { now }).stories.map((x) => x.id).concat(s.bury));
   const need = () => { if (!known.has(story)) throw new DeskError(tr({ en: 'That story is not in the next edition.', it: 'Questa storia non è nella prossima edizione.' }), 404); };

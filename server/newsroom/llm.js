@@ -143,10 +143,15 @@ function release() {
 }
 export const llmQueue = () => ({ active, waiting: waiting.length });
 
-export async function chat(llm, config, messages, maxTokens = 1400) {
+/**
+ * One request to the model. With `onText`, the answer is streamed and `onText` receives the text so
+ * far as it grows (the writing room shows the piece being typed); servers that don't stream
+ * answer all at once, and `onText` is called once.
+ */
+export async function chat(llm, config, messages, maxTokens = 1400, { onText = null } = {}) {
   await slot(Math.max(1, config.llm.concurrency || 1));
   try {
-    return await chatNow(llm, config, messages, maxTokens);
+    return await chatNow(llm, config, messages, maxTokens, onText);
   } catch (e) {
     if (e.name === 'AbortError') {
       throw new Error(tr({
@@ -160,7 +165,7 @@ export async function chat(llm, config, messages, maxTokens = 1400) {
   }
 }
 
-async function chatNow(llm, config, messages, maxTokens) {
+async function chatNow(llm, config, messages, maxTokens, onText = null) {
   const r = await fetchT(
     `${llm.base}/chat/completions`,
     {
@@ -171,7 +176,7 @@ async function chatNow(llm, config, messages, maxTokens) {
         messages,
         temperature: llm.temperature ?? config.llm.temperature,
         max_tokens: maxTokens,
-        stream: false,
+        stream: !!onText,
         // "reasoning" models spend tokens before answering: a newspaper does not need that
         ...(config.llm.thinking ? {} : { chat_template_kwargs: { enable_thinking: false, thinking: false } }),
       }),
@@ -179,8 +184,9 @@ async function chatNow(llm, config, messages, maxTokens) {
     config.llm.timeoutMs
   );
   if (!r.ok) throw new Error(`LLM HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  const j = await r.json();
+  const j = onText && /event-stream/.test(r.headers.get('content-type') || '') ? await readStream(r, onText) : await r.json();
   const choice = j.choices?.[0] || {};
+  if (onText && choice.message?.content) onText(choice.message.content);
   const content = choice.message?.content ?? '';
   if (!content.trim()) {
     const thought = choice.message?.reasoning_content || choice.message?.reasoning || '';
@@ -190,6 +196,36 @@ async function chatNow(llm, config, messages, maxTokens) {
   }
   if (choice.finish_reason === 'length') llmStatus.truncated = (llmStatus.truncated || 0) + 1;
   return content;
+}
+
+/** A streamed answer (server-sent events), put back together as a normal one. */
+async function readStream(r, onText) {
+  const dec = new TextDecoder();
+  let buf = '';
+  let content = '';
+  let reasoning = '';
+  let finish = null;
+  let last = 0;
+  for await (const chunk of r.body) {
+    buf += dec.decode(chunk, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const ln = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!ln.startsWith('data:')) continue;
+      const data = ln.slice(5).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const c = JSON.parse(data).choices?.[0] || {};
+        content += c.delta?.content || '';
+        reasoning += c.delta?.reasoning_content || c.delta?.reasoning || '';
+        finish = c.finish_reason || finish;
+      } catch { /* a broken line: skip it */ }
+    }
+    // the page polls: a few updates a second are plenty
+    if (Date.now() - last > 150) { last = Date.now(); onText(content); }
+  }
+  return { choices: [{ message: { content, reasoning_content: reasoning }, finish_reason: finish }] };
 }
 
 /** Extracts a JSON object even from "dirty" responses (think, ```json, surrounding text). */

@@ -89,6 +89,8 @@ export default {
         if (!r || r.startsWith('..') || SKIP_DIR.test(path.dirname(r)) || SKIP_FILE.test(path.basename(p))) continue;
         const low = rel(p).toLowerCase();
         if (exclude.some((x) => low.includes(x))) continue;
+        // the paper's own files (the radio bulletins, the photos, the database) are not news about the owner
+        if (config.dataDir && (p === config.dataDir || p.startsWith(config.dataDir + path.sep))) continue;
         found.push({ p, root });
       }
     }

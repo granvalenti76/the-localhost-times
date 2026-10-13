@@ -346,7 +346,7 @@ export default function Cartoon({ cartoon }) {
       <svg viewBox="0 0 260 170" role="img" aria-label={tr({ en: 'Line-drawn cartoon', it: 'Vignetta disegnata a tratto' })}>
         <Scene />
       </svg>
-      <figcaption>{quote(cartoon.caption)}</figcaption>
+      <figcaption>{quote(cartoon.caption)}{cartoon.signed && <span className="cartoon-sign"> — {cartoon.signed}</span>}</figcaption>
     </figure>
   );
 }

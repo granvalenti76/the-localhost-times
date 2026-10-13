@@ -3,8 +3,9 @@ import { api, href, hhmm, dayKey, longDate, SECTIONS, writerLabel, edHour, edSin
 import Meeting from './Meeting.jsx';
 import DeskCartoon from './DeskCartoon.jsx';
 import FactCheck from './FactCheck.jsx';
-import NextEdition from './NextEdition.jsx';
-import { tr } from '../i18n.js';
+import NextDesk from './NextDesk.jsx';
+import { tr, quote } from '../i18n.js';
+import { Track, Workings, TableSummary, stampOf } from './Proof.jsx';
 import { SpotlightDesk } from './Spotlight.jsx';
 import { Paragraphs, HeadlinePicker } from './Bench.jsx';
 import { DeepenButton } from './Features.jsx';
@@ -16,18 +17,13 @@ const T = tr({
   en: {
     quick: ['Shorter', 'More ironic', 'More serious', 'Better headline', 'Just the facts'],
     size: { lead: 'Lead', article: 'Article', brief: 'Brief' },
-    voice: 'The voice', voiceText: 'One voice for the whole paper, in the manner of The New Yorker: cultivated, amused, a touch superior, never cruel. The rules and the examples are in the style guide (docs/STYLE.md); to shift a single writer, give them a deviation below.', length: 'Article length', space: 'Room for each section', notes: 'Editor\'s notes',
-    notesPh: 'Rules for the writers, for example:\n· Never talk about Facebook\n· Work on TurboCode is always news\n· Call me “the Editor”',
-    printing: 'Printing', autoPub: 'Publish automatically', autoPubHint: 'If you turn it off, every edition stays a draft until you send it to press from here.',
-    photos: 'Photos', photosHint: 'Previews of public pages and YouTube thumbnails.',
-    saving: 'Saving…', updateLine: 'Update the line', lineSaved: 'Line up to date',
-    lineHint: 'Applies from the next edition. To apply it to the open one, use “Reprint”.',
     up: 'Up', down: 'Down', leadShort: 'Ld.', rewritten: 'rewritten', source: 'source', sources: 'sources',
     kicker: 'Kicker', headline: 'Headline', dek: 'Summary', paraHint: 'A blank line separates paragraphs.', removePhoto: 'Remove the photo',
     save: 'Save', cancel: 'Cancel', orWrite: 'Or write your own: “say more about the TurboCode project”', rewrite: 'Rewrite',
     closeText: 'Close text', readText: 'Read text', toLead: 'Make it the lead', edit: 'Edit', discuss: 'Discuss', spike: 'Spike',
     working: 'The writer is working…', unverified: 'figures not in the facts', unverifiedHint: 'These numbers or times are in the article but not in the facts it was written from: check them, or rewrite.',
-    title: 'The Newsroom', subtitle: 'The editor\'s desk · drafts, page plan and editorial line',
+    title: 'The Newsroom', subtitle: 'The editor\'s desk · every piece, how it was made, and the page plan',
+    readFix: 'Read and retouch', workings: 'How it was made', inWorks: 'in the works', toNext: '← back to the edition in the works', vPieces: 'The pieces', vFront: 'Front page', vCheck: 'Fact check', views: 'The edition', noSpiked: 'Nothing spiked in this edition.',
     draft: 'draft', retouched: 'edited', noEditions: 'No editions today.', evening: 'Evening',
     writingEvening: 'Writing the evening…', printEvening: 'Print the evening edition',
     oneDraft: 'One draft is waiting', nDrafts: (n) => `${n} drafts are waiting`, toPress: 'to go to press:',
@@ -40,27 +36,18 @@ const T = tr({
     confirm: 'Sure? You lose the manual edits', reprint: 'Reprint', brief: 'The Brief', spiked: 'Spiked', restore: 'Restore',
     panels: 'Newsroom panels', meeting: 'Meeting', line: 'Editorial line', nextTab: 'Next edition',
     newArticle: 'New article', heads: 'Headlines', bench: 'Quick bench', benchHint: 'One article at a time, keep or cut', viva: 'Live', tipsTab: 'Tips',
-    games: 'The Editor\'s part and the games', gamesHint: 'Each can be turned off. The calls and the closing send a notification.',
-    feat: { interview: ['Interviews', 'A reporter calls you about a big story; your answer becomes a quote, a lead makes the piece longer'], closing: ['The closing at :55', 'The desk asks what leads, or what to cut'], tips: ['Tip box', 'Your tips go into the stories, or into “Word is”'], flash: ['Breaking news', 'A flash when a record falls mid-hour'], sport: ['Sport', 'Report cards and records'], oracle: ['The Oracle', 'Predictions on the next hour; bet against it'], serial: ['The serial', 'A novel in instalments, you choose how it goes on'], chatter: ['The newsroom, live', 'What the writers say to each other'] },
-    genre: 'Genre of the serial', director: 'How you sign your pieces', directorPh: 'The Editor', scoreTitle: 'The staff\'s scoreboard', scoreHint: '♥ paragraphs you liked · ✕ disliked · kept and cut on the bench',
-    tipsTitle: 'The tip box', tipsHint: 'Hand the newsroom a fact the signals can\'t know. It goes into the matching story (“a source close to the owner”) or into “Word is”. Also from a note in the Notes folder “Newsroom” (or “Redazione”), or from the terminal: npm run tip -- "…"', tipPh: 'e.g. I lost five games in a row to the same player', tipSend: 'Into the box', tipNew: 'waiting', tipUsed: 'used', tipArchived: 'archived', tipVia: { notes: 'Notes', cli: 'terminal', web: 'paper' }, noTips: 'The box is empty.',
-    staffTitle: 'The bylines', desksTitle: 'Who writes what', unsigned: 'Unsigned (the newsroom)', briefDesk: 'The Brief and the editorial', wName: 'Name', wRole: 'Role', wDeviation: 'Deviation (optional)', wDeviationPh: 'e.g. keener on the numbers; partial to melancholy endings', staffHint: 'Invented writers, all in the house voice. A deviation is one line that shifts what a writer notices or their attitude, never the register.', openEdition: 'Open an edition to discuss it.',
+    tipsTitle: 'The tip box', tipsHint: 'Hand the newsroom a fact the signals can\'t know. It goes into the matching story (“a source close to the owner”) or into “Word is”. Also from a note in the Notes folder “Newsroom” (or “Redazione”), or from the terminal: npm run tip -- "…"', tipPh: 'e.g. I lost five games in a row to the same player', tipSend: 'Into the box', tipNew: 'waiting', tipUsed: 'used', tipArchived: 'archived', tipVia: { notes: 'Notes', cli: 'terminal', web: 'paper' }, noTips: 'The box is empty.', openEdition: 'Open an edition to discuss it.',
   },
   it: {
     quick: ['Più corto', 'Più ironico', 'Più serio', 'Titolo migliore', 'Solo i fatti'],
     size: { lead: 'Apertura', article: 'Articolo', brief: 'Breve' },
-    voice: 'La voce', voiceText: 'Una sola voce per tutto il giornale, alla maniera del New Yorker: colta, divertita, un filo superiore, mai cattiva. Le regole e gli esempi sono nel manuale di stile (docs/STYLE.md); per spostare una sola firma, dalle una deviazione qui sotto.', length: 'Lunghezza degli articoli', space: 'Spazio alle sezioni', notes: 'Note del direttore',
-    notesPh: 'Regole per i redattori, per esempio:\n· Non parlare mai di Facebook\n· Il lavoro su TurboCode è sempre notizia\n· Chiamami «il Direttore»',
-    printing: 'Stampa', autoPub: 'Pubblicazione automatica', autoPubHint: 'Se la togli, ogni edizione resta in bozza finché non la mandi in stampa da qui.',
-    photos: 'Foto', photosHint: 'Anteprime delle pagine pubbliche e miniature di YouTube.',
-    saving: 'Salvo…', updateLine: 'Aggiorna la linea', lineSaved: 'Linea aggiornata',
-    lineHint: 'Vale dalla prossima edizione. Per applicarla a quella aperta usa «Ristampa».',
     up: 'Su', down: 'Giù', leadShort: 'Ap.', rewritten: 'riscritto', source: 'fonte', sources: 'fonti',
     kicker: 'Occhiello', headline: 'Titolo', dek: 'Sommario', paraHint: 'Una riga vuota separa i paragrafi.', removePhoto: 'Togli la foto',
     save: 'Salva', cancel: 'Annulla', orWrite: 'Oppure scrivi tu: «parla di più del progetto TurboCode»', rewrite: 'Riscrivi',
     closeText: 'Chiudi testo', readText: 'Leggi testo', toLead: 'In apertura', edit: 'Modifica', discuss: 'Discuti', spike: 'Cestina',
     working: 'Il redattore lavora…', unverified: 'numeri non presenti nei fatti', unverifiedHint: 'Questi numeri o orari sono nell\'articolo ma non nei fatti da cui è stato scritto: controllali, o fai riscrivere.',
-    title: 'La Redazione', subtitle: 'Il tavolo del direttore · bozze, menabò e linea editoriale',
+    title: 'La Redazione', subtitle: 'Il tavolo del direttore · ogni pezzo, la sua lavorazione e il menabò',
+    readFix: 'Leggi e ritocca', workings: 'La lavorazione', inWorks: 'in lavorazione', toNext: '← torna all\'edizione in lavorazione', vPieces: 'I pezzi', vFront: 'Prima pagina', vCheck: 'Verifica', views: 'L\'edizione', noSpiked: 'Niente nel cestino, in questa edizione.',
     draft: 'bozza', retouched: 'ritoccata', noEditions: 'Nessuna edizione oggi.', evening: 'Sera',
     writingEvening: 'Scrivo la sera…', printEvening: 'Stampa l\'edizione della sera',
     oneDraft: 'Una bozza attende', nDrafts: (n) => `${n} bozze attendono`, toPress: 'di andare in stampa:',
@@ -73,11 +60,7 @@ const T = tr({
     confirm: 'Confermi? Perdi le modifiche a mano', reprint: 'Ristampa', brief: 'Il punto', spiked: 'Cestino', restore: 'Ripristina',
     panels: 'Pannelli della redazione', meeting: 'Riunione', line: 'Linea editoriale', nextTab: 'Prossima',
     newArticle: 'Nuovo articolo', heads: 'Titoli', bench: 'Banco rapido', benchHint: 'Un articolo alla volta, tieni o taglia', viva: 'Viva', tipsTab: 'Soffiate',
-    games: 'La parte del direttore e i giochi', gamesHint: 'Ognuno si può spegnere. Le chiamate e la chiusura mandano una notifica.',
-    feat: { interview: ['Interviste', 'Un cronista la chiama su una storia grossa; la risposta diventa una citazione, una traccia allunga il pezzo'], closing: ['La chiusura delle :55', 'Il desk chiede cosa aprire, o cosa tagliare'], tips: ['Cassetta delle soffiate', 'Le soffiate entrano nelle storie, o in «Si dice che»'], flash: ['Ultim\'ora', 'Un flash quando cade un primato a metà ora'], sport: ['Sport', 'Pagelle e primati'], oracle: ['L\'Oracolo', 'Pronostici sull\'ora dopo; ci si può scommettere contro'], serial: ['Il feuilleton', 'Un romanzo a puntate, come continua lo decide lei'], chatter: ['La redazione viva', 'Cosa si dicono i redattori'] },
-    genre: 'Genere del feuilleton', director: 'Come firma i suoi pezzi', directorPh: 'Il Direttore', scoreTitle: 'La classifica della redazione', scoreHint: '♥ paragrafi apprezzati · ✕ bocciati · tenuti e tagliati al banco',
-    tipsTitle: 'La cassetta delle soffiate', tipsHint: 'Dia alla redazione un fatto che i segnali non possono sapere. Finisce nella storia che c\'entra («una fonte vicina al proprietario») o in «Si dice che». Anche da una nota nella cartella «Redazione» di Note, o dal terminale: npm run tip -- "…"', tipPh: 'es. ho perso cinque partite di fila con lo stesso avversario', tipSend: 'Nella cassetta', tipNew: 'in attesa', tipUsed: 'usata', tipArchived: 'archiviata', tipVia: { notes: 'Note', cli: 'terminale', web: 'giornale' }, noTips: 'La cassetta è vuota.',
-    staffTitle: 'Le firme', desksTitle: 'Chi scrive cosa', unsigned: 'Senza firma (la redazione)', briefDesk: 'Il Punto e l\'editoriale', wName: 'Nome', wRole: 'Ruolo', wDeviation: 'Deviazione (facoltativa)', wDeviationPh: 'es. più attento ai numeri; un debole per le chiuse malinconiche', staffHint: 'Redattori inventati, tutti nella voce della casa. Una deviazione è una riga che sposta cosa nota una firma o il suo atteggiamento, mai il registro.', openEdition: 'Apri un\'edizione per discuterne.',
+    tipsTitle: 'La cassetta delle soffiate', tipsHint: 'Dia alla redazione un fatto che i segnali non possono sapere. Finisce nella storia che c\'entra («una fonte vicina al proprietario») o in «Si dice che». Anche da una nota nella cartella «Redazione» di Note, o dal terminale: npm run tip -- "…"', tipPh: 'es. ho perso cinque partite di fila con lo stesso avversario', tipSend: 'Nella cassetta', tipNew: 'in attesa', tipUsed: 'usata', tipArchived: 'archiviata', tipVia: { notes: 'Note', cli: 'terminale', web: 'giornale' }, noTips: 'La cassetta è vuota.', openEdition: 'Apri un\'edizione per discuterne.',
   },
 });
 // tone names, also for ids stored by older editions
@@ -89,33 +72,6 @@ const TONE_NAMES = tr({
 const toneName = (t) => TONE_NAMES[OLD_TONE[t] || t] || t;
 // sizes as stored by older editions
 const OLD_SIZE = { apertura: 'lead', articolo: 'article', breve: 'brief' };
-
-const GENRES = tr({
-  en: { giallo: 'Mystery', spy: 'Spy story', scifi: 'Science fiction', feuilleton: 'Serial novel', western: 'Western' },
-  it: { giallo: 'Giallo', spy: 'Spy story', scifi: 'Fantascienza', feuilleton: 'Romanzo d\'appendice', western: 'Western' },
-});
-
-/** Who the Editor likes: ♥, ✕, kept and cut, writer by writer. */
-function Scoreboard({ people }) {
-  const [t, setT] = useState(null);
-  useEffect(() => { api('/taste').then(setT).catch(() => {}); }, []);
-  const rows = people.map((w) => ({ w, s: t?.stats?.[w.id] || { liked: 0, disliked: 0, kept: 0, cut: 0 } }))
-    .sort((a, b) => (b.s.liked * 2 + b.s.kept - b.s.cut - b.s.disliked) - (a.s.liked * 2 + a.s.kept - a.s.cut - a.s.disliked));
-  if (!t || !rows.some((r) => r.s.liked + r.s.disliked + r.s.kept + r.s.cut)) return null;
-  return (
-    <fieldset className="field">
-      <legend>{T.scoreTitle}</legend>
-      <table className="scoreboard">
-        <tbody>
-          {rows.map(({ w, s: x }, i) => (
-            <tr key={w.id}><th>{i === 0 ? '🏆 ' : ''}{w.name}</th><td>♥ {x.liked}</td><td>✕ {x.disliked}</td><td>✓ {x.kept}</td><td>✂ {x.cut}</td></tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="hint-small">{T.scoreHint}</p>
-    </fieldset>
-  );
-}
 
 /** The tip box, in the newsroom. */
 function TipsPanel({ setError }) {
@@ -154,159 +110,11 @@ function TipsPanel({ setError }) {
   );
 }
 
-// ───────────────────────── Editorial line ─────────────────────────
-
-function LinePanel({ onSaved }) {
-  const [meta, setMeta] = useState(null);
-  const [line, setLine] = useState(null);
-  const [saved, setSaved] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    api('/line').then((r) => { setMeta(r); setLine(r.line); setSaved(JSON.stringify(r.line)); });
-  }, []);
-  // the staff as shown: defaults with the editor's edits on top
-  const people = meta?.staff ? Object.values(meta.staff).map((w) => ({ ...w, ...(line?.staff?.[w.id] || {}) })) : [];
-  const setPerson = (id, k, v) => setLine((l) => ({ ...l, staff: { ...l.staff, [id]: { ...(l.staff?.[id] || {}), [k]: v } } }));
-  const setDesk = (k, v) => setLine((l) => ({ ...l, desks: { ...l.desks, [k]: v } }));
-
-  if (!line) return <div className="line-panel" />;
-  const dirty = JSON.stringify(line) !== saved;
-  const set = (patch) => setLine((l) => ({ ...l, ...patch }));
-  const setWeight = (id, v) => setLine((l) => ({ ...l, sectionWeights: { ...l.sectionWeights, [id]: v } }));
-
-  async function save() {
-    setBusy(true);
-    try {
-      const r = await api('/line', { method: 'PUT', json: line });
-      setLine(r.line);
-      if (r.staff) setMeta((m) => ({ ...m, staff: r.staff }));
-      setSaved(JSON.stringify(r.line));
-      onSaved?.();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="line-panel">
-
-      <fieldset className="field">
-        <legend>{T.voice}</legend>
-        <p className="hint-small">{T.voiceText}</p>
-      </fieldset>
-
-      <fieldset className="field">
-        <legend>{T.length}</legend>
-        <div className="seg">
-          {Object.entries(meta.lengths).map(([k, l]) => (
-            <button key={k} type="button" className={line.length === k ? 'on' : ''} onClick={() => set({ length: k })}>{l.label}</button>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="field">
-        <legend>{T.space}</legend>
-        <div className="weights">
-          {SECTIONS.map((s) => (
-            <div key={s.id} className="weight-row">
-              <span className="w-name">{s.name}<em>{s.tag}</em></span>
-              <div className="seg seg-small">
-                {meta.weights.map((w) => (
-                  <button key={w.value} type="button" title={w.label}
-                    className={`${(line.sectionWeights[s.id] ?? 1) === w.value ? 'on' : ''} ${w.value === 0 ? 'off' : ''}`}
-                    onClick={() => setWeight(s.id, w.value)}>
-                    {w.value === 0 ? '✕' : w.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="field">
-        <legend>{T.desksTitle}</legend>
-        <div className="desks">
-          {[...SECTIONS.map((s) => ({ k: s.id, name: s.name })), { k: 'brief', name: T.briefDesk }, { k: 'spotlight', name: 'Spotlight' }].map(({ k, name }) => (
-            <label key={k} className="desk-row">
-              <span>{name}</span>
-              <select value={line.desks?.[k] ?? ''} onChange={(e) => setDesk(k, e.target.value)}>
-                <option value="">{T.unsigned}</option>
-                {people.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="field">
-        <legend>{T.staffTitle}</legend>
-        <p className="hint-small">{T.staffHint}</p>
-        {people.map((w) => (
-          <details key={w.id} className="person">
-            <summary><strong>{w.name}</strong> · {w.role}{w.deviation ? <> · <em>{w.deviation}</em></> : null}</summary>
-            <label className="lbl">{T.wName}<input value={w.name} onChange={(e) => setPerson(w.id, 'name', e.target.value)} /></label>
-            <label className="lbl">{T.wRole}<input value={w.role} onChange={(e) => setPerson(w.id, 'role', e.target.value)} /></label>
-            <label className="lbl">{T.wDeviation}<input value={w.deviation || ''} maxLength={300} placeholder={T.wDeviationPh} onChange={(e) => setPerson(w.id, 'deviation', e.target.value)} /></label>
-          </details>
-        ))}
-      </fieldset>
-
-      <fieldset className="field">
-        <legend>{T.games}</legend>
-        <p className="hint-small">{T.gamesHint}</p>
-        {Object.entries(T.feat).map(([k, [name, hint]]) => (
-          <label key={k} className="check">
-            <input type="checkbox" checked={line.features?.[k] !== false} onChange={(e) => set({ features: { ...(line.features || {}), [k]: e.target.checked } })} />
-            <span><strong>{name}</strong><em>{hint}</em></span>
-          </label>
-        ))}
-        <label className="lbl">{T.genre}
-          <select value={line.serialGenre || 'giallo'} onChange={(e) => set({ serialGenre: e.target.value })}>
-            {Object.entries(GENRES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </label>
-        <label className="lbl">{T.director}<input value={line.directorName || ''} placeholder={T.directorPh} onChange={(e) => set({ directorName: e.target.value })} /></label>
-      </fieldset>
-
-      <Scoreboard people={people} />
-
-      <fieldset className="field">
-        <legend>{T.notes}</legend>
-        <textarea
-          rows={5}
-          value={line.notes}
-          placeholder={T.notesPh}
-          onChange={(e) => set({ notes: e.target.value })}
-        />
-      </fieldset>
-
-      <fieldset className="field">
-        <legend>{T.printing}</legend>
-        <label className="check">
-          <input type="checkbox" checked={line.autoPublish} onChange={(e) => set({ autoPublish: e.target.checked })} />
-          <span><strong>{T.autoPub}</strong><em>{T.autoPubHint}</em></span>
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={line.photos} onChange={(e) => set({ photos: e.target.checked })} />
-          <span><strong>{T.photos}</strong><em>{T.photosHint}</em></span>
-        </label>
-      </fieldset>
-
-      <button className="btn btn-block" onClick={save} disabled={!dirty || busy}>
-        {busy ? T.saving : dirty ? T.updateLine : T.lineSaved}
-      </button>
-      <p className="hint-small">{T.lineHint}</p>
-    </div>
-  );
-}
-
-// ───────────────────────── An article draft ─────────────────────────
+// ───────────────────────── A piece on the desk ─────────────────────────
 
 function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
-  const [mode, setMode] = useState(null); // 'edit' | 'rewrite'
-  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState(null); // 'edit' | 'rewrite' | 'heads'
+  const [panel, setPanel] = useState(null); // 'read' | 'work'
   const [busy, setBusy] = useState(false);
   const [instr, setInstr] = useState('');
   const [form, setForm] = useState(null);
@@ -336,28 +144,30 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
   };
   const rewrite = async (instruction) => {
     const ok = await call('/rewrite', { method: 'POST', json: { instruction } });
-    if (ok) { setMode(null); setInstr(''); setOpen(true); }
+    if (ok) { setMode(null); setInstr(''); setPanel('work'); }
   };
+  const toggle = (m) => setMode(mode === m ? null : m);
+  const stamp = stampOf(a);
+  const words = a.body.join(' ').split(/\s+/).filter(Boolean).length;
 
   return (
-    <article className={`draft ${busy ? 'busy' : ''} ${i === 0 ? 'is-lead' : ''}`}>
-      <div className="draft-pos">
-        <span className="draft-n">{i === 0 ? T.leadShort : i + 1}</span>
+    <article className={`piece ${busy ? 'busy' : ''} ${i === 0 ? 'is-lead' : ''} ${panel ? 'open' : ''}`}>
+      <div className="pc-rank">
+        <span className="pc-n">{i === 0 ? T.leadShort : i + 1}</span>
         <button disabled={i === 0 || busy} onClick={() => call('/move', { method: 'POST', json: { to: 'up' } })} aria-label={T.up}>↑</button>
         <button disabled={i === n - 1 || busy} onClick={() => call('/move', { method: 'POST', json: { to: 'down' } })} aria-label={T.down}>↓</button>
       </div>
 
-      <div className="draft-main">
-        <div className="draft-tags">
-          <span className="sec">{a.section}</span>
-          <span className="tag">{T.size[OLD_SIZE[a.size] || a.size] || a.size || '—'}</span>
-          <span className="tag">{a.byline ? `${[a.byline.name, styleName(a.byline.house)].filter(Boolean).join(' · ')} · ` : ''}{writerLabel(a.writer)}</span>
-          {a.rewrittenWith && <span className="tag">{T.rewritten}: «{a.rewrittenWith}»</span>}
-          <span className="tag">{a.sources.length} {a.sources.length === 1 ? T.source : T.sources}</span>
-          <span className="tag" title={a.expanded ? tr({ en: 'The first draft was too short: the writer expanded it.', it: 'La prima bozza era troppo corta: la firma l\'ha allungata.' }) : undefined}>{a.body.join(' ').split(/\s+/).filter(Boolean).length} {tr({ en: 'words', it: 'parole' })} · {readingTime(a)}{a.expanded ? ' ↥' : ''}</span>
-          {a.check?.unverified?.length > 0 && (
-            <span className="tag tag-warn" title={T.unverifiedHint}>⚠ {T.unverified}: {a.check.unverified.slice(0, 4).join(', ')}</span>
-          )}
+      <div className="pc-main">
+        <div className="pc-top">
+          <div className="pc-meta">
+            <span className="sec">{a.section}</span>
+            <span>{T.size[OLD_SIZE[a.size] || a.size] || a.size || '—'}</span>
+            {a.byline?.name && <span title={writerLabel(a.writer)}>{[a.byline.name, styleName(a.byline.house)].filter(Boolean).join(' · ')}</span>}
+            <span title={a.expanded ? tr({ en: 'The first draft was too short: the writer expanded it.', it: 'La prima bozza era troppo corta: la firma l\'ha allungata.' }) : undefined}>{words} {tr({ en: 'words', it: 'parole' })} · {readingTime(a)}{a.expanded ? ' ↥' : ''}</span>
+            <span>{a.sources.length} {a.sources.length === 1 ? T.source : T.sources}</span>
+          </div>
+          {stamp && <span className={`stamp ${stamp.cls}`}>{stamp.text}</span>}
         </div>
 
         {mode === 'edit' ? (
@@ -365,7 +175,7 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
             <input value={form.kicker} onChange={(e) => setForm({ ...form, kicker: e.target.value })} placeholder={T.kicker} />
             <input className="f-head" value={form.headline} onChange={(e) => setForm({ ...form, headline: e.target.value })} placeholder={T.headline} />
             <input value={form.dek} onChange={(e) => setForm({ ...form, dek: e.target.value })} placeholder={T.dek} />
-            <textarea rows={8} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+            <textarea rows={10} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
             <p className="hint-small">{T.paraHint}</p>
             {a.image && (
               <label className="check check-inline">
@@ -380,17 +190,39 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
           </div>
         ) : (
           <>
-            <div className="draft-body">
-              <div>
-                {a.kicker && <div className="kicker"><span className="sub">{a.kicker}</span></div>}
-                <h3 className="hl-md">{a.headline}</h3>
-                {a.dek && <p className="dek dek-sm">{a.dek}</p>}
-              </div>
+            <div className="pc-head">
+              <button className="pc-title" onClick={() => setPanel(panel === 'read' ? null : 'read')}>
+                {a.kicker && a.kicker !== a.section && <span className="pc-kicker">{a.kicker}</span>}
+                <span className="hl-md">{a.headline}</span>
+                {a.dek && <span className="pc-dek">{a.dek}</span>}
+              </button>
               {a.image && <img className="draft-thumb" src={a.image.src} alt="" loading="lazy" />}
             </div>
-            {open && <div className="draft-text"><Paragraphs ed={ed} a={a} onChange={onChange} setError={setError} /></div>}
-            {mode === 'heads' && <HeadlinePicker key={a.headline} ed={ed} a={a} onChange={onChange} setError={setError} onClose={() => setMode(null)} />}
+            {a.check?.unverified?.length > 0 && (
+              <p className="pc-warn" title={T.unverifiedHint}>⚠ {T.unverified}: {a.check.unverified.slice(0, 4).join(', ')}</p>
+            )}
+            {a.rewrittenWith && <p className="pc-note">{T.rewritten}: {quote(a.rewrittenWith)}</p>}
 
+            <Track a={a} draft={ed.status === 'draft'} />
+
+            <div className="pc-tools">
+              <div className="pc-views" role="tablist">
+                <button role="tab" aria-selected={panel === 'read'} className={panel === 'read' ? 'on' : ''} onClick={() => setPanel(panel === 'read' ? null : 'read')}>{T.readFix}</button>
+                <button role="tab" aria-selected={panel === 'work'} className={panel === 'work' ? 'on' : ''} onClick={() => setPanel(panel === 'work' ? null : 'work')}>{T.workings}</button>
+              </div>
+              <div className="pc-acts">
+                <button className="btn-link-ink" onClick={startEdit}>{T.edit}</button>
+                <button className={`btn-link-ink ${mode === 'rewrite' ? 'on' : ''}`} onClick={() => toggle('rewrite')}>{T.rewrite}</button>
+                <button className={`btn-link-ink ${mode === 'heads' ? 'on' : ''}`} onClick={() => toggle('heads')}>{T.heads}</button>
+                <button className="btn-link-ink" onClick={() => onDiscuss?.(a)}>{T.discuss}</button>
+                {i > 0 && <button className="btn-link-ink" disabled={busy} onClick={() => call('/move', { method: 'POST', json: { to: 'top' } })}>{T.toLead}</button>}
+                <DeepenButton editionId={ed.id} articleId={a.id} className="btn-link-ink" />
+                <button className="btn-link-ink danger" disabled={busy} onClick={() => call('/spike', { method: 'POST' })}>{T.spike}</button>
+              </div>
+            </div>
+            {busy && <p className="working">{T.working}</p>}
+
+            {mode === 'heads' && <HeadlinePicker key={a.headline} ed={ed} a={a} onChange={onChange} setError={setError} onClose={() => setMode(null)} />}
             {mode === 'rewrite' && (
               <div className="rewrite">
                 <div className="chips">
@@ -404,17 +236,8 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
               </div>
             )}
 
-            <div className="draft-actions">
-              <button className="btn-ghost" onClick={() => setOpen((o) => !o)}>{open ? T.closeText : T.readText}</button>
-              {i > 0 && <button className="btn-ghost" disabled={busy} onClick={() => call('/move', { method: 'POST', json: { to: 'top' } })}>{T.toLead}</button>}
-              <button className="btn-ghost" onClick={startEdit}>{T.edit}</button>
-              <button className={`btn-ghost ${mode === 'rewrite' ? 'on' : ''}`} onClick={() => setMode(mode === 'rewrite' ? null : 'rewrite')}>{T.rewrite}</button>
-              <button className={`btn-ghost ${mode === 'heads' ? 'on' : ''}`} onClick={() => setMode(mode === 'heads' ? null : 'heads')}>{T.heads}</button>
-              <button className="btn-ghost" onClick={() => onDiscuss?.(a)}>{T.discuss}</button>
-              <DeepenButton editionId={ed.id} articleId={a.id} />
-              <button className="btn-ghost danger" disabled={busy} onClick={() => call('/spike', { method: 'POST' })}>{T.spike}</button>
-              {busy && <span className="working">{T.working}</span>}
-            </div>
+            {panel === 'read' && <div className="pc-panel draft-text"><Paragraphs ed={ed} a={a} onChange={onChange} setError={setError} /></div>}
+            {panel === 'work' && <div className="pc-panel"><Workings a={a} /></div>}
           </>
         )}
       </div>
@@ -425,15 +248,18 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
 // ───────────────────────── The desk ─────────────────────────
 
 export default function Newsroom({ editionId: requested, onPublished }) {
-  // #/newsroom/spotlight opens the Spotlight board
+  // #/newsroom/spotlight opens the Spotlight board; #/newsroom/next the detailed desk of the next edition
   const spotlightTab = requested === 'spotlight';
   const sideTab = ['viva', 'live'].includes(requested) ? 'viva' : ['soffiate', 'tips'].includes(requested) ? 'tips' : spotlightTab ? 'spotlight' : null;
-  const editionId = sideTab || ['nuovo', 'new'].includes(requested) ? null : requested;
+  const detail = requested === 'next';
+  const editionId = sideTab || detail || ['nuovo', 'new'].includes(requested) ? null : requested;
   const isEvening = !!editionId?.startsWith('sera-');
+  // the next edition in the works: the detailed desk on request (or with a side panel open)
+  const nextView = !editionId;
   const [day, setDay] = useState(() => (editionId ? (isEvening ? editionId.slice(5) : editionId.slice(0, 10)) : dayKey(Date.now())));
   const [tab, setTab] = useState(sideTab || 'meeting');
+  const [view, setView] = useState('pieces');
   const [focus, setFocus] = useState(null);
-  const [lineKey, setLineKey] = useState(0);
   const [evening, setEvening] = useState(null);
   const [statusInfo, setStatusInfo] = useState(null);
   const [list, setList] = useState([]);
@@ -463,8 +289,8 @@ export default function Newsroom({ editionId: requested, onPublished }) {
   useEffect(() => { api('/status').then(setStatusInfo).catch(() => {}); }, []);
   useEffect(() => { refreshList(); }, [refreshList]);
 
-  // the open edition: the one requested, otherwise the day's latest
-  const currentId = isEvening ? null : editionId || list.at(-1)?.id || null;
+  // the open edition: the one requested (none: the next edition, in the works)
+  const currentId = isEvening ? null : editionId || null;
   useEffect(() => {
     if (!currentId) { setEd(null); return; }
     api(`/editions/${encodeURIComponent(currentId)}`).then(setEd).catch((e) => setError(e.message));
@@ -476,7 +302,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
   function onMeetingResult(r) {
     if (r.edition) setEd(r.edition);
     if (r.evening) setEvening(r.evening);
-    if (r.line) setLineKey((k) => k + 1);
     refreshList();
   }
 
@@ -512,189 +337,224 @@ export default function Newsroom({ editionId: requested, onPublished }) {
   const status = ed?.status || 'published';
   const otherDrafts = useMemo(() => drafts.filter((d) => d.id !== ed?.id), [drafts, ed]);
 
+  const head = (
+    <header className="desk-head">
+      <div>
+        <h2>{T.title}</h2>
+        <p>{T.subtitle}</p>
+        <NewsroomNav on="desk" />
+      </div>
+      <button className={`btn new-article ${commission ? 'on' : ''}`} onClick={() => setCommission((c) => !c)}>＋ {T.newArticle}</button>
+    </header>
+  );
+
+  const views = ed ? [
+    { id: 'pieces', label: T.vPieces, n: ed.articles.length },
+    { id: 'front', label: T.vFront },
+    { id: 'check', label: T.vCheck, warn: ed.factcheck?.stale },
+    { id: 'spiked', label: T.spiked, n: ed.spiked?.length || 0 },
+  ] : [];
+
   return (
-    <div className="desk">
-      <header className="desk-head">
-        <div>
-          <h2>{T.title}</h2>
-          <p>{T.subtitle}</p>
-          <NewsroomNav on="desk" />
-        </div>
-        <button className={`btn new-article ${commission ? 'on' : ''}`} onClick={() => setCommission((c) => !c)}>＋ {T.newArticle}</button>
-      </header>
-      {commission && <CommissionPanel onClose={() => setCommission(false)} />}
+    <div className="desk fullbleed">
+      <div className="desk-inner">
+        {head}
+        {commission && <CommissionPanel onClose={() => setCommission(false)} />}
 
-      <div className="desk-grid">
-        <section className="desk-main">
-          <div className="desk-editions">
-            <span className="lbl">{longDate(new Date(`${day}T12:00`).getTime())}</span>
-            <div className="ed-chips">
-              {list.map((e) => (
-                <a key={e.id} href={href.desk(e.id)} className={`ed-chip ${e.id === ed?.id ? 'on' : ''} ${e.status === 'draft' ? 'draft' : ''}`}>
-                  {hhmm(edHour(e))}
-                  {e.status === 'draft' && <em>{T.draft}</em>}
-                  {e.edited && e.status !== 'draft' && <em>{T.retouched}</em>}
-                </a>
-              ))}
-              {!list.length && <span className="hint-small">{T.noEditions}</span>}
-              {evening ? (
-                <a href={href.desk(`sera-${day}`)} className={`ed-chip ed-chip-evening ${isEvening ? 'on' : ''}`}>
-                  {T.evening}{evening.status === 'draft' && <em>{T.draft}</em>}
-                </a>
-              ) : list.length > 0 && (
-                <button className="btn-ghost" disabled={!!busy} onClick={() => eveningAct('evening', '/print')}>
-                  {busy === 'evening' ? T.writingEvening : T.printEvening}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <PiecesStrip />
-
-          {otherDrafts.length > 0 && (
-            <p className="desk-alert">
-              {otherDrafts.length === 1 ? T.oneDraft : T.nDrafts(otherDrafts.length)} {T.toPress}{' '}
-              {otherDrafts.slice(0, 4).map((d, k) => (
-                <a key={d.id} href={href.desk(d.id)}>{k ? ', ' : ''}{hhmm(edHour(d))}</a>
-              ))}
-            </p>
-          )}
-
-          {error && <p className="notice">{error}</p>}
-
-          {isEvening && evening && (
-            <>
-              <div className="desk-bar">
-                <div>
-                  <span className={`status ${evening.status}`}>{evening.status === 'draft' ? T.draftStatus : T.onStand}</span>
-                  <strong>{T.eveningEdition}</strong>
-                  <span className="muted"> · {evening.editions} {T.editions} · {evening.stats.total} {T.signals} · {writerLabel(evening.writer)}</span>
-                </div>
-                <div className="desk-bar-actions">
-                  {evening.status === 'draft' && (
-                    <button className="btn btn-small" disabled={!!busy} onClick={() => eveningAct('publish', '/publish')}>
-                      {busy === 'publish' ? T.inPress : T.sendToPress}
-                    </button>
-                  )}
-                  <button className="btn-ghost" disabled={!!busy} onClick={() => eveningAct('evening', '/print')}>
-                    {busy === 'evening' ? T.reprinting : T.reprintEvening}
-                  </button>
-                  {evening.status !== 'draft' && <a className="btn-ghost" href={href.evening(day)}>{T.seeOnPage}</a>}
-                </div>
-              </div>
-              <article className="desk-editorial">
-                <span className="lbl">{T.editorial}</span>
-                <h3 className="hl-lg">{evening.editorial.headline}</h3>
-                {evening.editorial.oneliner && <p className="dek">{evening.editorial.oneliner}</p>}
-                <div className="draft-text">{evening.editorial.body.map((p, k) => <p key={k}>{p}</p>)}</div>
-              </article>
-              <DeskCartoon cartoon={evening.cartoon} endpoint={`/evening/${day}/cartoon`} onChange={setEvening} setError={setError} />
-              <section className="desk-top">
-                <span className="lbl">{T.dayNews}</span>
-                <ol>
-                  {evening.top.map((t) => (
-                    <li key={t.articleId}><span className="sec">{t.section} · {hhmm(t.hour)}</span> {t.headline}</li>
-                  ))}
-                </ol>
-              </section>
-            </>
-          )}
-          {isEvening && !evening && <p className="empty-text">{T.eveningNotOut}</p>}
-
-          {!isEvening && ed && (
-            <>
-              <div className="desk-bar">
-                <div>
-                  <span className={`status ${status}`}>{status === 'draft' ? T.draftStatus : T.onStand}</span>
-                  <strong>{T.editionOf(hhmm(edHour(ed)))}</strong>{edSince(ed)}
-                  <span className="muted"> · {ed.articles.length} {T.articles}{ed.tone ? ` · ${T.toneLabel} ${toneName(ed.tone)}` : ''} · {writerLabel(ed.writer)}</span>
-                </div>
-                <div className="desk-bar-actions">
-                  {status === 'draft' && (
-                    <button className="btn btn-small" disabled={!!busy} onClick={() => act('publish', '/publish')}>
-                      {busy === 'publish' ? T.inPress : T.sendToPress}
-                    </button>
-                  )}
-                  <button className="btn-ghost" disabled={!!busy} onClick={() => act('summary', '/summary')}>
-                    {busy === 'summary' ? T.writing : T.regenBrief}
-                  </button>
-                  <button className={`btn-ghost ${armed ? 'danger on' : ''}`} disabled={!!busy}
-                    title={T.reprintTitle}
-                    onClick={reprint}>
-                    {busy === 'reprint' ? T.reprintingLong : armed ? T.confirm : T.reprint}
-                  </button>
-                  <a className="btn-ghost bench-link" href={href.bench(ed.id)} title={T.benchHint}>⚡ {T.bench}</a>
-                  {status === 'published' && <a className="btn-ghost" href={href.edition(ed.id)}>{T.seeOnPage}</a>}
-                </div>
-              </div>
-
-              <div className="desk-punto">
-                <span className="lbl">{T.brief}</span>
-                <p>{ed.summary}</p>
-              </div>
-              <DeskCartoon cartoon={ed.cartoon} endpoint={`/editions/${encodeURIComponent(ed.id)}/cartoon`} onChange={update} setError={setError} />
-              <FactCheck edition={ed} desk onChange={update} setError={setError} />
-
-              <div className="drafts">
-                {ed.articles.map((a, i) => (
-                  <Draft key={a.id} a={a} i={i} n={ed.articles.length} ed={ed} onChange={update} setError={setError}
-                    onDiscuss={(art) => { setTab('meeting'); setFocus({ id: art.id, headline: art.headline }); }} />
+        <div className="desk-grid">
+          <section className="desk-main">
+            <div className="desk-editions">
+              <span className="lbl">{longDate(new Date(`${day}T12:00`).getTime())}</span>
+              <div className="ed-chips">
+                {list.map((e) => (
+                  <a key={e.id} href={href.desk(e.id)} className={`ed-chip ${e.id === ed?.id ? 'on' : ''} ${e.status === 'draft' ? 'draft' : ''}`}>
+                    {hhmm(edHour(e))}
+                    {e.status === 'draft' && <em>{T.draft}</em>}
+                    {e.edited && e.status !== 'draft' && <em>{T.retouched}</em>}
+                  </a>
                 ))}
+                {!list.length && <span className="hint-small">{T.noEditions}</span>}
+                {day === dayKey(Date.now()) && (
+                  <a href={href.desk()} className={`ed-chip ed-chip-next ${nextView ? 'on' : ''}`}>
+                    {hhmm(new Date().setMinutes(0, 0, 0))}<em>{T.inWorks}</em>
+                  </a>
+                )}
+                {evening ? (
+                  <a href={href.desk(`sera-${day}`)} className={`ed-chip ed-chip-evening ${isEvening ? 'on' : ''}`}>
+                    {T.evening}{evening.status === 'draft' && <em>{T.draft}</em>}
+                  </a>
+                ) : list.length > 0 && (
+                  <button className="btn-ghost" disabled={!!busy} onClick={() => eveningAct('evening', '/print')}>
+                    {busy === 'evening' ? T.writingEvening : T.printEvening}
+                  </button>
+                )}
               </div>
+            </div>
 
-              {ed.spiked?.length > 0 && (
-                <section className="spiked">
-                  <h3 className="box-title">{T.spiked}</h3>
-                  {ed.spiked.map((a) => (
-                    <div key={a.id} className="spiked-row">
-                      <span className="sec">{a.section}</span>
-                      <span className="t">{a.headline}</span>
-                      <button className="btn-ghost" onClick={async () => {
-                        try { update(await api(`/editions/${encodeURIComponent(ed.id)}/articles/${encodeURIComponent(a.id)}/restore`, { method: 'POST' })); } catch (e) { setError(e.message); }
-                      }}>{T.restore}</button>
-                    </div>
-                  ))}
+            <PiecesStrip />
+
+            {otherDrafts.length > 0 && (
+              <p className="desk-alert">
+                {otherDrafts.length === 1 ? T.oneDraft : T.nDrafts(otherDrafts.length)} {T.toPress}{' '}
+                {otherDrafts.slice(0, 4).map((d, k) => (
+                  <a key={d.id} href={href.desk(d.id)}>{k ? ', ' : ''}{hhmm(edHour(d))}</a>
+                ))}
+              </p>
+            )}
+
+            {error && <p className="notice">{error}</p>}
+
+            {nextView && <NextDesk setError={setError} offline={['offline', 'disabled'].includes(statusInfo?.llm?.state)} onPrinted={() => refreshList()} />}
+
+            {isEvening && evening && (
+              <>
+                <div className="desk-bar">
+                  <div>
+                    <span className={`status ${evening.status}`}>{evening.status === 'draft' ? T.draftStatus : T.onStand}</span>
+                    <strong>{T.eveningEdition}</strong>
+                    <span className="muted"> · {evening.editions} {T.editions} · {evening.stats.total} {T.signals} · {writerLabel(evening.writer)}</span>
+                  </div>
+                  <div className="desk-bar-actions">
+                    {evening.status === 'draft' && (
+                      <button className="btn btn-small" disabled={!!busy} onClick={() => eveningAct('publish', '/publish')}>
+                        {busy === 'publish' ? T.inPress : T.sendToPress}
+                      </button>
+                    )}
+                    <button className="btn-ghost" disabled={!!busy} onClick={() => eveningAct('evening', '/print')}>
+                      {busy === 'evening' ? T.reprinting : T.reprintEvening}
+                    </button>
+                    {evening.status !== 'draft' && <a className="btn-ghost" href={href.evening(day)}>{T.seeOnPage}</a>}
+                  </div>
+                </div>
+                <article className="desk-editorial">
+                  <span className="lbl">{T.editorial}</span>
+                  <h3 className="hl-lg">{evening.editorial.headline}</h3>
+                  {evening.editorial.oneliner && <p className="dek">{evening.editorial.oneliner}</p>}
+                  <div className="draft-text">{evening.editorial.body.map((p, k) => <p key={k}>{p}</p>)}</div>
+                </article>
+                <DeskCartoon cartoon={evening.cartoon} endpoint={`/evening/${day}/cartoon`} onChange={setEvening} setError={setError} />
+                <section className="desk-top">
+                  <span className="lbl">{T.dayNews}</span>
+                  <ol>
+                    {evening.top.map((t) => (
+                      <li key={t.articleId}><span className="sec">{t.section} · {hhmm(t.hour)}</span> {t.headline}</li>
+                    ))}
+                  </ol>
                 </section>
-              )}
-            </>
-          )}
-        </section>
+              </>
+            )}
+            {isEvening && !evening && <p className="empty-text">{T.eveningNotOut}</p>}
 
-        <aside className="desk-side">
-          <div className="side-tabs" role="tablist" aria-label={T.panels}>
-            <button role="tab" aria-selected={tab === 'meeting'} className={tab === 'meeting' ? 'on' : ''} onClick={() => setTab('meeting')}>{T.meeting}</button>
-            <button role="tab" aria-selected={tab === 'next'} className={tab === 'next' ? 'on' : ''} onClick={() => setTab('next')}>{T.nextTab}</button>
-            <button role="tab" aria-selected={tab === 'line'} className={tab === 'line' ? 'on' : ''} onClick={() => setTab('line')}>{T.line}</button>
-            <button role="tab" aria-selected={tab === 'spotlight'} className={`tab-spot ${tab === 'spotlight' ? 'on' : ''}`} onClick={() => setTab('spotlight')}>Spotlight</button>
-            <button role="tab" aria-selected={tab === 'viva'} className={tab === 'viva' ? 'on' : ''} onClick={() => setTab('viva')}>{T.viva}</button>
-            <button role="tab" aria-selected={tab === 'tips'} className={tab === 'tips' ? 'on' : ''} onClick={() => setTab('tips')}>{T.tipsTab}</button>
-          </div>
-          {/* the panel scrolls inside the column: a long board never spills over the page */}
-          <div className="side-body">
-          {tab === 'meeting' ? (
-            (isEvening ? evening : ed) ? (
-              <Meeting
-                threadId={isEvening ? `sera-${day}` : ed.id}
-                kind={isEvening ? 'evening' : 'edition'}
-                focus={isEvening ? null : focus}
-                onClearFocus={() => setFocus(null)}
-                onResult={onMeetingResult}
-                model={statusInfo?.llm?.model}
-              />
-            ) : <p className="hint-small">{T.openEdition}</p>
-          ) : tab === 'next' ? (
-            <NextEdition setError={setError} onPrinted={() => refreshList()} />
-          ) : tab === 'spotlight' ? (
-            <SpotlightDesk setError={setError} />
-          ) : tab === 'viva' ? (
-            <ChatterFeed />
-          ) : tab === 'tips' ? (
-            <TipsPanel setError={setError} />
-          ) : (
-            <LinePanel key={lineKey} />
-          )}
-          </div>
-        </aside>
+            {!isEvening && ed && (
+              <>
+                <div className="desk-bar">
+                  <div>
+                    <span className={`status ${status}`}>{status === 'draft' ? T.draftStatus : T.onStand}</span>
+                    <strong>{T.editionOf(hhmm(edHour(ed)))}</strong>{edSince(ed)}
+                    <a className="back-next" href={href.desk()}>{T.toNext}</a>
+                    <span className="muted"> · {ed.articles.length} {T.articles}{ed.tone ? ` · ${T.toneLabel} ${toneName(ed.tone)}` : ''} · {writerLabel(ed.writer)}</span>
+                  </div>
+                  <div className="desk-bar-actions">
+                    {status === 'draft' && (
+                      <button className="btn btn-small" disabled={!!busy} onClick={() => act('publish', '/publish')}>
+                        {busy === 'publish' ? T.inPress : T.sendToPress}
+                      </button>
+                    )}
+                    <a className="btn-ghost bench-link" href={href.bench(ed.id)} title={T.benchHint}>⚡ {T.bench}</a>
+                    {status === 'published' && <a className="btn-ghost" href={href.edition(ed.id)}>{T.seeOnPage}</a>}
+                    <button className={`btn-ghost ${armed ? 'danger on' : ''}`} disabled={!!busy}
+                      title={T.reprintTitle}
+                      onClick={reprint}>
+                      {busy === 'reprint' ? T.reprintingLong : armed ? T.confirm : T.reprint}
+                    </button>
+                  </div>
+                </div>
+
+                <TableSummary articles={ed.articles} />
+
+                <div className="main-tabs" role="tablist" aria-label={T.views}>
+                  {views.map((v) => (
+                    <button key={v.id} role="tab" aria-selected={view === v.id} className={view === v.id ? 'on' : ''} onClick={() => setView(v.id)}>
+                      {v.label}{v.n ? <span className="mt-n">{v.n}</span> : null}{v.warn ? <span className="mt-dot" aria-hidden="true" /> : null}
+                    </button>
+                  ))}
+                </div>
+
+                {view === 'pieces' && (
+                  <div className="pieces">
+                    {ed.articles.map((a, i) => (
+                      <Draft key={a.id} a={a} i={i} n={ed.articles.length} ed={ed} onChange={update} setError={setError}
+                        onDiscuss={(art) => { setTab('meeting'); setFocus({ id: art.id, headline: art.headline }); }} />
+                    ))}
+                  </div>
+                )}
+
+                {view === 'front' && (
+                  <div className="front-view">
+                    <div className="desk-punto">
+                      <div className="punto-head">
+                        <span className="lbl">{T.brief}</span>
+                        <button className="btn-ghost" disabled={!!busy} onClick={() => act('summary', '/summary')}>
+                          {busy === 'summary' ? T.writing : T.regenBrief}
+                        </button>
+                      </div>
+                      <p>{ed.summary}</p>
+                    </div>
+                    <DeskCartoon cartoon={ed.cartoon} endpoint={`/editions/${encodeURIComponent(ed.id)}/cartoon`} onChange={update} setError={setError} />
+                  </div>
+                )}
+
+                {view === 'check' && <FactCheck edition={ed} desk onChange={update} setError={setError} />}
+
+                {view === 'spiked' && (
+                  ed.spiked?.length > 0 ? (
+                    <section className="spiked">
+                      {ed.spiked.map((a) => (
+                        <div key={a.id} className="spiked-row">
+                          <span className="sec">{a.section}</span>
+                          <span className="t">{a.headline}</span>
+                          <button className="btn-ghost" onClick={async () => {
+                            try { update(await api(`/editions/${encodeURIComponent(ed.id)}/articles/${encodeURIComponent(a.id)}/restore`, { method: 'POST' })); } catch (e) { setError(e.message); }
+                          }}>{T.restore}</button>
+                        </div>
+                      ))}
+                    </section>
+                  ) : <p className="empty-text">{T.noSpiked}</p>
+                )}
+              </>
+            )}
+          </section>
+
+          <aside className="desk-side">
+            <div className="side-tabs" role="tablist" aria-label={T.panels}>
+              <button role="tab" aria-selected={tab === 'meeting'} className={tab === 'meeting' ? 'on' : ''} onClick={() => setTab('meeting')}>{T.meeting}</button>
+              <button role="tab" aria-selected={tab === 'spotlight'} className={`tab-spot ${tab === 'spotlight' ? 'on' : ''}`} onClick={() => setTab('spotlight')}>Spotlight</button>
+              <button role="tab" aria-selected={tab === 'viva'} className={tab === 'viva' ? 'on' : ''} onClick={() => setTab('viva')}>{T.viva}</button>
+              <button role="tab" aria-selected={tab === 'tips'} className={tab === 'tips' ? 'on' : ''} onClick={() => setTab('tips')}>{T.tipsTab}</button>
+            </div>
+            {/* the panel scrolls inside the column: a long board never spills over the page */}
+            <div className="side-body">
+            {tab === 'meeting' ? (
+              (isEvening ? evening : ed || list.at(-1)) ? (
+                <Meeting
+                  threadId={isEvening ? `sera-${day}` : (ed || list.at(-1)).id}
+                  kind={isEvening ? 'evening' : 'edition'}
+                  focus={isEvening ? null : focus}
+                  onClearFocus={() => setFocus(null)}
+                  onResult={onMeetingResult}
+                  model={statusInfo?.llm?.model}
+                />
+              ) : <p className="hint-small">{T.openEdition}</p>
+            ) : tab === 'spotlight' ? (
+              <SpotlightDesk setError={setError} />
+            ) : tab === 'viva' ? (
+              <ChatterFeed />
+            ) : (
+              <TipsPanel setError={setError} />
+            )}
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );

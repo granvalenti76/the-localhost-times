@@ -9,7 +9,7 @@ import { tr } from '../i18n.js';
 
 const T = tr({
   en: {
-    rooms: 'Newsroom rooms', desk: 'The desk', inquiry: 'Inquiry', editorDesk: 'Editor desk',
+    rooms: 'Newsroom rooms', desk: 'The desk', inquiry: 'Inquiry', editorDesk: 'Editor desk', lineRoom: 'Publishing House', writeRoom: 'Writing room', sourcesRoom: 'Sources', proofRoom: 'Proof round',
     homeTitle: 'The Inquiry', homeSub: 'A long piece of about 1,500 words, in the manner of The New Yorker. You give the subject and the lead; the reporter reads the signals, asks, digs, and writes.',
     ask: 'What subject do you want to look into?', askSub: 'A site, a project, a habit, a person, a week. Say it the way you would to a reporter.',
     topicPh: 'e.g. the nights on GitHub, the chess rival, the Julia project…', leadLbl: 'Your lead (optional)', leadPh: 'Where should the reporter look? What do you suspect? e.g. “it all started after the broken build on Tuesday”',
@@ -54,7 +54,7 @@ const T = tr({
     carnet: 'Notes for the writing', carnetHint: 'The writer works from these, not from the raw file.', premise: 'The question', scenes: 'Scenes', keptFigures: 'Figures kept',
   },
   it: {
-    rooms: 'Stanze della redazione', desk: 'Il tavolo', inquiry: 'Inchiesta', editorDesk: 'Editor desk',
+    rooms: 'Stanze della redazione', desk: 'La scrivania', inquiry: 'Inchiesta', editorDesk: 'Editor desk', lineRoom: 'Casa Editrice', writeRoom: 'Sala scrittura', sourcesRoom: 'Fonti', proofRoom: 'Giro di bozze',
     homeTitle: 'L\'Inchiesta', homeSub: 'Un pezzo lungo, circa 1.500 parole, alla maniera del New Yorker. Lei dà l\'argomento e la traccia; il cronista legge i segnali, chiede, scava, e scrive.',
     ask: 'Che argomento vuole trattare?', askSub: 'Un sito, un progetto, un\'abitudine, una persona, una settimana. Lo dica come lo direbbe a un cronista.',
     topicPh: 'es. le notti su GitHub, il rivale agli scacchi, il progetto Giulia…', leadLbl: 'La sua traccia (facoltativa)', leadPh: 'Dove dovrebbe guardare il cronista? Cosa sospetta? es. «è cominciato tutto dopo la build rotta di martedì»',
@@ -112,6 +112,10 @@ export function NewsroomNav({ on }) {
       <a href={href.desk()} className={on === 'desk' ? 'on' : ''}>{T.desk}</a>
       <a href={href.inquiry()} className={on === 'inquiry' ? 'on' : ''}>{T.inquiry}</a>
       <a href={href.editorDesk()} className={on === 'editorDesk' ? 'on' : ''}>{T.editorDesk}</a>
+      <a href={href.dispatches()} className={on === 'sources' ? 'on' : ''}>{T.sourcesRoom}</a>
+      <a href={href.write()}>{T.writeRoom}</a>
+      <a href={href.proofs()}>{T.proofRoom}</a>
+      <a href={href.house()} className={on === 'line' ? 'on' : ''}>{T.lineRoom}</a>
     </nav>
   );
 }
