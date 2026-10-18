@@ -162,12 +162,17 @@ export function demoEvents(hours = 9, now = Date.now()) {
     if (rnd() < 0.2) {
       const ext = pick(['pdf', 'docx']);
       add('files', 'changed', at(), `.${ext}`, DOCS, { folder: DOCS, dir: DOCS, project: null, ext, size: 80000 });
-      add('files', 'created', at(), `.${ext}`, DOCS, { folder: DOCS, dir: DOCS, project: null, ext, size: 60000 });
+      const t = at();
+      add('files', 'created', t, `.${ext}`, DOCS, { folder: DOCS, dir: DOCS, project: null, ext, size: 60000 });
+      // a third save, so the folder makes a story of its own (the project folder joins its commits)
+      add('files', 'changed', t + 60e3, `.${ext}`, DOCS, { folder: DOCS, dir: DOCS, project: null, ext, size: 61000 });
     }
     if (rnd() < 0.3) {
       const [ext, site] = pick([['dmg', 'github.com'], ['pdf', 'arxiv.org'], ['zip', 'fonts.google.com']]);
       add('files', 'downloaded', at(), `.${ext}`, 'Downloads', { folder: 'Downloads', dir: 'Downloads', project: null, ext, site, size: 4e6 + Math.floor(rnd() * 9e7) });
     }
+    // and one download the first hour, whatever the dice say (no draw: the rest of the day stays the same)
+    if (h === 0) add('files', 'downloaded', H + 20 * 60e3, '.pdf', 'Downloads', { folder: 'Downloads', dir: 'Downloads', project: null, ext: 'pdf', site: 'arxiv.org', size: 2.4e6 });
 
     // Notes
     if (rnd() < 0.45) {

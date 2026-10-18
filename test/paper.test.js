@@ -15,7 +15,9 @@ const HOUR = 3600e3;
 for (const l of ['en', 'it']) {
   test(`[${l}] the typesetting writes every kind of story without gaps`, () => {
     setLang(l);
-    const stories = buildStories(demoEvents(9));
+    // a fixed afternoon: at night the demo's hours are quiet, and some kinds of story don't form
+    const afternoon = new Date(2026, 9, 8, 18, 30).getTime();
+    const stories = buildStories(demoEvents(9, afternoon));
     const kinds = new Set(stories.map((s) => s.kind));
     for (const k of ['searches', 'site', 'thread', 'inbox', 'session', 'note', 'entry', 'episode', 'book', 'folder', 'downloads', 'timesheet', 'shots']) assert.ok(kinds.has(k), `demo lacks ${k}`);
     for (const s of stories) {
