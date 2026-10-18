@@ -2,6 +2,7 @@
  * Automatic typesetting (English): writes articles without an LLM, from text templates.
  * Steps in when the writer (the local model) is offline or fails.
  */
+import { aPeriod, ofPeriod, inPeriod, thisPeriod } from './period.js';
 import { hhmm } from '../util.js';
 
 const hashNum = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
@@ -51,8 +52,8 @@ const W = {
     return {
       kicker: 'Searches',
       headline: n === 1
-        ? P([`A single question for the search engine: ${q(short(qs[0], 60))}`, `${q(short(qs[0], 60))}: the question of the hour`])
-        : P([`${n} questions in an hour, starting with ${q(short(qs[0], 50))}`, `From ${q(short(qs[0], 40))} to ${n === 2 ? 'one more' : `${n - 1} more`}: what the Mac wanted to know`]),
+        ? P([`A single question for the search engine: ${q(short(qs[0], 60))}`, `${q(short(qs[0], 60))}: the question ${ofPeriod('en')}`])
+        : P([`${n} questions ${aPeriod('en')}, starting with ${q(short(qs[0], 50))}`, `From ${q(short(qs[0], 40))} to ${n === 2 ? 'one more' : `${n - 1} more`}: what the Mac wanted to know`]),
       dek: `${cap(span(s))} the owner asked ${list([...new Set(s.events.map((e) => e.detail))])} ${n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`}.`,
       body: [
         n === 1
@@ -78,7 +79,7 @@ const W = {
       ])
       : P([
         `${cap(pod)} on ${s.topic}: ${plural(visits, 'visit', 'visits')} with no clear destination`,
-        `${s.topic}, ${plural(visits, 'pass', 'passes')} in an hour: the scrolling goes on`,
+        `${s.topic}, ${plural(visits, 'pass', 'passes')} ${aPeriod('en')}: the scrolling goes on`,
       ]);
     return {
       kicker: s.topic,
@@ -89,7 +90,7 @@ const W = {
           ? `Among the pages read: ${list(good.slice(0, 4).map((p) => q(short(p, 80))))}${good.length === 5 ? ', and one more' : good.length > 5 ? `, and ${good.length - 4} more` : ''}.`
           : `The page titles say little: home, feeds, notifications. ${P(['The classic scroll, more habit than research.', 'A steady presence rather than a read.'])}`,
         `The first visit was at ${hhmm(s.first)}, the last at ${hhmm(s.last)}. ${visits > 12
-          ? P(['The coming and going speaks for itself.', 'The site, it appears, was the fixed point of the hour.'])
+          ? P(['The coming and going speaks for itself.', `The site, it appears, was the fixed point ${ofPeriod('en')}.`])
           : P(['Enough to call it a real session.', 'A targeted visit rather than a wander.'])}`,
       ],
     };
@@ -138,7 +139,7 @@ const W = {
     return {
       kicker: 'Correspondence',
       headline: sent
-        ? P([`Back and forth with ${who}: ${q(short(s.topic, 60))}`, `${q(short(s.topic, 60))}, the exchange of the hour`])
+        ? P([`Back and forth with ${who}: ${q(short(s.topic, 60))}`, `${q(short(s.topic, 60))}, the exchange ${ofPeriod('en')}`])
         : `${plural(s.events.length, 'message', 'messages')} on ${q(short(s.topic, 60))}`,
       dek: `${cap(span(s))}, ${plural(s.events.length, 'email', 'emails')} in the same conversation${sent ? `, ${sent} of them outgoing` : ''}${s.people.length > 1 ? ` with ${list(s.people.slice(0, 3))}` : ''}.`,
       body: [
@@ -157,7 +158,7 @@ const W = {
       kicker: 'Incoming mail',
       headline: s.newsletters === n
         ? `${plural(n, 'newsletter', 'newsletters')} and not one personal letter`
-        : P([`${plural(n, 'email', 'emails')} in, ${s.unread} still to open`, `The letterbox: ${plural(n, 'message', 'messages')} in an hour`]),
+        : P([`${plural(n, 'email', 'emails')} in, ${s.unread} still to open`, `The letterbox: ${plural(n, 'message', 'messages')} ${aPeriod('en')}`]),
       dek: `${s.newsletters ? `${plural(s.newsletters, 'newsletter or notification', 'newsletters and notifications')}` : 'No newsletters'}${people.length ? `, and mail from ${list(people.slice(0, 3))}` : ''}.`,
       body: [
         `Among the subjects: ${list([...new Set(s.events.map((e) => e.title))].slice(0, 5).map((t) => q(short(t, 60))))}.`,
@@ -172,13 +173,13 @@ const W = {
     return {
       kicker: 'Terminal',
       headline: c.length
-        ? `${plural(c.length, 'commit', 'commits')} in an hour: the last one says ${q(short(c.at(-1), 50))}`
+        ? `${plural(c.length, 'commit', 'commits')} ${aPeriod('en')}: the last one says ${q(short(c.at(-1), 50))}`
         : s.serious
           ? P([`${s.serious} commands in the terminal, led by ${top.map((f) => f.family).slice(0, 2).join(' and ')}`, `At work on the command line: ${list(top.map((f) => f.family))}`])
           : 'The terminal opens, but only to look around',
       dek: `${plural(s.events.length, 'command typed', 'commands typed')}${top.length ? `; the most frequent: ${list(top.map((f) => `${f.family} (${f.count})`))}` : ''}.`,
       body: [
-        c.length ? `The git log tells the story: ${list(c.slice(0, 4).map(q))}.` : `No commits this hour: ${P(['the work, if any, is still on the bench', 'exploring before building'])}.`,
+        c.length ? `The git log tells the story: ${list(c.slice(0, 4).map(q))}.` : `No commits ${thisPeriod()}: ${P(['the work, if any, is still on the bench', 'exploring before building'])}.`,
         s.hosts.length ? `Of note: ssh connections to ${list(s.hosts)}.` : P(['All local, no remote connections.', 'No trips to remote servers.']),
         notable(s),
       ].filter(Boolean),
@@ -277,7 +278,7 @@ const W = {
       headline: t.longest && t.longest.minutes >= 40
         ? `${t.longest.minutes} minutes of ${t.longest.app} without a break`
         : t.switches >= 25
-          ? P([`${t.switches} switches between apps in an hour`, `An hour in pieces: ${t.switches} app switches`])
+          ? P([`${t.switches} switches between apps ${aPeriod('en')}`, `Time in pieces: ${t.switches} app switches`])
           : `${top.name} leads the hour${second ? `, ${second.name} follows` : ''}`,
       dek: `${t.active} minutes at the Mac${t.away ? `, ${t.away} away` : ''}; ${list(t.apps.slice(0, 3).map((a) => `${a.name} ${a.minutes} min`))}.`,
       body: [
@@ -364,10 +365,10 @@ const W = {
           ? P([`${cap(plural(c.shots, 'screenshot', 'screenshots'))}: the hour, kept as evidence`, `The camera stays still: ${plural(c.shots, 'screenshot', 'screenshots')}`])
           : c.imported && !c.photos && !c.videos
             ? `${plural(c.imported, 'old picture', 'old pictures')} arrive in Photos`
-            : P([`${cap(what || plural(c.imported, 'picture', 'pictures'))} in the hour`, `The photographer at work: ${what}`]),
+            : P([`${cap(what || plural(c.imported, 'picture', 'pictures'))} ${inPeriod('en')}`, `The photographer at work: ${what}`]),
       dek: `${cap(span(s))}${c.favorites ? `; ${c.favorites} already marked as favourite` : ''}.`,
       body: [
-        what ? `Shot in the hour: ${what}${c.macShots ? ` (${c.macShots} of the screenshots on the Mac)` : ''}.` : '',
+        what ? `Shot ${inPeriod('en')}: ${what}${c.macShots ? ` (${c.macShots} of the screenshots on the Mac)` : ''}.` : '',
         [c.live && `${plural(c.live, 'Live Photo', 'Live Photos')}`, c.panorama && plural(c.panorama, 'panorama', 'panoramas'), c.slomo && 'some slow motion'].filter(Boolean).length
           ? `Among them: ${list([c.live && plural(c.live, 'Live Photo', 'Live Photos'), c.panorama && plural(c.panorama, 'panorama', 'panoramas'), c.slomo && 'some slow motion'].filter(Boolean))}.` : '',
         c.imported ? `Also: ${plural(c.imported, 'older picture', 'older pictures')} imported into the library.` : '',

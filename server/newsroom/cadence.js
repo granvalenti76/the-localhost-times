@@ -68,7 +68,8 @@ const STRICT = { loose: 1.3, balanced: 1, strict: 0.7 };
 /** How many pieces go in the paper. */
 export function maxArticlesFor(cad, config, strictness = 'balanced') {
   const base = config.edition?.maxArticles || 9;
-  const n = cad.kind === 'daily' ? base + 3 : cad.kind === 'weekly' ? Math.max(6, base - 1) : base;
+  // a day makes a few real stories, not a long list: the morning paper is read in five minutes
+  const n = cad.kind === 'daily' ? Math.max(4, Math.round(base * 0.8)) : cad.kind === 'weekly' ? Math.max(6, base - 1) : base;
   return Math.max(3, Math.round(n * (STRICT[strictness] ?? 1)));
 }
 

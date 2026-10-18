@@ -283,6 +283,31 @@ export function weightedStories(events, line) {
     .sort((a, b) => b.weight - a.weight);
 }
 
+/** Browsing that makes a page, not a piece: a few visits in a few minutes. */
+const BROWSING = new Set(['site', 'searches', 'roundup']);
+/** Below this share of the lead's weight a story is a brief, never a piece. */
+const TAIL = 0.3;
+
+/**
+ * Is a story worth a piece? Not a handful of visits over a few minutes ("a minute on a streaming
+ * site"), and not far below the lead. The Editor's choices and own dispatches always are.
+ */
+export function newsworthy(s, top, cad) {
+  if (s.boosted || s.kind === 'dispatch') return true;
+  const minutes = ((s.last ?? 0) - (s.first ?? 0)) / 60e3;
+  if (BROWSING.has(s.kind) && s.events.length < 8 && minutes < (cad.kind === 'hourly' ? 5 : 10)) return false;
+  return s.weight >= Math.max(2, top * TAIL);
+}
+
+/** The stories that make pieces (at most `max`, the lead always among them) and the briefs. */
+export function pickNews(stories, max, cad) {
+  const top = stories[0]?.weight || 0;
+  const main = [];
+  const rest = [];
+  for (const [i, s] of stories.entries()) (main.length < max && (i === 0 || newsworthy(s, top, cad)) ? main : rest).push(s);
+  return { main, rest };
+}
+
 const cleanQuote = (s) => String(s).trim().replace(/^[«"“']+|[»"”']+$/g, '').trim();
 
 /** The front-page Punto and the cartoon: caption and drawing, chosen together. */
@@ -395,8 +420,7 @@ export async function printEdition({ store, config, start, final = true, force =
   const line = steerLine(base, steer);
   const stories = applySteer(weightedStories(events, line), steer);
   const max = maxArticlesFor(cad, config, line.strictness);
-  const main = stories.slice(0, max);
-  const rest = stories.slice(max);
+  const { main, rest } = pickNews(stories, max, cad);
   // continuing stories: previous instalments in the last 7 days
   const series = findSeries(store, main, { before: windowStart, excludeId: id });
   for (const s of main) s.series = seriesInfo(series.get(s.id));

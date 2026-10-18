@@ -43,7 +43,8 @@ test('the presses of each cadence', () => {
   const weekly = cadenceOf({ cadence: { kind: 'weekly', pressHour: 9, weekday: 0 } });
   assert.equal(nextPress(weekly, now), at(2026, 10, 18, 9));
   assert.equal(lastPress(weekly, now), at(2026, 10, 11, 9));
-  assert.ok(maxArticlesFor(daily, { edition: { maxArticles: 9 } }) > maxArticlesFor(hourly, { edition: { maxArticles: 9 } }));
+  // a day makes a few real stories: fewer pieces than an hour's nine, with more room each
+  assert.equal(maxArticlesFor(daily, { edition: { maxArticles: 9 } }), 7);
 });
 
 const visits = (from, n, step, host = 'chess.com') => Array.from({ length: n }, (_, i) => ({

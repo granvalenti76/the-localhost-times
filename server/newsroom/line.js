@@ -10,6 +10,7 @@ import { peopleOf } from './people.js';
 import { setChief, cleanChief } from './chief.js';
 import { voicePrompt } from './voice.js';
 import { cadenceOf, DEFAULT_CADENCE } from './cadence.js';
+import { setPeriod } from './period.js';
 
 const LENGTH_LABELS = { en: { short: 'Short', standard: 'Standard', long: 'Long' }, it: { short: 'Corti', standard: 'Standard', long: 'Lunghi' } };
 const FACTORS = { short: 0.8, standard: 1, long: 1.25 };
@@ -73,6 +74,7 @@ export function getLine(store) {
     manual: { ...(saved.manual || {}) },
   };
   line.cadence = cadenceOf(saved);
+  setPeriod(line.cadence.kind); // the typesetting's phrases follow the span of the paper
   line.chief = cleanChief(saved.chief);
   setChief(line.chief); // the desk reads the managing editor from here
   // what the editor liked and disliked: examples for the writers (kept apart from the line itself)

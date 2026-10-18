@@ -74,3 +74,28 @@ for (const l of ['en', 'it']) {
     }
   });
 }
+
+test('newsworthiness: a few minutes of browsing is a brief; twins are one story; the lead always prints', async () => {
+  const { newsworthy, pickNews } = await import('../server/newsroom/edition.js');
+  const { mergeTwins } = await import('../server/newsroom/cluster.js');
+  const daily = { kind: 'daily' };
+  const MIN = 60e3;
+  const st = (id, kind, weight, n, minutes, extra = {}) => ({ id, source: 'safari', kind, weight, topic: id, events: Array.from({ length: n }, (_, i) => ({ ts: i * (minutes * MIN) / Math.max(1, n - 1) })), first: 0, last: minutes * MIN, ...extra });
+  const lead = st('github.com', 'site', 12, 60, 400);
+  assert.equal(newsworthy(st('a streaming site', 'site', 6.7, 5, 5), 12, daily), false, 'five visits in five minutes made a piece');
+  assert.equal(newsworthy(st('a long read', 'site', 6, 6, 300), 12, daily), true);
+  assert.equal(newsworthy(st('the tail', 'site', 3, 30, 300), 12, daily), false, 'far below the lead');
+  assert.equal(newsworthy(st('chosen', 'site', 1, 2, 1, { boosted: true }), 12, daily), true, 'the Editor\'s choice was dropped');
+  const { main, rest } = pickNews([lead, st('x', 'site', 6.7, 5, 5), st('y', 'site', 6, 9, 200)], 7, daily);
+  assert.deepEqual(main.map((s) => s.id), ['github.com', 'y']);
+  assert.deepEqual(rest.map((s) => s.id), ['x']);
+  // a quiet day: the lead prints anyway
+  assert.equal(pickNews([st('z', 'site', 1, 2, 1)], 7, daily).main.length, 1);
+  // the same diary title six times: one story, with all six entries
+  const entries = Array.from({ length: 6 }, (_, i) => ({ id: `journal:entry:${i}`, source: 'journal', kind: 'entry', weight: 3, topic: 'A day made of paper', events: [{ ts: i }], first: i, last: i }));
+  const merged = mergeTwins([...entries, lead]);
+  assert.equal(merged.length, 2);
+  const twin = merged.find((s) => s.kind === 'entry');
+  assert.equal(twin.events.length, 6);
+  assert.ok(twin.weight > 3);
+});

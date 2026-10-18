@@ -425,7 +425,24 @@ export function buildStories(events) {
     else if (src === 'safari') out.push(...safariStories(list, events));
     else if (BUILDERS[src]) out.push(...BUILDERS[src](list));
   }
-  return placeDispatches(mergeProjects(out, events), bySource.get('editor') || []).sort((a, b) => b.weight - a.weight);
+  return placeDispatches(mergeTwins(mergeProjects(out, events)), bySource.get('editor') || []).sort((a, b) => b.weight - a.weight);
+}
+
+/**
+ * Twins: stories of the same kind, from the same source, with the same subject (the same diary
+ * title written every hour, the same mail subject in two threads) become one, with all their
+ * signals: the paper never prints the same headline twice.
+ */
+export function mergeTwins(stories) {
+  const groups = groupBy(stories, (s) => `${s.source}|${s.kind}|${String(s.topic ?? s.id).trim().toLowerCase()}`);
+  const out = [];
+  for (const list of groups.values()) {
+    if (list.length < 2) { out.push(list[0]); continue; }
+    const head = list.reduce((a, b) => (b.weight > a.weight ? b : a));
+    const events = list.flatMap((s) => s.events).sort((a, b) => a.ts - b.ts);
+    out.push({ ...head, events, first: events[0].ts, last: events.at(-1).ts, weight: head.weight + log2(list.length) * 0.5, twins: list.length });
+  }
+  return out;
 }
 
 const DISPATCH_WEIGHT = { brief: 4, article: 8, lead: 14 };

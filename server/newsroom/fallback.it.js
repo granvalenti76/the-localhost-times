@@ -2,6 +2,7 @@
  * Automatic typesetting (Italian): writes articles without an LLM, from text templates.
  * Steps in when the writer (the local model) is offline or fails.
  */
+import { aPeriod, ofPeriod, inPeriod } from './period.js';
 import { hhmm } from '../util.js';
 
 const hashNum = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
@@ -50,12 +51,12 @@ const W = {
     return {
       kicker: 'Le ricerche',
       headline: n === 1
-        ? P([`Una sola domanda al motore di ricerca: ${q(short(qs[0], 60))}`, `${q(short(qs[0], 60))}: la domanda dell'ora`])
-        : P([`${n} domande in un'ora, a cominciare da ${q(short(qs[0], 50))}`, `Dalla ricerca ${q(short(qs[0], 40))} ${n === 2 ? "a un'altra" : `ad altre ${n - 1}`}: cosa voleva sapere il Mac`]),
+        ? P([`Una sola domanda al motore di ricerca: ${q(short(qs[0], 60))}`, `${q(short(qs[0], 60))}: la domanda ${ofPeriod('it')}`])
+        : P([`${n} domande ${aPeriod('it')}, a cominciare da ${q(short(qs[0], 50))}`, `Dalla ricerca ${q(short(qs[0], 40))} ${n === 2 ? "a un'altra" : `ad altre ${n - 1}`}: cosa voleva sapere il Mac`]),
       dek: `${cap(span(s))} il proprietario ha interrogato ${list([...new Set(s.events.map((e) => e.detail))])} ${n === 1 ? 'una volta' : `${n} volte`}.`,
       body: [
         n === 1
-          ? `La curiosità dell'ora sta tutta in una riga: ${q(qs[0])}. Una ricerca secca, ${span(s)}, senza ripensamenti apparenti.`
+          ? `La curiosità ${ofPeriod('it')} sta tutta in una riga: ${q(qs[0])}. Una ricerca secca, ${span(s)}, senza ripensamenti apparenti.`
           : `Il registro delle ricerche, ${span(s)}, si apre con ${q(qs[0])} e prosegue con ${list(qs.slice(1, 5).map(q))}${n > 5 ? `, più altre ${n - 5}` : ''}.`,
         n >= 3
           ? P(['Letta in fila, la sequenza racconta un ragionamento che si affina passo dopo passo: ogni domanda corregge la precedente.',
@@ -77,7 +78,7 @@ const W = {
       ])
       : P([
         `${cap(pod)} su ${s.topic}: ${plural(visits, 'visita', 'visite')} senza meta precisa`,
-        `${s.topic}, ${plural(visits, 'passaggio', 'passaggi')} in un'ora: lo scorrimento continua`,
+        `${s.topic}, ${plural(visits, 'passaggio', 'passaggi')} ${aPeriod('it')}: lo scorrimento continua`,
       ]);
     return {
       kicker: s.topic,
@@ -137,7 +138,7 @@ const W = {
     return {
       kicker: 'Corrispondenza',
       headline: sent
-        ? P([`Botta e risposta con ${who}: ${q(short(s.topic, 60))}`, `${q(short(s.topic, 60))}, il carteggio dell'ora`])
+        ? P([`Botta e risposta con ${who}: ${q(short(s.topic, 60))}`, `${q(short(s.topic, 60))}, il carteggio ${ofPeriod('it')}`])
         : `${plural(s.events.length, 'messaggio', 'messaggi')} su ${q(short(s.topic, 60))}`,
       dek: `${cap(span(s))}, ${plural(s.events.length, 'email', 'email')} nella stessa conversazione${sent ? `, di cui ${sent} in uscita` : ''}${s.people.length > 1 ? ` con ${list(s.people.slice(0, 3))}` : ''}.`,
       body: [
@@ -156,7 +157,7 @@ const W = {
       kicker: 'Posta in arrivo',
       headline: s.newsletters === n
         ? `${plural(n, 'newsletter', 'newsletter')} e nessuna lettera personale`
-        : P([`${plural(n, 'email', 'email')} in arrivo, ${s.unread} ancora da aprire`, `La cassetta delle lettere: ${plural(n, 'messaggio', 'messaggi')} in un'ora`]),
+        : P([`${plural(n, 'email', 'email')} in arrivo, ${s.unread} ancora da aprire`, `La cassetta delle lettere: ${plural(n, 'messaggio', 'messaggi')} ${aPeriod('it')}`]),
       dek: `${s.newsletters ? `${plural(s.newsletters, 'newsletter o notifica', 'newsletter e notifiche')}` : 'Nessuna newsletter'}${people.length ? `, e posta da ${list(people.slice(0, 3))}` : ''}.`,
       body: [
         `Tra gli oggetti: ${list([...new Set(s.events.map((e) => e.title))].slice(0, 5).map((t) => q(short(t, 60))))}.`,
@@ -171,13 +172,13 @@ const W = {
     return {
       kicker: 'Terminale',
       headline: c.length
-        ? `${plural(c.length, 'commit', 'commit')} in un'ora: l'ultimo dice ${q(short(c.at(-1), 50))}`
+        ? `${plural(c.length, 'commit', 'commit')} ${aPeriod('it')}: l'ultimo dice ${q(short(c.at(-1), 50))}`
         : s.serious
           ? P([`${s.serious} comandi nel terminale, dominano ${top.map((f) => f.family).slice(0, 2).join(' e ')}`, `Al lavoro in riga di comando: ${list(top.map((f) => f.family))}`])
           : 'Il terminale si apre, ma solo per guardarsi intorno',
       dek: `${plural(s.events.length, 'comando digitato', 'comandi digitati')}${top.length ? `; i più frequenti: ${list(top.map((f) => `${f.family} (${f.count})`))}` : ''}.`,
       body: [
-        c.length ? `Il registro git racconta il lavoro: ${list(c.slice(0, 4).map(q))}.` : `Nessun commit nell'ora: ${P(['il lavoro, se c\'è, è ancora sul banco', 'si esplora prima di costruire'])}.`,
+        c.length ? `Il registro git racconta il lavoro: ${list(c.slice(0, 4).map(q))}.` : `Nessun commit ${inPeriod('it')}: ${P(['il lavoro, se c\'è, è ancora sul banco', 'si esplora prima di costruire'])}.`,
         s.hosts.length ? `Da segnalare collegamenti ssh verso ${list(s.hosts)}.` : P(['Tutto in locale, nessuna connessione remota.', 'Nessuna trasferta su server remoti.']),
         notable(s),
       ].filter(Boolean),
@@ -276,7 +277,7 @@ const W = {
       headline: t.longest && t.longest.minutes >= 40
         ? `${t.longest.minutes} minuti di ${t.longest.app} senza staccare`
         : t.switches >= 25
-          ? P([`${t.switches} cambi di app in un'ora`, `Un'ora a pezzi: ${t.switches} cambi di app`])
+          ? P([`${t.switches} cambi di app ${aPeriod('it')}`, `Un tempo a pezzi: ${t.switches} cambi di app`])
           : `${top.name} guida l'ora${second ? `, ${second.name} insegue` : ''}`,
       dek: `${t.active} minuti al Mac${t.away ? `, ${t.away} lontano` : ''}; ${list(t.apps.slice(0, 3).map((a) => `${a.name} ${a.minutes} min`))}.`,
       body: [
@@ -364,10 +365,10 @@ const W = {
           ? P([`${n(c.shots, 'screenshot', 'screenshot')}: l'ora conservata come prova`, `La macchina fotografica resta ferma: ${n(c.shots, 'screenshot', 'screenshot')}`])
           : c.imported && !c.photos && !c.videos
             ? `${n(c.imported, 'vecchia immagine arriva', 'vecchie immagini arrivano')} in Foto`
-            : P([`${what || n(c.imported, 'immagine', 'immagini')} nell'ora`, `Il fotografo al lavoro: ${what}`]),
+            : P([`${what || n(c.imported, 'immagine', 'immagini')} ${inPeriod('it')}`, `Il fotografo al lavoro: ${what}`]),
       dek: `${cap(span(s))}${c.favorites ? `; ${c.favorites === 1 ? 'una già segnata come preferita' : `${c.favorites} già segnate come preferite`}` : ''}.`,
       body: [
-        what ? `Scattato nell'ora: ${what}${c.macShots ? ` (${c.macShots} degli screenshot sul Mac)` : ''}.` : '',
+        what ? `Scattato ${inPeriod('it')}: ${what}${c.macShots ? ` (${c.macShots} degli screenshot sul Mac)` : ''}.` : '',
         [c.live, c.panorama, c.slomo].some(Boolean)
           ? `Fra queste: ${list([c.live && n(c.live, 'Live Photo', 'Live Photo'), c.panorama && n(c.panorama, 'panoramica', 'panoramiche'), c.slomo && 'qualche ripresa al rallentatore'].filter(Boolean))}.` : '',
         c.imported ? `Inoltre: ${n(c.imported, 'immagine più vecchia importata', 'immagini più vecchie importate')} nella libreria.` : '',

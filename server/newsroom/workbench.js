@@ -9,7 +9,7 @@
 import { tr } from '../i18n.js';
 import { hhmm } from '../util.js';
 import { connectLLM } from './llm.js';
-import { composeText, UPDATE, DeskError, cleanHeadline, sameText, sizeFor, dayLabel, keepHand } from './edition.js';
+import { composeText, UPDATE, DeskError, cleanHeadline, sameText, sizeFor, dayLabel, keepHand, pickNews } from './edition.js';
 import { cadenceOf, nextPress, workHour, draftTimes, maxArticlesFor, lastPress } from './cadence.js';
 import { getLine } from './line.js';
 import { liveStart, liveEnd, liveHooks, factLines } from './live.js';
@@ -150,7 +150,8 @@ export async function draftRound(store, config, { now = Date.now(), log = consol
   w.running = Date.now();
   saveWorkbench(store, w);
   try {
-    const top = ranked.slice(0, draftTop(config, cad, line));
+    // only the stories that would make a piece: no drafts for the briefs
+    const top = pickNews(ranked, draftTop(config, cad, line), cad).main;
     for (const [rank, s] of top.entries()) {
       const p = getWorkbench(store, id).pieces[s.id];
       if (p && (p.status === 'approved' || p.status === 'writing' || p.status === 'killed')) continue;
@@ -277,6 +278,7 @@ export function workbenchView(store, config, { now = Date.now(), nextPress: pres
   const hour = workHour(cad, now);
   const printsAt = (cad.kind === 'hourly' && press) || nextPress(cad, now) + (cad.kind === 'hourly' ? 30e3 : 0);
   const max = maxArticlesFor(cad, config, line.strictness);
+  const inPaper = new Set(pickNews(ranked, max, cad).main.map((s) => s.id));
   const minute = new Date(now).getMinutes();
   const rounds = roundsFor(config, cad, now).map((r) => ({ ...r, done: w.rounds.includes(r.key) }));
   const facts = new Map(ranked.map((s) => [s.id, s]));
@@ -299,7 +301,7 @@ export function workbenchView(store, config, { now = Date.now(), nextPress: pres
   const drafted = new Set(pieces.map((p) => p.id));
   const buried = new Set(steer.bury);
   const forming = ranked.filter((s) => !drafted.has(s.id)).map((s) => ({
-    ...meta(s, ranked.indexOf(s)), rank: ranked.indexOf(s) + 1, signals: s.events.length, inPaper: ranked.indexOf(s) < max, boosted: !!s.boosted,
+    ...meta(s, ranked.indexOf(s)), rank: ranked.indexOf(s) + 1, signals: s.events.length, inPaper: inPaper.has(s.id), boosted: !!s.boosted,
     writer: writerFor(line, s.source) ? (({ id: wid, name }) => ({ id: wid, name }))(writerFor(line, s.source)) : null,
   }));
   const p = preview(store, config, { now, nextPress: press });

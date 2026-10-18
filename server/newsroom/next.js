@@ -7,7 +7,7 @@ import { isAmbient } from './time.js';
 import { tr, lang } from '../i18n.js';
 import { buildStories } from './cluster.js';
 import { getLine } from './line.js';
-import { editionWindow, cleanEvents, DeskError, weightedStories } from './edition.js';
+import { editionWindow, cleanEvents, DeskError, weightedStories, pickNews } from './edition.js';
 import { cadenceOf, workHour, workId, maxArticlesFor } from './cadence.js';
 import { hourStart, editionId, hhmm, dayKey } from '../util.js';
 import { SECTIONS } from './sections.js';
@@ -106,6 +106,7 @@ export function preview(store, config, { now = Date.now(), lastCollect = null, n
   const ranked = applySteer(all, steer);
   const buried = all.filter((s) => steer.bury.includes(s.id));
   const max = maxArticlesFor(cad, config, line.strictness);
+  const inPaper = new Set(pickNews(ranked, max, cad).main.map((s) => s.id));
   const news = events.filter((e) => !isAmbient(e)); // time and power are measurements, not signals
   const bySource = {};
   for (const e of news) bySource[e.source] = (bySource[e.source] || 0) + 1;
@@ -124,7 +125,7 @@ export function preview(store, config, { now = Date.now(), lastCollect = null, n
     weight: Math.round(s.weight * 10) / 10,
     first: s.first,
     last: s.last,
-    inPaper: i < max,
+    inPaper: inPaper.has(s.id),
     boosted: !!s.boosted,
   });
   return {
