@@ -8,7 +8,6 @@ import { tr, quote } from '../i18n.js';
 import { Track, Workings, TableSummary, stampOf } from './Proof.jsx';
 import { SpotlightDesk } from './Spotlight.jsx';
 import { Paragraphs, HeadlinePicker } from './Bench.jsx';
-import { ChatterFeed } from './Live.jsx';
 import NewsroomNav from './NewsroomNav.jsx';
 
 const T = tr({
@@ -247,7 +246,7 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
 export default function Newsroom({ editionId: requested, onPublished }) {
   // #/newsroom/spotlight opens the Spotlight board; #/newsroom/next the detailed desk of the next edition
   const spotlightTab = requested === 'spotlight';
-  const sideTab = ['viva', 'live'].includes(requested) ? 'viva' : ['soffiate', 'tips'].includes(requested) ? 'tips' : spotlightTab ? 'spotlight' : null;
+  const sideTab = ['soffiate', 'tips'].includes(requested) ? 'tips' : spotlightTab ? 'spotlight' : null;
   const detail = requested === 'next';
   const editionId = sideTab || detail || ['nuovo', 'new'].includes(requested) ? null : requested;
   const isEvening = !!editionId?.startsWith('sera-');
@@ -521,7 +520,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
             <div className="side-tabs" role="tablist" aria-label={T.panels}>
               <button role="tab" aria-selected={tab === 'meeting'} className={tab === 'meeting' ? 'on' : ''} onClick={() => setTab('meeting')}>{T.meeting}</button>
               <button role="tab" aria-selected={tab === 'spotlight'} className={`tab-spot ${tab === 'spotlight' ? 'on' : ''}`} onClick={() => setTab('spotlight')}>Spotlight</button>
-              <button role="tab" aria-selected={tab === 'viva'} className={tab === 'viva' ? 'on' : ''} onClick={() => setTab('viva')}>{T.viva}</button>
               <button role="tab" aria-selected={tab === 'tips'} className={tab === 'tips' ? 'on' : ''} onClick={() => setTab('tips')}>{T.tipsTab}</button>
             </div>
             {/* the panel scrolls inside the column: a long board never spills over the page */}
@@ -539,8 +537,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
               ) : <p className="hint-small">{T.openEdition}</p>
             ) : tab === 'spotlight' ? (
               <SpotlightDesk setError={setError} />
-            ) : tab === 'viva' ? (
-              <ChatterFeed />
             ) : (
               <TipsPanel setError={setError} />
             )}

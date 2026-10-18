@@ -11,8 +11,6 @@ import { LettersBox } from './Letters.jsx';
 import { InvestigationBox } from './Investigations.jsx';
 import FactCheck from './FactCheck.jsx';
 import RadioBox from './Radio.jsx';
-import { FlashBand, ChatterBox } from './Live.jsx';
-import { SportBox, OracleBox, SerialBox, RumoursBox } from './Games.jsx';
 import { EditorNote } from './Craft.jsx';
 
 /** Small flags on an article: the Editor's choice, a record, a quote, a tip. */
@@ -93,7 +91,7 @@ function Lead({ a, edition, link, cut = 'classic' }) {
   const long = paras.join(' ').length > (cut === 'side' ? 900 : 480);
   return (
     <article className={`lead lead-${cut}`}>
-      <Kicker a={a} chosen={edition.closing?.storyId === a.id} />
+      <Kicker a={a} />
       <h2 className={`hl-xl ${fitOf(a.headline)}`}><a href={link(a)}>{a.headline}</a></h2>
       {a.dek && <p className="dek dek-lg">{a.dek}</p>}
       <Meta a={a} />
@@ -204,7 +202,6 @@ export default function FrontPage({ edition }) {
   const link = (a) => href.article(edition.id, a.id);
   return (
     <div className={`front layout-${layoutOf(edition)}`}>
-      <FlashBand />
       <SpotlightBand scoop={edition.spotlight} />
       <section className="front-top">
         <div className="front-main">
@@ -228,23 +225,15 @@ export default function FrontPage({ edition }) {
             <h3 className="box-title">{tr({ en: 'The Brief', it: 'Il punto' })}</h3>
             <p>{edition.summary}</p>
             {edition.summaryBy && <p className="punto-by">— {edition.summaryBy.name}</p>}
-            {edition.closing && !edition.closing.storyId && edition.closing.option !== 'desk' && edition.closing.option !== 'keep' && (
-              <p className="closing-note">{tr({ en: `At ${hhmm(edition.closing.at)} the Editor decided: ${edition.closing.answer}.`, it: `Alle ${hhmm(edition.closing.at)} il direttore ha deciso: ${edition.closing.answer}.` })}</p>
-            )}
             <EditorNote edition={edition} />
           </section>
           <FactCheck edition={edition} />
           <SpotlightBox edition={edition} />
-          <RumoursBox rumours={edition.rumours} />
         </aside>
       </section>
 
-      {/* below the fold: the games and the numbers, side by side */}
-      <section className="back-pages" aria-label={tr({ en: 'Games and numbers', it: 'Giochi e numeri' })}>
-        <ChatterBox />
-        <SerialBox serial={edition.serial} />
-        <SportBox sport={edition.sport} />
-        <OracleBox oracle={edition.oracle} />
+      {/* below the fold: the numbers, side by side */}
+      <section className="back-pages" aria-label={tr({ en: 'The numbers', it: 'I numeri' })}>
         <InvestigationBox />
         <LettersBox letters={edition.letters} />
         <TimeBox time={edition.time} />

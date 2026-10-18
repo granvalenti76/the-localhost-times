@@ -7,11 +7,8 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { setLang } from '../server/i18n.js';
 import { printEdition } from '../server/newsroom/edition.js';
-import { enrichEdition } from '../server/newsroom/extras.js';
-import { interviewRound, answerCall, openCalls, followLead } from '../server/newsroom/calls.js';
 import { addTip } from '../server/newsroom/tips.js';
 import { paragraphAction, headlineOptions } from '../server/newsroom/bench.js';
-import { episodes } from '../server/newsroom/serial.js';
 import { hourStart } from '../server/util.js';
 import { sandbox, quiet, BROKEN } from './helpers.js';
 
@@ -79,7 +76,7 @@ const wait = async (cond, ms = 5000) => {
   }
 };
 
-test('with a writer: interview question, quote in the piece, extras after the press, bench', async () => {
+test('with a writer: the desk reads, sends back and passes a piece; the bench', async () => {
   setLang('en');
   const { server, calls, port } = await mockServer();
   const { config, store, cleanup } = sandbox();
@@ -88,17 +85,10 @@ test('with a writer: interview question, quote in the piece, extras after the pr
   try {
     const h = hourStart(Date.now()) - 3 * HOUR;
     store.insertEvents(hourOfChess(h));
-    const call = await interviewRound(store, config, { now: h + 30 * MIN, log: quiet });
-    assert.equal(call.question, 'Chief, how did the game against bob end?');
-    answerCall(store, config, call.id, { text: 'Bob is a machine' }, h + 33 * MIN);
     addTip(store, { text: 'The cat walked on the keyboard', ts: h + 10 * MIN });
     const ed = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
-    const a = ed.articles.find((x) => x.id === call.storyId);
+    const a = ed.articles.find((x) => x.id === 'safari:site:chess.com');
     assert.equal(a.writer, 'mock-writer');
-    assert.ok(a.body.some((p) => p.includes('Bob is a machine')));
-    assert.equal(a.body.filter((p) => p.includes('Bob is a machine')).length, 1, 'the quote was added twice');
-    assert.ok(calls.some((m) => /STATEMENT BY THE OWNER/.test(m.map((x) => x.content).join('\n'))), 'the statement never reached the writer');
-    assert.ok(!openCalls(store, h + 2 * HOUR).some((c) => c.id === call.id));
     // the desk: on the front page so read by the managing editor, sent back, rewritten, read by the copy desk
     assert.deepEqual(a.chain.map((x) => x.who), ['reporter', 'triage', 'editor', 'reporter', 'editor', 'copy']);
     assert.equal(a.chain[4].reread, true);
@@ -108,21 +98,6 @@ test('with a writer: interview question, quote in the piece, extras after the pr
     assert.equal(a.headline, 'Bob, again');
     assert.equal(a.draft.headline, 'An evening of chess');
 
-    // after the press: report cards, gossip column, the serial's first episode and its fork
-    const rich = await enrichEdition(store, config, ed.id, { log: quiet });
-    assert.equal(rich.sport.by, 'mock-writer');
-    assert.match(rich.sport.cards.find((c) => c.id === 'site:chess.com').line, /grandmaster/);
-    assert.match(rich.rumours[0].line, /cat/);
-    assert.equal(rich.serial.n, 1);
-    assert.equal(rich.serial.serialTitle, 'The Case of the Idle Cursor');
-    assert.equal(episodes(store).length, 1);
-    const fork = store.items('call', { limit: 5 }).find((c) => c.type === 'serial');
-    assert.equal(fork.options.length, 2);
-    answerCall(store, config, fork.id, { option: 'a' });
-    // reprint + enrich again: the same episode, no second one
-    await enrichEdition(store, config, ed.id, { log: quiet });
-    assert.equal(episodes(store).length, 1);
-
     // the bench with a writer
     const p = await paragraphAction(store, config, ed.id, a.id, { index: 0, op: 'rewrite', instruction: 'meaner' });
     assert.match(p.articles.find((x) => x.id === a.id).body[0], /meaner paragraph/);
@@ -131,38 +106,4 @@ test('with a writer: interview question, quote in the piece, extras after the pr
     cleanup();
     server.close();
   }
-});
-
-test('with a writer: the Editor\'s lead reaches the writer, widens the piece, and a late one has it rewritten', async () => {
-  setLang('en');
-  const { server, calls, port } = await mockServer();
-  const { config, store, cleanup } = sandbox();
-  config.llm.baseUrl = `http://127.0.0.1:${port}/v1`;
-  config.llm.timeoutMs = 5000;
-  try {
-    const h = hourStart(Date.now()) - 3 * HOUR;
-    store.insertEvents(hourOfChess(h));
-    const call = await interviewRound(store, config, { now: h + 30 * MIN, log: quiet });
-    answerCall(store, config, call.id, { text: 'Bob is a machine', lead: 'he always opens with the same gambit' }, h + 33 * MIN);
-    const ed = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
-    const a = ed.articles.find((x) => x.id === call.storyId);
-    const prompt = calls.map((m) => m.map((x) => x.content).join('\n')).find((t) => /LEAD FROM THE OWNER/.test(t));
-    assert.ok(prompt, 'the lead never reached the writer');
-    assert.match(prompt, /same gambit/);
-    assert.equal(a.leads[0].text, 'he always opens with the same gambit');
-    assert.ok(a.body.some((p) => p.includes('Bob is a machine')));
-
-    // a lead after the press, on another printed article: rewritten by the writer, quotes kept
-    const other = ed.articles.find((x) => x.id !== call.storyId) || a;
-    const c2 = store.saveItem({ kind: 'call', type: 'interview', status: 'open', ts: h + 41 * MIN, ref: other.id, storyId: other.id, editionId: ed.id, printedIn: ed.id, question: 'Q?', deadline: h + HOUR + 30e3 });
-    const r = answerCall(store, config, c2.id, { text: 'Green at last', lead: 'count the red runs before it' }, h + HOUR + 5 * MIN);
-    const n = calls.length;
-    const done = await followLead(store, config, r.follow, c2.id, quiet);
-    assert.equal(done.rewritten, true);
-    assert.ok(calls.slice(n).some((m) => /follow the Editor's lead/.test(m.at(-1).content)), 'no rewrite asked');
-    const b = store.getEdition(ed.id).articles.find((x) => x.id === other.id);
-    assert.ok(b.body.some((p) => p.includes('Green at last')), 'the rewrite lost the quote');
-    assert.equal(b.leads.at(-1).text, 'count the red runs before it');
-    assert.doesNotMatch(b.body.join(' '), BROKEN);
-  } finally { cleanup(); server.close(); }
 });

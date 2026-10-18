@@ -22,28 +22,14 @@ const clean = (s, n) => {
 };
 
 /** The menu, in the SwiftBar/xbar text format: first line in the bar, then the dropdown. */
-/** A menu item that answers a call with one click (curl with the paper's header, no browser). */
-const answerItem = (port, c, o) => `--${clean(o.label, 50)} | bash=/usr/bin/curl param1=-s param2=-X param3=POST param4=-H param5=X-Localhost-Times:1 param6=http://127.0.0.1:${port}/api/calls/${c.id}/answer?option=${encodeURIComponent(o.id)} terminal=false refresh=true`;
-
-export function menubarText({ edition, next, base, evening = null, spotlight = null, calls = [], flash = null, port = 4321, max = 42 }) {
+export function menubarText({ edition, next, base, evening = null, spotlight = null, port = 4321, max = 42 }) {
   const lines = [];
   const lead = edition?.articles?.[0];
   const waiting = spotlight?.waiting || [];
-  const ringing = calls.filter((c) => !c.late);
-  // a scoop waiting for the owner's comment, or the newsroom on the line, puts a mark in the bar
-  const mark = `${waiting.length ? '◉ ' : ''}${ringing.length ? '☎︎ ' : ''}`;
-  lines.push(flash ? `${mark}⚡ ${clean(flash.headline, max)}` : `${mark}${lead ? `🗞 ${clean(lead.headline, max)}` : '🗞 The Localhost Times'}`);
+  // a scoop waiting for the owner's comment puts a mark in the bar
+  const mark = waiting.length ? '◉ ' : '';
+  lines.push(`${mark}${lead ? `🗞 ${clean(lead.headline, max)}` : '🗞 The Localhost Times'}`);
   lines.push('---');
-  if (flash) lines.push(`⚡ ${tr({ en: 'Breaking', it: 'Ultim\'ora' })} ${hhmm(flash.ts)}: ${clean(flash.text, 90)} | color=red href=${base}/`);
-  for (const c of ringing) {
-    if (c.type === 'interview') {
-      lines.push(`☎︎ ${clean(c.by?.name || '', 30)}: ${clean(c.question, 70)} | href=${base}/#/calls/${c.id}`);
-    } else {
-      lines.push(`☎︎ ${clean(c.question, 70)}${c.minutesLeft ? ` (${c.minutesLeft} min)` : ''}`);
-      for (const o of c.options) lines.push(answerItem(port, c, o));
-    }
-  }
-  if (flash || ringing.length) lines.push('---');
   if (edition) {
     lines.push(`${tr({ en: `The ${hhmm(edition.hour ?? edition.start)} edition`, it: `Edizione delle ${hhmm(edition.hour ?? edition.start)}` })} | href=${base}/#/e/${encodeURIComponent(edition.id)}`);
     for (const a of edition.articles.slice(0, 6)) {

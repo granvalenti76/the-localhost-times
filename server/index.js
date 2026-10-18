@@ -31,20 +31,13 @@ import { directorView, award, PAGE_AWARDS } from './newsroom/director.js';
 import { staffView, wiresView, manualView, trialRun, hire, fire, rehire, promote } from './newsroom/house.js';
 import { addLesson, removeLesson, lessonFromMark } from './newsroom/people.js';
 import { chiefView } from './newsroom/chief.js';
-import { mailbox, decideLetter, cast } from './newsroom/readers.js';
-import { coffeeBreak } from './newsroom/coffee.js';
 import { nextEditionId } from './newsroom/next.js';
 import { createInvestigation, suggestions, interruptedInvestigations } from './newsroom/investigations.js';
 import { board, leadAction, teaser, recoverLeads, leadFromTip } from './newsroom/spotlight/desk.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
-import { openCalls, callView, answerCall, followLead } from './newsroom/calls.js';
-import { chatter, say } from './newsroom/chatter.js';
+import { say } from './newsroom/chatter.js';
 import { tips, addTip, archiveTip } from './newsroom/tips.js';
-import { oracleBoard, bet } from './newsroom/oracle.js';
-import { recordBook } from './newsroom/sport.js';
-import { latestFlashes } from './newsroom/flash.js';
-import { episodes } from './newsroom/serial.js';
 import { paragraphAction, headlineOptions, verdict, scoreboard, getTaste, forgetExample, headlinesFor, draftTaste } from './newsroom/bench.js';
 
 const [maj, min] = process.versions.node.split('.').map(Number);
@@ -186,34 +179,10 @@ app.post(`${A}/verdict`, wrap((req, res) => res.json(verdict(store, req.params.i
 app.get('/api/taste', (req, res) => { const t = getTaste(store); res.json({ ...scoreboard(store), examples: { liked: t.liked, disliked: t.disliked } }); });
 app.delete('/api/taste', wrap((req, res) => { forgetExample(store, String(req.body?.text || '')); res.json({ ...scoreboard(store), examples: (({ liked, disliked }) => ({ liked, disliked }))(getTaste(store)) }); }));
 
-// ── The newsroom calls the Editor (interviews, the closing at :55, the serial's fork) ──
-app.get('/api/calls', (req, res) => res.json(openCalls(store).map((c) => callView(c))));
-app.post('/api/calls/:id/answer', wrap((req, res) => {
-  const r = answerCall(store, config, req.params.id, {
-    text: req.body?.text, option: req.body?.option ?? req.query.option, decline: !!(req.body?.decline ?? req.query.decline), lead: req.body?.lead,
-  });
-  // a lead after the press: the reporter rewrites the printed article in the background
-  if (r.follow) followLead(store, config, r.follow, r.call.id, log).catch((e) => log(`[newsroom] ${e.message}`));
-  res.json(r);
-}));
-// everything the pages poll in one call: open calls, breaking news, the newsroom chatter
-app.get('/api/live', (req, res) => res.json({
-  calls: openCalls(store).map((c) => callView(c)),
-  flashes: latestFlashes(store, Date.now() - 2 * 3600e3),
-  chatter: chatter(store, { limit: Math.min(50, num(req.query.chatter) || 6) }),
-}));
-app.get('/api/chatter', (req, res) => res.json(chatter(store, { limit: Math.min(200, num(req.query.limit) || 60) })));
-
 // ── The tip box ──
 app.get('/api/tips', (req, res) => res.json(tips(store, { status: req.query.status || null, limit: 100 })));
 app.post('/api/tips', wrap((req, res) => res.json(addTip(store, { text: req.body?.text, via: req.body?.via === 'cli' ? 'cli' : 'web' }))));
 app.post('/api/tips/:id/archive', wrap((req, res) => res.json(archiveTip(store, req.params.id))));
-
-// ── The games: the Oracle, the records, the serial ──
-app.get('/api/oracle', (req, res) => res.json(oracleBoard(store)));
-app.post('/api/oracle/bet', wrap((req, res) => res.json(bet(store, String(req.body?.id || ''), req.body?.yes))));
-app.get('/api/records', (req, res) => res.json(recordBook(store)));
-app.get('/api/serial', (req, res) => res.json(episodes(store)));
 
 // ── Evening edition ──
 app.get('/api/evening/:day', (req, res) => {
@@ -231,9 +200,6 @@ app.post('/api/evening/:day/publish', wrap((req, res) => res.json(publishEvening
 
 // ── Letters to the editor ──
 app.get('/api/letters', (req, res) => res.json(store.letters({ limit: 100 }).filter((l) => !l.reader || ['published', 'pending', 'answered'].includes(l.status))));
-// the readers' mail, waiting for the Editor: publish, answer in person, or bin
-app.get('/api/letters/mailbox', (req, res) => res.json({ letters: mailbox(store), readers: cast() }));
-app.post('/api/letters/:id/decide', wrap((req, res) => res.json(decideLetter(store, req.params.id, req.body || {}))));
 app.post('/api/letters', wrap((req, res) => res.json(submitLetter(store, req.body || {}))));
 app.post('/api/letters/:id/answer', wrap(async (req, res) => res.json(await answerNow(store, config, req.params.id, log))));
 
@@ -270,8 +236,6 @@ app.get('/api/menubar', (req, res) => {
     },
     base: `http://localhost:${config.port}`,
     port: config.port,
-    calls: openCalls(store).map((c) => callView(c)),
-    flash: latestFlashes(store, Date.now() - 3600e3)[0] || null,
     max: Math.min(80, Number(req.query.max) || 42),
   }));
 });
@@ -352,8 +316,6 @@ app.post('/api/workbench/:sid/paragraph', wrap((req, res) => {
 // ── The Editor's career: copies, rank, the day's missions ──
 app.get('/api/director', (req, res) => res.json(directorView(store)));
 app.get('/api/chief', (req, res) => res.json(chiefView(store)));
-app.get('/api/coffee', (req, res) => res.json(store.getSetting('coffee', null)));
-app.post('/api/coffee', wrap(async (req, res) => res.json(await coffeeBreak(store, config, { force: !!req.body?.force, log }))));
 app.post('/api/director/award', wrap((req, res) => {
   const reason = String(req.body?.reason || '');
   if (!PAGE_AWARDS.includes(reason)) return res.status(400).json({ error: 'unknown move' });

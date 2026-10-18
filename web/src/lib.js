@@ -55,9 +55,6 @@ export function parseRoute(hash) {
   if (p[0] === 'investigations' || p[0] === 'inchieste') return { investigations: true };
   if ((p[0] === 'investigation' || p[0] === 'inchiesta') && p[1]) return { investigation: p[1] };
   if (p[0] === 'spotlight') return p[1] ? { scoop: p[1] } : { spotlight: true };
-  if (p[0] === 'calls' || p[0] === 'chiamate') return { calls: p[1] || true };
-  if (p[0] === 'serial' || p[0] === 'feuilleton') return { serial: p[1] || true };
-  if (p[0] === 'sport') return { sport: true };
   if (p[0] === 'e' && p[1]) return { edition: p[1], article: p[2] === 'a' ? p[3] : null, xray: p[2] === 'a' && p[4] === 'x' };
   if (p[0] === 'd' && p[1]) return { day: p[1], section: p[2] === 's' ? p[3] : null };
   return {};
@@ -76,15 +73,12 @@ export const href = {
   investigation: (id) => `#/investigation/${id}`,
   spotlight: (id) => (id ? `#/spotlight/${id}` : '#/spotlight'),
   spotlightDesk: () => '#/newsroom/spotlight',
-  calls: (id) => (id ? `#/calls/${id}` : '#/calls'),
-  serial: (id) => (id ? `#/serial/${id}` : '#/serial'),
   bench: (id) => (id ? `#/newsroom/banco/${encodeURIComponent(id)}` : '#/newsroom/banco'),
   line: () => '#/house',
   write: (sid) => (sid ? `#/newsroom/write/${encodeURIComponent(sid)}` : '#/newsroom/write'),
   proofs: (sid) => (sid ? `#/newsroom/proofs/${encodeURIComponent(sid)}` : '#/newsroom/proofs'),
   house: (tab) => (tab ? `#/house/${tab}` : '#/house'),
   nextDetail: () => '#/newsroom/next',
-  sport: () => '#/sport',
 };
 
 /** A mark out of ten the Italian way (6,5) or the English way (6.5). */

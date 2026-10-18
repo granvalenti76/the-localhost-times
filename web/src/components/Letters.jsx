@@ -43,67 +43,6 @@ const STATUS = tr({
   it: { pending: 'In attesa della prossima edizione', answered: 'Risposta pronta, esce nella prossima edizione' },
 });
 
-/**
- * The readers' mail: the regulars write about the pieces they read, and each letter waits for the
- * Editor. Publish it (the managing editor answers at the next press), answer it yourself, or bin it.
- * The readers remember what happened to their letters.
- */
-export function Mailbox({ onChange }) {
-  const [box, setBox] = useState(null);
-  const [replying, setReplying] = useState(null);
-  const [reply, setReply] = useState('');
-  const [busy, setBusy] = useState(null);
-  const [error, setError] = useState(null);
-  const load = () => api('/letters/mailbox').then(setBox).catch(() => setBox({ letters: [] }));
-  useEffect(() => { load(); }, []);
-  async function decide(id, action) {
-    setBusy(id); setError(null);
-    try {
-      await api(`/letters/${id}/decide`, { method: 'POST', json: { action, reply } });
-      setReplying(null); setReply('');
-      await load();
-      onChange?.();
-    } catch (e) { setError(e.message); } finally { setBusy(null); }
-  }
-  if (!box?.letters?.length) return null;
-  const tone = { praise: tr({ en: 'praise', it: 'complimenti' }), complaint: tr({ en: 'a complaint', it: 'una lamentela' }), other: '' };
-  return (
-    <section className="mailbox">
-      <header>
-        <h3>{tr({ en: 'The readers\' mail', it: 'La posta dei lettori' })} <span className="mt-n">{box.letters.length}</span></h3>
-        <p>{tr({ en: 'The regulars write about the pieces they read. You decide: publish it (the managing editor answers), answer it yourself, or bin it. They remember.', it: 'I lettori abituali scrivono sui pezzi che leggono. Decidi tu: pubblicala (risponde il caporedattore), rispondi di persona, o cestinala. Se lo ricordano.' })}</p>
-      </header>
-      {box.letters.map((l) => (
-        <article key={l.id} className={`mail-item tone-${l.tone || 'other'}`}>
-          <div className="mail-meta">
-            <strong>{l.signature}</strong>
-            {l.about && <> · {tr({ en: 'on', it: 'su' })} <a href={href.article(l.about.editionId, l.about.articleId)}>{l.about.headline}</a>{l.about.writer?.name ? ` (${l.about.writer.name})` : ''}</>}
-            {tone[l.tone] && <em> · {tone[l.tone]}</em>}
-          </div>
-          <p className="letter-text">{l.text}</p>
-          {replying === l.id ? (
-            <div className="mail-reply">
-              <label className="sr-only" htmlFor={`reply-${l.id}`}>{tr({ en: 'Your answer', it: 'La tua risposta' })}</label>
-              <textarea id={`reply-${l.id}`} rows={3} value={reply} onChange={(e) => setReply(e.target.value)} placeholder={tr({ en: 'Dear reader…', it: 'Caro lettore…' })} autoFocus />
-              <div className="mail-acts">
-                <button className="btn btn-small" disabled={busy === l.id || !reply.trim()} onClick={() => decide(l.id, 'reply')}>{tr({ en: 'Publish with my answer', it: 'Pubblica con la mia risposta' })}</button>
-                <button className="btn-ghost" onClick={() => setReplying(null)}>{tr({ en: 'Cancel', it: 'Annulla' })}</button>
-              </div>
-            </div>
-          ) : (
-            <div className="mail-acts">
-              <button className="btn btn-small" disabled={busy === l.id} onClick={() => decide(l.id, 'publish')}>{tr({ en: 'Publish', it: 'Pubblica' })}</button>
-              <button className="btn-ghost" disabled={busy === l.id} onClick={() => { setReplying(l.id); setReply(''); }}>{tr({ en: 'Answer it yourself', it: 'Rispondi tu' })}</button>
-              <button className="btn-ghost danger" disabled={busy === l.id} onClick={() => decide(l.id, 'bin')}>{tr({ en: 'Bin it', it: 'Cestina' })}</button>
-            </div>
-          )}
-        </article>
-      ))}
-      {error && <p className="notice">{error}</p>}
-    </section>
-  );
-}
-
 /** The letters page: write and read back. */
 export default function LettersPage() {
   const [list, setList] = useState(null);
@@ -148,8 +87,6 @@ export default function LettersPage() {
         <h2>{tr({ en: 'Letters to the editor', it: 'Lettere al direttore' })}</h2>
         <p>{tr({ en: 'Write to the paper: the newsroom answers in the next edition, with the data at hand.', it: 'Scrivi al giornale: la redazione risponde nella prossima edizione, con i dati alla mano.' })}</p>
       </header>
-
-      <Mailbox onChange={load} />
 
       <div className="letter-form">
         <label htmlFor="letter-text" className="lbl">{tr({ en: 'Your letter', it: 'La tua lettera' })}</label>

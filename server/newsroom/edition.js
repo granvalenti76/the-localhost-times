@@ -17,11 +17,8 @@ import { findSeries, seriesInfo, seriesFacts } from './series.js';
 import { lettersForEdition } from './letters.js';
 import { pendingScoop } from './spotlight/desk.js';
 import { computeTime, computeMac, isAmbient } from './time.js';
-import { interviewFacts, quoteParagraph, leadParagraph, closingOf } from './calls.js';
 import { tipsForEdition, tipFolders, isTipNote } from './tips.js';
-import { metrics, checkRecords, recordFact, reportCards, matchesFrom } from './sport.js';
-import { oracleRound } from './oracle.js';
-import { flashesBetween } from './flash.js';
+import { metrics, checkRecords, recordFact } from './records.js';
 import { featureOn } from './line.js';
 import { lint } from './lint.js';
 import { say } from './chatter.js';
@@ -230,14 +227,6 @@ async function writeArticle(story, rank, ctx) {
     }
   }
   text ||= fallbackArticle(story);
-  // the Editor's statements always reach the page: the typesetting adds them if the writer didn't
-  for (const qt of story.quotes || []) {
-    const said = qt.answer && text.body.some((p) => p.includes(qt.answer.slice(0, 40)));
-    if (said) continue;
-    if (qt.answer || isTypeset(text.writer)) text.body = [...text.body, quoteParagraph(qt)];
-  }
-  // without a writer, the typesetting follows the Editor's leads in a paragraph of its own
-  if (isTypeset(text.writer)) for (const ld of story.leads || []) text.body = [...text.body, leadParagraph(ld.text)];
   text.lint = lint(text.body);
   return {
     id: story.id,
@@ -413,20 +402,17 @@ export async function printEdition({ store, config, start, final = true, force =
   for (const s of main) s.series = seriesInfo(series.get(s.id));
   const hourLabel = cad.kind !== 'hourly' ? dayLabel(end - 1) : windowStart < hour ? `${hhmm(windowStart)}–${hhmm(end)}` : hhmm(hour);
 
-  // what the Editor and the paper's games add to the facts: statements, tips, records
+  // what the Editor and the paper add to the facts: tips, records
   const stats = computeStats(news, windowStart, end);
   const time = computeTime(events, windowStart, end);
   const single = windowStart === hour;
-  const records = featureOn(line, 'sport') ? safely(() => checkRecords(store, metrics({ news, stats, time }), { editionId: id, at: hour, single }), [], log) : [];
+  const records = safely(() => checkRecords(store, metrics({ news, stats, time }), { editionId: id, at: hour, single }), [], log);
   const tipped = featureOn(line, 'tips') ? safely(() => tipsForEdition(store, main, { end, editionId: id }), { facts: new Map(), box: [] }, log) : { facts: new Map(), box: [] };
   const metricList = records.length ? metrics({ news, stats, time }) : [];
   for (const s of main) {
-    const iv = featureOn(line, 'interview') ? safely(() => interviewFacts(store, s, { windowStart, end, editionId: id }), { facts: '', quotes: [], leads: [] }, log) : { facts: '', quotes: [], leads: [] };
-    s.quotes = iv.quotes;
-    s.leads = iv.leads;
     s.records = records.filter((r) => metricList.find((m) => m.key === r.key)?.story(s));
     s.tipped = tipped.facts.has(s.id);
-    s.extra = iv.facts + (tipped.facts.get(s.id) || '') + s.records.map(recordFact).join('') + safely(() => crossFacts(s, events), '', log);
+    s.extra = (tipped.facts.get(s.id) || '') + s.records.map(recordFact).join('') + safely(() => crossFacts(s, events), '', log);
   }
 
   const llm = await connectLLM(config);
@@ -462,21 +448,7 @@ export async function printEdition({ store, config, start, final = true, force =
   // the fact-check reads the finished edition: articles, Brief and the hour's data
   const factcheck = await factCheck({ articles, stories: main, summary, stats, market, hourLabel }, ctx);
 
-  // the games: the sports page, the Oracle; the Editor's closing call; the breaking news of the hour
-  const sport = featureOn(line, 'sport') ? safely(() => ({
-    cards: reportCards({ stories: main, time, market, records }),
-    records,
-    matches: matchesFrom(main),
-  }), null, log) : null;
-  const recentTotals = safely(() => store.db.prepare(`SELECT payload FROM editions WHERE start_ts < ? ORDER BY start_ts DESC LIMIT 6`).all(windowStart)
-    .map((r) => JSON.parse(r.payload).stats?.total || 0), [], log);
-  const oracle = featureOn(line, 'oracle') ? safely(() => oracleRound(store, {
-    editionId: id, events, end, recentTotals,
-    eventsFor: (a, b) => cleanEvents(store.eventsBetween(a, b), config),
-  }), null, log) : null;
-  const closing = safely(() => closingOf(store, { windowStart, end }), null, log);
-  const flashes = safely(() => flashesBetween(store, windowStart, end), [], log);
-  if (records.length) say(store, 'sport', tr({ en: `Sports desk: record! ${records[0].label}: ${records[0].value}.`, it: `Redazione sportiva: primato! ${records[0].label}: ${records[0].value}.` }));
+  if (records.length) say(store, 'sport', tr({ en: `Record! ${records[0].label}: ${records[0].value}.`, it: `Primato! ${records[0].label}: ${records[0].value}.` }));
 
   const edition = {
     id,
@@ -501,12 +473,7 @@ export async function printEdition({ store, config, start, final = true, force =
     market,
     letters: newLetters,
     spotlight: existing?.spotlight || pendingScoop(store, id),
-    sport,
-    oracle,
-    closing,
-    flashes,
-    rumours: tipped.box.length ? tipped.box : existing?.rumours || null,
-    serial: existing?.serial || null,
+    records: records.length ? records : undefined,
     stats,
     time,
     mac,

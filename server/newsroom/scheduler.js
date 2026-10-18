@@ -5,14 +5,9 @@ import { hourStart, editionId, dayKey } from '../util.js';
 import { printEvening } from './evening.js';
 import { recordBulletin } from './radio.js';
 import { spotlightRound } from './spotlight/desk.js';
-import { enrichEdition } from './extras.js';
-import { interviewRound, closingRound, expireCalls, msToClosing, formingStories } from './calls.js';
-import { flashRound } from './flash.js';
-import { chatterRound } from './chatter.js';
 import { draftRound } from './workbench.js';
-import { readersRound } from './readers.js';
 import { getLine } from './line.js';
-import { cadenceOf, nextPress, lastPress, workHour, closingTime, hasEvening } from './cadence.js';
+import { cadenceOf, nextPress, lastPress, workHour, hasEvening } from './cadence.js';
 import { editionId as idOf } from '../util.js';
 
 const HOUR = 3600e3;
@@ -49,66 +44,13 @@ export function createNewsroom({ store, config, log = console.log, notify = null
     }).catch(() => {});
   };
 
-  // after the press, the model adds the report cards, the gossip column and the serial (the edition doesn't wait)
-  const enrich = (ed) => {
-    if (!ed) return;
-    queue(busy(() => enrichEdition(store, config, ed.id, { log }))).catch((e) => log(`[extras] ${e.message}`));
-    // and a regular reader may write about one of its pieces
-    queue(() => readersRound(store, config, ed.id, { log })).catch((e) => log(`[readers] ${e.message}`));
-  };
-
   const printHour = (start, final, force = false) => queue(busy(async () => {
     const ed = await printEdition({ store, config, start, final, force, log });
     radio(ed);
-    enrich(ed);
     return ed;
   }));
 
-  // the newsroom at work during the hour: calls to the Editor, breaking news, the chatter
-  let deskBusy = false;
-  async function deskRound() {
-    if (deskBusy || config.demo) return;
-    deskBusy = true;
-    try {
-      const now = Date.now();
-      expireCalls(store, now);
-      flashRound(store, config, { now, notify, log });
-      const { stories, line } = formingStories(store, config, now);
-      chatterRound(store, { stories, now, line });
-      await interviewRound(store, config, { now, notify, log });
-    } catch (e) {
-      log(`[desk] ${e.message}`);
-    } finally {
-      deskBusy = false;
-    }
-  }
-
   const cadence = () => cadenceOf(getLine(store));
-
-  /** When the desk next calls the Editor about the edition about to close (the cadence decides). */
-  function msToNextClosing(now = Date.now()) {
-    const cad = cadence();
-    if (cad.kind === 'hourly') return msToClosing(now, config.desk?.closingMinute ?? 55);
-    let t = closingTime(cad, config, nextPress(cad, now));
-    if (t <= now) t = closingTime(cad, config, nextPress(cad, nextPress(cad, now) + 1));
-    return t - now;
-  }
-
-  function scheduleClosing() {
-    // at most an hour of sleep: a change of cadence is picked up within the hour
-    const wait = msToNextClosing();
-    setTimeout(async () => {
-      try {
-        if (wait <= HOUR) {
-          await collect();
-          closingRound(store, config, { notify, log });
-        }
-      } catch (e) {
-        log(`[closing] ${e.message}`);
-      }
-      scheduleClosing();
-    }, Math.min(wait, HOUR) + 1000);
-  }
 
   /**
    * A daily or weekly paper: the edition of the last press, if it hasn't been printed for good yet
@@ -195,9 +137,8 @@ export function createNewsroom({ store, config, log = console.log, notify = null
   async function start() {
     await collect();
     scheduleHourly();
-    if (!config.demo) scheduleClosing();
     setInterval(() => {
-      collect().then(() => deskRound()).then(() => (config.demo ? null : drafts())).catch((e) => log(`[${tr({ en: 'collect', it: 'raccolta' })}] ${e.message}`));
+      collect().then(() => (config.demo ? null : drafts())).catch((e) => log(`[${tr({ en: 'collect', it: 'raccolta' })}] ${e.message}`));
       // a right of reply that has expired doesn't wait for the next hour
       spotlight(true);
     }, config.collectEveryMinutes * 60e3);
@@ -209,5 +150,5 @@ export function createNewsroom({ store, config, log = console.log, notify = null
       .catch((e) => log(`[${tr({ en: 'backfill', it: 'arretrati' })}] ${e.message}`));
   }
 
-  return { collect, printNow, printHour, printEveningFor, backfill, start, state, spotlight, deskRound, enrich, queue, draftNow };
+  return { collect, printNow, printHour, printEveningFor, backfill, start, state, spotlight, queue, draftNow };
 }

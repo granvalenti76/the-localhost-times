@@ -248,49 +248,6 @@ test('the managing editor has a character and an opinion of the Editor', async (
   }
 });
 
-test('a reader\'s letter waits for the Editor: publish, answer in person, or bin', async () => {
-  setLang('it');
-  const { store, cleanup } = sandbox();
-  try {
-    const { decideLetter, mailbox } = await import('../server/newsroom/readers.js');
-    const { letterPrompt } = await import('../server/newsroom/prompts.js');
-    const mk = (tone) => { const l = store.addLetter({ ts: Date.now(), text: 'Che bella chiusa.', signature: 'Gina Fabbri, Rovereto', reader: 'fan', tone, about: { editionId: 'e', articleId: 'a', headline: 'Il pezzo', writer: { id: 'web', name: 'Elena Rossetti' } } }); store.saveLetter({ ...l, status: 'inbox' }); return l.id; };
-    const a = mk('praise');
-    const b = mk('complaint');
-    const c = mk('other');
-    assert.equal(mailbox(store).length, 3);
-    assert.equal(decideLetter(store, a, { action: 'publish' }).status, 'pending');
-    assert.equal(staff(getLine(store)).web.mood, 'fine');
-    const r = decideLetter(store, b, { action: 'reply', reply: 'Ha ragione lei.' });
-    assert.equal(r.status, 'answered');
-    assert.equal(r.replyBy, 'editor');
-    assert.equal(decideLetter(store, c, { action: 'bin' }).status, 'binned');
-    assert.equal(mailbox(store).length, 0);
-    assert.throws(() => decideLetter(store, c, { action: 'publish' }), /posta/);
-    const p = letterPrompt({ letter: store.getLetter(a), overview: 'OGGI', line: getLine(store) });
-    assert.match(p[0].content, /NON è del proprietario/);
-  } finally {
-    cleanup();
-    setLang('en');
-  }
-});
-
-test('the coffee machine works without a model', async () => {
-  setLang('it');
-  const { config, store, cleanup } = sandbox();
-  try {
-    const { coffeeBreak } = await import('../server/newsroom/coffee.js');
-    const c = await coffeeBreak(store, config);
-    assert.ok(c.lines.length >= 3);
-    assert.notEqual(c.a.id, c.b.id);
-    assert.equal(c.by, 'typesetting');
-    assert.equal((await coffeeBreak(store, config)).at, c.at, 'a second break straight after is the same one');
-  } finally {
-    cleanup();
-    setLang('en');
-  }
-});
-
 test('sources: attention weighs the web, a project becomes one story, the terminal follows the cd', async () => {
   const { buildStories, attentionBySite, projectOfCommands, factSheet } = await import('../server/newsroom/cluster.js');
   const { fallbackArticle } = await import('../server/newsroom/fallback.js');

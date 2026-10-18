@@ -16,6 +16,15 @@ import { siteOf } from './cluster.js';
 const HOUR = 3600e3;
 const KEY = 'steer';
 
+/** The stories forming in the current hour (same window and weights as the next edition). */
+export function formingStories(store, config, now = Date.now()) {
+  const line = getLine(store);
+  const { windowStart, id } = editionWindow(store, config, workHour(cadenceOf(line), now));
+  const events = cleanEvents(store.eventsBetween(windowStart, now), config, line);
+  const stories = weightedStories(events, line);
+  return { stories, windowStart, editionId: id, line };
+}
+
 // ───────────────────────── Steering ─────────────────────────
 
 const empty = (id) => ({ editionId: id, boost: [], bury: [], notes: [] });
