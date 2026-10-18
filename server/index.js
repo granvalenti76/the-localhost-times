@@ -25,20 +25,17 @@ import { tr, lang, locale } from './i18n.js';
 import { rssFeed } from './feed.js';
 import { search, ask } from './newsroom/archive.js';
 import { preview, steer } from './newsroom/next.js';
-import { workbenchView, approvePiece, editPiece, killPiece, sendBack, queueNote, getWorkbench } from './newsroom/workbench.js';
-import { liveView } from './newsroom/live.js';
-import { directorView, award, PAGE_AWARDS } from './newsroom/director.js';
+import { workbenchView } from './newsroom/workbench.js';
 import { staffView, wiresView, manualView, trialRun, hire, fire, rehire, promote } from './newsroom/house.js';
-import { addLesson, removeLesson, lessonFromMark } from './newsroom/people.js';
+import { addLesson, removeLesson } from './newsroom/people.js';
 import { chiefView } from './newsroom/chief.js';
 import { nextEditionId } from './newsroom/next.js';
 import { createInvestigation, suggestions, interruptedInvestigations } from './newsroom/investigations.js';
 import { board, leadAction, teaser, recoverLeads, leadFromTip } from './newsroom/spotlight/desk.js';
-import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
 import { say } from './newsroom/chatter.js';
 import { tips, addTip, archiveTip } from './newsroom/tips.js';
-import { paragraphAction, headlineOptions, verdict, scoreboard, getTaste, forgetExample, headlinesFor, draftTaste } from './newsroom/bench.js';
+import { paragraphAction, headlineOptions } from './newsroom/bench.js';
 
 const [maj, min] = process.versions.node.split('.').map(Number);
 if (maj < 22 || (maj === 22 && min < 13)) {
@@ -166,18 +163,9 @@ app.post('/api/editions/:id/reprint', wrap(async (req, res) => {
   res.json(await newsroom.printHour(ed.hour ?? ed.start, ed.final, true));
 }));
 
-// ── The editor's bench: one paragraph, one headline, keep or cut ──
-app.post(`${A}/paragraph`, wrap(async (req, res) => {
-  const ed = await paragraphAction(store, config, req.params.id, req.params.aid, req.body || {}, log);
-  // a ♥ (or ✕) given on the page or at the bench counts for the Editor too
-  const op = req.body?.op;
-  const gained = op === 'like' || op === 'dislike' ? award(store, 'heart', `${req.params.id}:${req.params.aid}:${req.body?.index}`) : null;
-  res.json(gained ? { ...ed, award: gained } : ed);
-}));
+// ── One paragraph (♥ ✕ ✂ ↻), one headline ──
+app.post(`${A}/paragraph`, wrap(async (req, res) => res.json(await paragraphAction(store, config, req.params.id, req.params.aid, req.body || {}, log))));
 app.post(`${A}/headlines`, wrap(async (req, res) => res.json(await headlineOptions(store, config, req.params.id, req.params.aid))));
-app.post(`${A}/verdict`, wrap((req, res) => res.json(verdict(store, req.params.id, req.params.aid, req.body?.verdict))));
-app.get('/api/taste', (req, res) => { const t = getTaste(store); res.json({ ...scoreboard(store), examples: { liked: t.liked, disliked: t.disliked } }); });
-app.delete('/api/taste', wrap((req, res) => { forgetExample(store, String(req.body?.text || '')); res.json({ ...scoreboard(store), examples: (({ liked, disliked }) => ({ liked, disliked }))(getTaste(store)) }); }));
 
 // ── The tip box ──
 app.get('/api/tips', (req, res) => res.json(tips(store, { status: req.query.status || null, limit: 100 })));
@@ -202,13 +190,6 @@ app.post('/api/evening/:day/publish', wrap((req, res) => res.json(publishEvening
 app.get('/api/letters', (req, res) => res.json(store.letters({ limit: 100 }).filter((l) => !l.reader || ['published', 'pending', 'answered'].includes(l.status))));
 app.post('/api/letters', wrap((req, res) => res.json(submitLetter(store, req.body || {}))));
 app.post('/api/letters/:id/answer', wrap(async (req, res) => res.json(await answerNow(store, config, req.params.id, log))));
-
-// ── Editorial meeting ──
-app.get('/api/threads/:id', wrap((req, res) => res.json(getThreadRepaired(store, config, req.params.id))));
-app.post('/api/threads/:id', wrap(async (req, res) =>
-  res.json(await discuss({ store, config, threadId: req.params.id, text: req.body?.text, articleId: req.body?.articleId, session: req.body?.session, runtime: newsroom.state, log }))));
-app.post('/api/threads/:id/apply', wrap(async (req, res) =>
-  res.json(await applyAction({ store, config, threadId: req.params.id, msgIndex: Number(req.body?.msg), actionIndex: Number(req.body?.action), printNow: () => newsroom.printNow(), log }))));
 
 app.post('/api/collect', wrap(async (req, res) => {
   const n = await newsroom.collect();
@@ -244,12 +225,8 @@ app.get('/api/menubar', (req, res) => {
 app.get('/api/next', (req, res) => res.json(preview(store, config, { lastCollect: newsroom.state.lastCollect, nextPress: newsroom.state.nextEdition })));
 app.post('/api/next/steer', wrap((req, res) => {
   const b = req.body || {};
-  const before = preview(store, config, {});
   steer(store, config, b);
-  // a story the meeting had left out, brought into the paper: the Editor's rescue
-  const was = before.stories.find((x) => x.id === b.story);
-  const rescued = b.op === 'boost' && was && !was.inPaper ? award(store, 'rescue', `${before.editionId}:${b.story}`) : null;
-  res.json({ ...preview(store, config, { lastCollect: newsroom.state.lastCollect, nextPress: newsroom.state.nextEdition }), award: rescued });
+  res.json(preview(store, config, { lastCollect: newsroom.state.lastCollect, nextPress: newsroom.state.nextEdition }));
 }));
 
 // ── The next edition in the works: the hour's drafts and the Editor's hand on them ──
@@ -259,69 +236,8 @@ app.post('/api/workbench/round', wrap((req, res) => {
   newsroom.draftNow().catch((e) => log(`[drafts] ${e.message}`));
   res.json({ ...bench(), running: Date.now() });
 }));
-app.get('/api/workbench/live', (req, res) => res.json({ desks: liveView(), running: getWorkbench(store, nextEditionId(Date.now(), store)).running || null }));
-app.post('/api/workbench/:sid/approve', wrap((req, res) => {
-  const on = req.body?.on !== false;
-  approvePiece(store, req.params.sid, on);
-  const v = bench();
-  let gained = null;
-  if (on) {
-    gained = award(store, 'visto', `${v.editionId}:${req.params.sid}`);
-    // every draft on the desk passed before the closing
-    const open = v.pieces.filter((p) => p.text && p.status !== 'killed');
-    if (open.length > 1 && open.every((p) => p.status === 'approved') && Date.now() < v.closingAt) {
-      const early = award(store, 'early', v.editionId);
-      if (early) gained = { ...early, gained: (gained?.gained || 0) + early.gained, missions: [...(gained?.missions || []), ...early.missions] };
-    }
-  }
-  res.json({ ...v, award: gained });
-}));
-app.patch('/api/workbench/:sid', wrap((req, res) => { editPiece(store, req.params.sid, req.body || {}); res.json(bench()); }));
-app.post('/api/workbench/:sid/kill', wrap((req, res) => { killPiece(store, config, req.params.sid, req.body?.on !== false); res.json(bench()); }));
-app.post('/api/workbench/:sid/note', wrap((req, res) => {
-  const job = sendBack(store, config, req.params.sid, req.body?.note, { log });
-  newsroom.queue(job).catch((e) => log(`[drafts] ${e.message}`));
-  const v = bench();
-  res.json({ ...v, award: award(store, 'note', `${v.editionId}:${req.params.sid}:${Date.now()}`) });
-}));
-// a note for a piece still being typed: the reporter takes it when done
-app.post('/api/workbench/:sid/queue-note', wrap((req, res) => {
-  queueNote(store, req.params.sid, req.body?.note);
-  const v = bench();
-  res.json({ ...v, award: award(store, 'note', `${v.editionId}:${req.params.sid}:${Date.now()}`) });
-}));
-app.post('/api/workbench/:sid/headlines', wrap(async (req, res) => {
-  const p = bench().pieces.find((x) => x.id === req.params.sid);
-  if (!p?.text) return res.status(404).json({ error: tr({ en: 'That draft is not on the desk.', it: 'Questa bozza non è sul tavolo.' }) });
-  res.json(await headlinesFor(store, config, { ...p.text, section: p.section }));
-}));
-// a correction of the proof round becomes a lesson for the writer of the piece
-app.post('/api/workbench/:sid/lesson', wrap((req, res) => {
-  const p = bench().pieces.find((x) => x.id === req.params.sid);
-  const lesson = lessonFromMark(String(req.body?.kind || ''), req.body?.text);
-  if (!p?.writer || !lesson) return res.json({ learned: false });
-  const fresh = addLesson(store, p.writer.id, lesson);
-  if (fresh) say(store, p.writer.id, tr({ en: `${p.writer.name}: noted. ${lesson.text}`, it: `${p.writer.name}: segnato. ${lesson.text}` }));
-  res.json({ learned: !!fresh, writer: p.writer, lesson: lesson.text });
-}));
-app.post('/api/workbench/:sid/paragraph', wrap((req, res) => {
-  const p = bench().pieces.find((x) => x.id === req.params.sid);
-  const i = Number(req.body?.index);
-  const text = p?.text?.body?.[i];
-  if (!text) return res.status(404).json({ error: tr({ en: 'Paragraph not found', it: 'Paragrafo non trovato' }) });
-  const fresh = draftTaste(store, { text, writer: p.writer?.id || null, name: p.writer?.name || null, op: req.body?.op });
-  res.json({ ok: true, award: fresh ? award(store, 'heart', `${p.id}:${i}`) : null });
-}));
-
-// ── The Editor's career: copies, rank, the day's missions ──
-app.get('/api/director', (req, res) => res.json(directorView(store)));
+// ── The managing editor ──
 app.get('/api/chief', (req, res) => res.json(chiefView(store)));
-app.post('/api/director/award', wrap((req, res) => {
-  const reason = String(req.body?.reason || '');
-  if (!PAGE_AWARDS.includes(reason)) return res.status(400).json({ error: 'unknown move' });
-  const ref = String(req.body?.ref || '').slice(0, 200) || null;
-  res.json({ award: award(store, reason, ref), director: directorView(store) });
-}));
 
 // ── The Publishing House: the staff, the wires, the style manual ──
 app.get('/api/staff', (req, res) => res.json(staffView(store)));

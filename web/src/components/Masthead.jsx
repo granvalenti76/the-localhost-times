@@ -51,19 +51,9 @@ export default function Masthead({ edition, evening, day, status, activeSlug }) 
         <a href={href.letters()} className={`letters-link ${activeSlug === 'letters' ? 'on' : ''}`}>{tr({ en: 'Letters', it: 'Lettere' })}</a>
         <a href={href.spotlight()} className={`spot-link ${activeSlug === 'spotlight' ? 'on' : ''}`}>Spotlight</a>
         <a href={href.archive()} className={activeSlug === 'archive' ? 'on' : ''}>{tr({ en: 'Archive', it: 'Archivio' })}</a>
-        {/* the newsroom and its rooms: hover (or focus) opens the submenu */}
-        <span className="nav-drop">
-          <a href={href.desk()} className={`desk-link ${activeSlug === 'newsroom' ? 'on' : ''}`} aria-haspopup="true">
-            {tr({ en: 'Newsroom', it: 'Redazione' })}{status?.drafts ? <span className="badge">{status.drafts}</span> : null}
-            <span className="nav-caret" aria-hidden="true">▾</span>
-          </a>
-          <span className="nav-sub" role="menu">
-            <a role="menuitem" href={href.desk()}>{tr({ en: 'The desk', it: 'La scrivania' })}<em>{tr({ en: 'where the next edition stands', it: 'a che punto è il prossimo numero' })}</em></a>
-            <a role="menuitem" href={href.write()}>{tr({ en: 'Writing room', it: 'Sala scrittura' })}<em>{tr({ en: 'the pieces as they are typed', it: 'i pezzi mentre vengono scritti' })}</em></a>
-            <a role="menuitem" href={href.proofs()}>{tr({ en: 'Proof round', it: 'Giro di bozze' })}<em>{tr({ en: 'the red pencil, one draft at a time', it: 'la matita rossa, una bozza alla volta' })}</em></a>
-            <a role="menuitem" href={href.house()}>{tr({ en: 'Publishing House', it: 'Casa Editrice' })}<em>{tr({ en: 'what paper to make: cadence, wires, staff, style', it: 'che giornale fare: uscita, agenzie, redattori, stile' })}</em></a>
-          </span>
-        </span>
+        <a href={href.desk()} className={`desk-link ${activeSlug === 'newsroom' ? 'on' : ''}`}>
+          {tr({ en: 'Newsroom', it: 'Redazione' })}{status?.drafts ? <span className="badge">{status.drafts}</span> : null}
+        </a>
       </nav>
     </header>
   );

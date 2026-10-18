@@ -41,10 +41,6 @@ export const shortDate = (ms) =>
 // Routes are in English; the Italian ones still work (old links, bookmarks).
 export function parseRoute(hash) {
   const p = hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
-  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'banco' || p[1] === 'bench')) return { desk: true, bench: true, edition: p[2] || null };
-  // the two rooms that take the whole page: the writing room and the proof round
-  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'write' || p[1] === 'scrittura')) return { room: 'write', sid: p[2] || null };
-  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'proofs' || p[1] === 'bozze')) return { room: 'proofs', sid: p[2] || null };
   // the editorial line moved to the Publishing House
   if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'linea' || p[1] === 'line')) return { house: 'masthead' };
   if (p[0] === 'house' || p[0] === 'casa-editrice') return { house: p[1] || 'masthead' };
@@ -73,12 +69,8 @@ export const href = {
   investigation: (id) => `#/investigation/${id}`,
   spotlight: (id) => (id ? `#/spotlight/${id}` : '#/spotlight'),
   spotlightDesk: () => '#/newsroom/spotlight',
-  bench: (id) => (id ? `#/newsroom/banco/${encodeURIComponent(id)}` : '#/newsroom/banco'),
   line: () => '#/house',
-  write: (sid) => (sid ? `#/newsroom/write/${encodeURIComponent(sid)}` : '#/newsroom/write'),
-  proofs: (sid) => (sid ? `#/newsroom/proofs/${encodeURIComponent(sid)}` : '#/newsroom/proofs'),
   house: (tab) => (tab ? `#/house/${tab}` : '#/house'),
-  nextDetail: () => '#/newsroom/next',
 };
 
 /** A mark out of ten the Italian way (6,5) or the English way (6.5). */

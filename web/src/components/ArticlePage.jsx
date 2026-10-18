@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { api, href, hhmm, writerLabel, edHour, shortDate, episodeLabel, readingTime } from '../lib.js';
-import { Toast, useDirector } from './Rooms.jsx';
 import Para from './Para.jsx';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
@@ -47,7 +46,7 @@ function Lede({ p, last }) {
 
 /**
  * ♥ on a paragraph, right on the page: the writer learns from it (it becomes an example of what the
- * Editor likes) and is cheered up; the Editor earns copies.
+ * Editor likes).
  */
 function Heart({ edition, a, i, liked, onLiked }) {
   const [busy, setBusy] = useState(false);
@@ -55,8 +54,8 @@ function Heart({ edition, a, i, liked, onLiked }) {
     if (liked || busy) return;
     setBusy(true);
     try {
-      const r = await api(`/editions/${encodeURIComponent(edition.id)}/articles/${encodeURIComponent(a.id)}/paragraph`, { method: 'POST', json: { index: i, op: 'like' } });
-      onLiked(i, r?.award);
+      await api(`/editions/${encodeURIComponent(edition.id)}/articles/${encodeURIComponent(a.id)}/paragraph`, { method: 'POST', json: { index: i, op: 'like' } });
+      onLiked(i);
     } catch { /* the page stays as it is */ } finally { setBusy(false); }
   }
   const who = a.byline?.name;
@@ -69,16 +68,11 @@ function Heart({ edition, a, i, liked, onLiked }) {
 export default function ArticlePage({ edition, article: a, xray: xrayAtStart = false }) {
   const [xray, setXray] = useState(xrayAtStart);
   const [liked, setLiked] = useState(() => Object.fromEntries(Object.entries(a.marks || {}).filter(([, v]) => v === 'like').map(([k]) => [k, true])));
-  const { gain, toast } = useDirector();
-  const onLiked = (i, award) => {
-    setLiked((x) => ({ ...x, [i]: true }));
-    gain(award || { gained: 0 }, a.byline?.name ? tr({ en: `${a.byline.name} takes note`, it: `${a.byline.name} prende nota` }) : null);
-  };
+  const onLiked = (i) => setLiked((x) => ({ ...x, [i]: true }));
   const others = edition.articles.filter((x) => x.id !== a.id).slice(0, 4);
   const pq = pullQuote(a.body);
   return (
     <div className="story-wrap">
-      <Toast toast={toast} />
       <div className="story-top">
         <a className="back" href={href.edition(edition.id)}>← {tr({ en: `The ${hhmm(edHour(edition))} front page`, it: `Prima pagina delle ${hhmm(edHour(edition))}` })}</a>
         <span className="story-top-right">

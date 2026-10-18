@@ -1,13 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, href, hhmm, dayKey, longDate, SECTIONS, writerLabel, edHour, edSince, readingTime, styleName } from '../lib.js';
-import Meeting from './Meeting.jsx';
 import DeskCartoon from './DeskCartoon.jsx';
 import FactCheck from './FactCheck.jsx';
-import NextDesk from './NextDesk.jsx';
 import { tr, quote } from '../i18n.js';
 import { Track, Workings, TableSummary, stampOf } from './Proof.jsx';
 import { SpotlightDesk } from './Spotlight.jsx';
-import { Paragraphs, HeadlinePicker } from './Bench.jsx';
+import { Paragraphs, HeadlinePicker } from './Paragraphs.jsx';
 import NewsroomNav from './NewsroomNav.jsx';
 
 const T = tr({
@@ -109,7 +107,7 @@ function TipsPanel({ setError }) {
 
 // ───────────────────────── A piece on the desk ─────────────────────────
 
-function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
+function Draft({ a, i, n, ed, onChange, setError }) {
   const [mode, setMode] = useState(null); // 'edit' | 'rewrite' | 'heads'
   const [panel, setPanel] = useState(null); // 'read' | 'work'
   const [busy, setBusy] = useState(false);
@@ -211,7 +209,6 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
                 <button className="btn-link-ink" onClick={startEdit}>{T.edit}</button>
                 <button className={`btn-link-ink ${mode === 'rewrite' ? 'on' : ''}`} onClick={() => toggle('rewrite')}>{T.rewrite}</button>
                 <button className={`btn-link-ink ${mode === 'heads' ? 'on' : ''}`} onClick={() => toggle('heads')}>{T.heads}</button>
-                <button className="btn-link-ink" onClick={() => onDiscuss?.(a)}>{T.discuss}</button>
                 {i > 0 && <button className="btn-link-ink" disabled={busy} onClick={() => call('/move', { method: 'POST', json: { to: 'top' } })}>{T.toLead}</button>}
                 <button className="btn-link-ink danger" disabled={busy} onClick={() => call('/spike', { method: 'POST' })}>{T.spike}</button>
               </div>
@@ -244,18 +241,13 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
 // ───────────────────────── The desk ─────────────────────────
 
 export default function Newsroom({ editionId: requested, onPublished }) {
-  // #/newsroom/spotlight opens the Spotlight board; #/newsroom/next the detailed desk of the next edition
-  const spotlightTab = requested === 'spotlight';
-  const sideTab = ['soffiate', 'tips'].includes(requested) ? 'tips' : spotlightTab ? 'spotlight' : null;
-  const detail = requested === 'next';
-  const editionId = sideTab || detail || ['nuovo', 'new'].includes(requested) ? null : requested;
+  // #/newsroom/spotlight and #/newsroom/tips open a side panel; without an edition, the latest one
+  const sideTab = ['soffiate', 'tips'].includes(requested) ? 'tips' : requested === 'spotlight' ? 'spotlight' : null;
+  const editionId = sideTab || ['next', 'nuovo', 'new'].includes(requested) ? null : requested;
   const isEvening = !!editionId?.startsWith('sera-');
-  // the next edition in the works: the detailed desk on request (or with a side panel open)
-  const nextView = !editionId;
   const [day, setDay] = useState(() => (editionId ? (isEvening ? editionId.slice(5) : editionId.slice(0, 10)) : dayKey(Date.now())));
-  const [tab, setTab] = useState(sideTab || 'meeting');
+  const [tab, setTab] = useState(sideTab || 'spotlight');
   const [view, setView] = useState('pieces');
-  const [focus, setFocus] = useState(null);
   const [evening, setEvening] = useState(null);
   const [statusInfo, setStatusInfo] = useState(null);
   const [list, setList] = useState([]);
@@ -284,21 +276,19 @@ export default function Newsroom({ editionId: requested, onPublished }) {
   useEffect(() => { api('/status').then(setStatusInfo).catch(() => {}); }, []);
   useEffect(() => { refreshList(); }, [refreshList]);
 
-  // the open edition: the one requested (none: the next edition, in the works)
-  const currentId = isEvening ? null : editionId || null;
+  // the open edition: the one requested, or the latest printed
+  const [latestId, setLatestId] = useState(null);
+  useEffect(() => {
+    if (editionId) return;
+    api('/editions/latest').then((e) => { if (e) { setLatestId(e.id); setDay(e.id.slice(0, 10)); } }).catch(() => {});
+  }, [editionId]);
+  const currentId = isEvening ? null : editionId || latestId;
   useEffect(() => {
     if (!currentId) { setEd(null); return; }
     api(`/editions/${encodeURIComponent(currentId)}`).then(setEd).catch((e) => setError(e.message));
   }, [currentId]);
 
   const update = (next) => { setEd(next); refreshList(); };
-
-  // the result of an action approved in the meeting
-  function onMeetingResult(r) {
-    if (r.edition) setEd(r.edition);
-    if (r.evening) setEvening(r.evening);
-    refreshList();
-  }
 
   async function eveningAct(label, path) {
     setBusy(label);
@@ -367,11 +357,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
                   </a>
                 ))}
                 {!list.length && <span className="hint-small">{T.noEditions}</span>}
-                {day === dayKey(Date.now()) && (
-                  <a href={href.desk()} className={`ed-chip ed-chip-next ${nextView ? 'on' : ''}`}>
-                    {hhmm(new Date().setMinutes(0, 0, 0))}<em>{T.inWorks}</em>
-                  </a>
-                )}
                 {evening ? (
                   <a href={href.desk(`sera-${day}`)} className={`ed-chip ed-chip-evening ${isEvening ? 'on' : ''}`}>
                     {T.evening}{evening.status === 'draft' && <em>{T.draft}</em>}
@@ -394,8 +379,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
             )}
 
             {error && <p className="notice">{error}</p>}
-
-            {nextView && <NextDesk setError={setError} offline={['offline', 'disabled'].includes(statusInfo?.llm?.state)} onPrinted={() => refreshList()} />}
 
             {isEvening && evening && (
               <>
@@ -442,7 +425,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
                   <div>
                     <span className={`status ${status}`}>{status === 'draft' ? T.draftStatus : T.onStand}</span>
                     <strong>{T.editionOf(hhmm(edHour(ed)))}</strong>{edSince(ed)}
-                    <a className="back-next" href={href.desk()}>{T.toNext}</a>
                     <span className="muted"> · {ed.articles.length} {T.articles}{ed.tone ? ` · ${T.toneLabel} ${toneName(ed.tone)}` : ''} · {writerLabel(ed.writer)}</span>
                   </div>
                   <div className="desk-bar-actions">
@@ -451,7 +433,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
                         {busy === 'publish' ? T.inPress : T.sendToPress}
                       </button>
                     )}
-                    <a className="btn-ghost bench-link" href={href.bench(ed.id)} title={T.benchHint}>⚡ {T.bench}</a>
                     {status === 'published' && <a className="btn-ghost" href={href.edition(ed.id)}>{T.seeOnPage}</a>}
                     <button className={`btn-ghost ${armed ? 'danger on' : ''}`} disabled={!!busy}
                       title={T.reprintTitle}
@@ -474,8 +455,7 @@ export default function Newsroom({ editionId: requested, onPublished }) {
                 {view === 'pieces' && (
                   <div className="pieces">
                     {ed.articles.map((a, i) => (
-                      <Draft key={a.id} a={a} i={i} n={ed.articles.length} ed={ed} onChange={update} setError={setError}
-                        onDiscuss={(art) => { setTab('meeting'); setFocus({ id: art.id, headline: art.headline }); }} />
+                      <Draft key={a.id} a={a} i={i} n={ed.articles.length} ed={ed} onChange={update} setError={setError} />
                     ))}
                   </div>
                 )}
@@ -518,24 +498,12 @@ export default function Newsroom({ editionId: requested, onPublished }) {
 
           <aside className="desk-side">
             <div className="side-tabs" role="tablist" aria-label={T.panels}>
-              <button role="tab" aria-selected={tab === 'meeting'} className={tab === 'meeting' ? 'on' : ''} onClick={() => setTab('meeting')}>{T.meeting}</button>
               <button role="tab" aria-selected={tab === 'spotlight'} className={`tab-spot ${tab === 'spotlight' ? 'on' : ''}`} onClick={() => setTab('spotlight')}>Spotlight</button>
               <button role="tab" aria-selected={tab === 'tips'} className={tab === 'tips' ? 'on' : ''} onClick={() => setTab('tips')}>{T.tipsTab}</button>
             </div>
             {/* the panel scrolls inside the column: a long board never spills over the page */}
             <div className="side-body">
-            {tab === 'meeting' ? (
-              (isEvening ? evening : ed || list.at(-1)) ? (
-                <Meeting
-                  threadId={isEvening ? `sera-${day}` : (ed || list.at(-1)).id}
-                  kind={isEvening ? 'evening' : 'edition'}
-                  focus={isEvening ? null : focus}
-                  onClearFocus={() => setFocus(null)}
-                  onResult={onMeetingResult}
-                  model={statusInfo?.llm?.model}
-                />
-              ) : <p className="hint-small">{T.openEdition}</p>
-            ) : tab === 'spotlight' ? (
+            {tab === 'spotlight' ? (
               <SpotlightDesk setError={setError} />
             ) : (
               <TipsPanel setError={setError} />

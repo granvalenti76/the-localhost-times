@@ -7,7 +7,6 @@ import { tr } from '../i18n.js';
 import { getLine, saveLine, TRAITS } from './line.js';
 import { staff, writerFor, DEFAULT_DESKS, HIRE_KINDS, hireDefaults, rosterIds, firedIds, isHire } from './writers.js';
 import { bylines, recordOf, lessonsOf, ABILITIES, can, forgetLevels } from './people.js';
-import { getDirector, rankOf } from './director.js';
 import { say } from './chatter.js';
 import { systemLayers, articlePrompt } from './prompts.js';
 import { buildStories, factSheet } from './cluster.js';
@@ -40,7 +39,7 @@ export function staffView(store) {
   const all = bylines(store);
   const month = bylines(store, Date.now() - 30 * DAY);
   const desks = { ...DEFAULT_DESKS, ...(line.desks || {}) };
-  const rank = rankOf(getDirector(store).copies).level;
+  const rank = Infinity; // no ranks any more: nothing is locked
   const onStaff = rosterIds(line);
   const list = Object.values(people).map((w) => {
     const r = recordOf(store, w.id, all);

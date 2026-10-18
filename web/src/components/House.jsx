@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, href, SECTIONS, modelName } from '../lib.js';
 import { tr } from '../i18n.js';
-import { Medallion, MOODS } from './Rooms.jsx';
+import { Medallion, MOODS } from './Medallion.jsx';
 import { wordDiff } from './Proof.jsx';
 
 /*

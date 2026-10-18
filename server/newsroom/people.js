@@ -105,7 +105,8 @@ export const ABILITIES = [
   { id: 'nose', level: 5, en: ['A nose for stories', 'They propose a long read on their beat, on the desk'], it: ['Il fiuto', 'Propongono un approfondimento sul loro settore, alla scrivania'] },
   { id: 'trusted', level: 7, en: ['Trusted byline', 'The managing editor reads only their lead pieces'], it: ['Firma di fiducia', 'Il caporedattore legge solo le loro aperture'] },
 ];
-export const can = (w, ability) => (w?.level || 1) >= (ABILITIES.find((a) => a.id === ability)?.level ?? 99);
+// Every writer can do everything: the paper is always written at its best, whatever the record.
+export const can = () => true;
 
 // ───────────────────────── Lessons ─────────────────────────
 

@@ -13,10 +13,6 @@ import LettersPage from './components/Letters.jsx';
 import ArchivePage from './components/ArchivePage.jsx';
 import { InvestigationsPage, InvestigationPage } from './components/Investigations.jsx';
 import { SpotlightList, SpotlightPage } from './components/Spotlight.jsx';
-import Bench from './components/Bench.jsx';
-import WritingRoom from './components/WritingRoom.jsx';
-import Desk from './components/Desk.jsx';
-import ProofRoom from './components/ProofRoom.jsx';
 import House from './components/House.jsx';
 
 function useHashRoute() {
@@ -48,7 +44,7 @@ export default function App() {
   // The current edition
   useEffect(() => {
     let alive = true;
-    const page = route.room || route.house || route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop;
+    const page = route.house || route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop;
     if (page) { setLoaded(true); return () => { alive = false; }; }
     const p = route.edition ? api(`/editions/${encodeURIComponent(route.edition)}`) : route.day ? Promise.resolve(null) : api('/editions/latest');
     p.then((e) => {
@@ -60,7 +56,7 @@ export default function App() {
       .catch((err) => alive && (setEdition(null), setError(route.edition ? err.message : null)))
       .finally(() => alive && setLoaded(true));
     return () => { alive = false; };
-  }, [route.room, route.house, route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop]);
+  }, [route.house, route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop]);
 
   useEffect(() => { if (route.day) setDay(route.day); }, [route.day]);
   useEffect(() => { if (route.evening) setDay(route.evening); }, [route.evening]);
@@ -111,15 +107,6 @@ export default function App() {
   // pages of their own: no timeline bar above them
   const standalone = route.house || route.desk || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop;
 
-  // the writing room and the proof round take the whole page: nothing else on screen
-  if (route.room) {
-    return (
-      <div className="rd-focus-page">
-        {route.room === 'write' ? <WritingRoom key={route.sid || 'w'} sid={route.sid} /> : <ProofRoom key={route.sid || 'p'} sid={route.sid} />}
-      </div>
-    );
-  }
-
   return (
     <div className="paper">
       <Masthead edition={route.desk || route.evening || standalone ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk || route.house ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.archive || route.investigations || route.investigation ? 'archive' : route.evening ? 'evening' : route.section} />
@@ -138,10 +125,6 @@ export default function App() {
       <main>
         {route.house ? (
           <House tab={route.house} />
-        ) : route.desk && route.bench ? (
-          <Bench key={route.edition || 'bench'} editionId={route.edition} />
-        ) : route.desk && !route.edition ? (
-          <Desk />
         ) : route.desk ? (
           <Newsroom key={route.edition || 'desk'} editionId={route.edition} onPublished={() => { refreshList(); refreshStatus(false); refreshEvening(); }} />
         ) : route.letters ? (

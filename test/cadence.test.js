@@ -13,7 +13,6 @@ import { systemFor } from '../server/newsroom/prompts.js';
 import { personaPrompt, staff } from '../server/newsroom/writers.js';
 import { marksFor, applyFix } from '../server/newsroom/marks.js';
 import { partialArticle } from '../server/newsroom/live.js';
-import { award, directorView, missionsOf, streakOf } from '../server/newsroom/director.js';
 import { manualView, staffView, hire, fire, rehire, promote } from '../server/newsroom/house.js';
 import { nudge, addLesson, lessonFromMark, moodOf } from '../server/newsroom/people.js';
 import { writerFor } from '../server/newsroom/writers.js';
@@ -150,31 +149,6 @@ test('the writing room reads a piece while it is being typed', () => {
   assert.deepEqual(partialArticle('{"kick').body, []);
 });
 
-test('the Editor\'s career: copies pay once, missions pay their prize, the run of days', () => {
-  const { store, cleanup } = sandbox();
-  try {
-    const now = at(2026, 10, 14, 12);
-    const first = award(store, 'visto', 'ed:a', now);
-    assert.equal(first.gained >= 20, true);
-    assert.equal(award(store, 'visto', 'ed:a', now), null, 'the same pass paid twice');
-    const day = dayKey(now);
-    const m = missionsOf(day);
-    assert.equal(m.length, 4);
-    assert.equal(new Set(m.map((x) => x.id)).size, 4);
-    // a heart completes the "heart" mission, if drawn today
-    const r = award(store, 'heart', 'p:1', now);
-    if (m.some((x) => x.id === 'heart')) assert.ok(r.missions.includes('heart'));
-    award(store, 'visto', 'ed:b', now - 24 * HOUR);
-    const v = directorView(store, now);
-    assert.equal(v.streak, 2);
-    assert.ok(v.copies > 0);
-    assert.equal(v.rank.level >= 1, true);
-    assert.equal(streakOf([], now), 0);
-  } finally {
-    cleanup();
-  }
-});
-
 test('a rewrite keeps the corrections the Editor made by hand', () => {
   setLang('it');
   const corrected = { chain: [{ who: 'reporter' }, { who: 'editor' }, { who: 'chief', kind: 'edit' }] };
@@ -200,9 +174,6 @@ test('the staff grows: moods, lessons, hires, firings, the intern promoted', () 
     assert.equal(addLesson(store, 'local', lessonFromMark('inflated', 'cruciale')), false);
     assert.match(personaPrompt(staff(getLine(store)).local), /Non scrivere «cruciale»/);
 
-    // hiring needs rank: copies first
-    assert.throws(() => hire(store, { kind: 'intern' }), /livello/);
-    store.setSetting('director', { copies: 300, log: [] });
     const id = hire(store, { kind: 'intern', name: 'Pietro Gallo' });
     const v = staffView(store);
     assert.equal(v.staff.find((x) => x.id === id).kind, 'intern');
