@@ -26,8 +26,9 @@ const at = (y, m, d, h, min = 0) => new Date(y, m - 1, d, h, min).getTime();
 
 test('the presses of each cadence', () => {
   const now = at(2026, 10, 14, 15, 20); // a Wednesday
-  const hourly = cadenceOf({});
-  assert.equal(hourly.kind, 'hourly');
+  // a new paper is the morning daily
+  assert.deepEqual([cadenceOf({}).kind, cadenceOf({}).pressHour], ['daily', 7]);
+  const hourly = cadenceOf({ cadence: { kind: 'hourly' } });
   assert.equal(nextPress(hourly, now), at(2026, 10, 14, 16));
   assert.equal(workId(hourly, now), '2026-10-14T15');
 
@@ -42,7 +43,7 @@ test('the presses of each cadence', () => {
   const weekly = cadenceOf({ cadence: { kind: 'weekly', pressHour: 9, weekday: 0 } });
   assert.equal(nextPress(weekly, now), at(2026, 10, 18, 9));
   assert.equal(lastPress(weekly, now), at(2026, 10, 11, 9));
-  assert.ok(maxArticlesFor(daily, { edition: { maxArticles: 9 } }) > maxArticlesFor(cadenceOf({}), { edition: { maxArticles: 9 } }));
+  assert.ok(maxArticlesFor(daily, { edition: { maxArticles: 9 } }) > maxArticlesFor(hourly, { edition: { maxArticles: 9 } }));
 });
 
 const visits = (from, n, step, host = 'chess.com') => Array.from({ length: n }, (_, i) => ({

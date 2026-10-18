@@ -1,5 +1,5 @@
 /**
- * Records: the measurable things of an edition ("most visits to chess.com in an hour"), compared
+ * Records: the measurable things of an edition ("most visits to chess.com in a day"), compared
  * with the best the paper has seen. A record broken becomes a fact of its story, and a flag on the page.
  */
 import { tr, lang } from '../i18n.js';
@@ -13,24 +13,35 @@ const MIN_OBS = 3;
 
 const MIN = { site: 15, signals: 40, commands: 15, commits: 2, searches: 5, switches: 30, focus: 30, mailsOut: 3, photos: 10 };
 
-/** The measurable things of an hour, each with the story it belongs to. */
-export function metrics({ news, stats, time }) {
+/** "in an hour", "in a day", "in a week": records are kept per cadence, never mixed. */
+const PER = {
+  hourly: { en: 'in an hour', it: 'in un\'ora' },
+  daily: { en: 'in a day', it: 'in un giorno' },
+  weekly: { en: 'in a week', it: 'in una settimana' },
+};
+
+/** The measurable things of an edition, each with the story it belongs to. */
+export function metrics({ news, stats, time, cadence = 'hourly' }) {
   const out = [];
+  const per = PER[cadence] || PER.hourly;
+  const L = (en, it) => tr({ en: `${en} ${per.en}`, it: `${it} ${per.it}` });
+  // hourly records keep their old keys; the others are kept apart
+  const K = (key) => (cadence === 'hourly' ? key : `${cadence}:${key}`);
   const visits = {};
   for (const e of news) if (e.source === 'safari' && e.kind === 'visit' && e.meta?.host) visits[siteOf(e.meta.host)] = (visits[siteOf(e.meta.host)] || 0) + 1;
   for (const [site, n] of Object.entries(visits)) {
-    out.push({ key: `site:${site}`, kind: 'site', value: n, label: tr({ en: `Visits to ${site} in an hour`, it: `Visite a ${site} in un'ora` }), story: (s) => s.kind === 'site' && s.topic === site });
+    out.push({ key: K(`site:${site}`), kind: 'site', value: n, label: L(`Visits to ${site}`, `Visite a ${site}`), story: (s) => s.kind === 'site' && s.topic === site });
   }
   const commits = news.filter((e) => e.source === 'terminal' && e.meta?.family === 'git commit').length;
-  const add = (key, kind, value, label, story) => { if (value) out.push({ key, kind, value, label, story }); };
-  add('signals', 'signals', stats?.total || news.length, tr({ en: 'Signals in an hour', it: 'Segnali in un\'ora' }), () => false);
-  add('commands', 'commands', stats?.commands || 0, tr({ en: 'Terminal commands in an hour', it: 'Comandi nel terminale in un\'ora' }), (s) => s.kind === 'session');
-  add('commits', 'commits', commits, tr({ en: 'Commits in an hour', it: 'Commit in un\'ora' }), (s) => s.kind === 'session');
-  add('searches', 'searches', stats?.searches || 0, tr({ en: 'Web searches in an hour', it: 'Ricerche sul web in un\'ora' }), (s) => s.kind === 'searches');
-  add('mailsOut', 'mailsOut', stats?.mailsOut || 0, tr({ en: 'Emails sent in an hour', it: 'Email inviate in un\'ora' }), (s) => s.source === 'mail');
-  add('photos', 'photos', news.filter((e) => e.source === 'photos' && e.kind === 'photo').length, tr({ en: 'Photos in an hour', it: 'Foto in un\'ora' }), (s) => s.kind === 'shots');
+  const add = (key, kind, value, label, story) => { if (value) out.push({ key: K(key), kind, value, label, story }); };
+  add('signals', 'signals', stats?.total || news.length, L('Signals', 'Segnali'), () => false);
+  add('commands', 'commands', stats?.commands || 0, L('Terminal commands', 'Comandi nel terminale'), (s) => s.kind === 'session');
+  add('commits', 'commits', commits, L('Commits', 'Commit'), (s) => s.kind === 'session');
+  add('searches', 'searches', stats?.searches || 0, L('Web searches', 'Ricerche sul web'), (s) => s.kind === 'searches');
+  add('mailsOut', 'mailsOut', stats?.mailsOut || 0, L('Emails sent', 'Email inviate'), (s) => s.source === 'mail');
+  add('photos', 'photos', news.filter((e) => e.source === 'photos' && e.kind === 'photo').length, L('Photos', 'Foto'), (s) => s.kind === 'shots');
   if (time) {
-    add('switches', 'switches', time.switches || 0, tr({ en: 'App switches in an hour', it: 'Cambi di app in un\'ora' }), (s) => s.kind === 'timesheet');
+    add('switches', 'switches', time.switches || 0, L('App switches', 'Cambi di app'), (s) => s.kind === 'timesheet');
     if (time.longest?.app) {
       add(`focus:${time.longest.app}`, 'focus', time.longest.minutes, tr({ en: `Longest stretch on ${time.longest.app} (minutes)`, it: `Tratto più lungo su ${time.longest.app} (minuti)` }), (s) => s.kind === 'timesheet');
     }

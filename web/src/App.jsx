@@ -148,7 +148,7 @@ export default function App() {
         ) : edition && !route.day ? (
           <FrontPage edition={edition} />
         ) : loaded ? (
-          <Empty day={day} list={list} onPrint={printNow} printing={printing} />
+          <Empty list={list} cadence={status?.cadence} onPrint={printNow} printing={printing} />
         ) : null}
       </main>
       <Colophon status={status} onCheck={() => refreshStatus(true)} />
@@ -156,19 +156,24 @@ export default function App() {
   );
 }
 
-function Empty({ list, onPrint, printing }) {
+function Empty({ list, cadence, onPrint, printing }) {
+  const hourly = cadence?.kind === 'hourly';
+  const at = `${String(cadence?.pressHour ?? 7).padStart(2, '0')}:00`;
   return (
     <section className="empty">
       <p className="empty-title">{tr({ en: 'The presses are still.', it: 'La rotativa è ferma.' })}</p>
       <p className="empty-text">
         {list.length
           ? tr({ en: 'Pick an edition from the timeline above.', it: 'Scegli un\'edizione dalla linea del tempo qui sopra.' })
-          : tr({
+          : hourly ? tr({
             en: 'No editions for this day. The Mac gathers the news every five minutes and prints an issue on the hour.',
             it: 'Nessuna edizione per questo giorno. Il Mac raccoglie le notizie ogni cinque minuti e stampa un numero allo scoccare di ogni ora.',
+          }) : tr({
+            en: `No editions for this day. The Mac gathers the news every five minutes; the paper goes to press at ${at}.`,
+            it: `Nessuna edizione per questo giorno. Il Mac raccoglie le notizie ogni cinque minuti; il giornale va in stampa alle ${at}.`,
           })}
       </p>
-      <button className="btn" onClick={onPrint} disabled={printing}>{printing ? tr({ en: 'Printing…', it: 'In stampa…' }) : tr({ en: 'Print this hour\'s edition', it: 'Stampa l\'edizione di quest\'ora' })}</button>
+      <button className="btn" onClick={onPrint} disabled={printing}>{printing ? tr({ en: 'Printing…', it: 'In stampa…' }) : hourly ? tr({ en: 'Print this hour\'s edition', it: 'Stampa l\'edizione di quest\'ora' }) : tr({ en: 'Print what there is so far', it: 'Stampa quello che c\'è finora' })}</button>
     </section>
   );
 }

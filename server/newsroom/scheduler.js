@@ -142,10 +142,11 @@ export function createNewsroom({ store, config, log = console.log, notify = null
       // a right of reply that has expired doesn't wait for the next hour
       spotlight(true);
     }, config.collectEveryMinutes * 60e3);
-    (cadence().kind === 'hourly' || config.demo ? backfill(config.demo ? 12 : config.backfillHours) : pressIfDue())
-      .then(() => (config.demo ? printNow() : null))
-      .then(() => (config.demo ? printEveningFor(dayKey(Date.now())) : hasEvening(cadence()) ? eveningIfDue() : null))
-      .then(() => (config.demo ? draftNow() : null)) // the demo shows the next edition in the works
+    // an hourly paper catches up on the hours missed; a daily or weekly one prints its last press
+    const hourly = cadence().kind === 'hourly';
+    (hourly ? backfill(config.demo ? 12 : config.backfillHours) : pressIfDue())
+      .then(() => (config.demo && hourly ? printNow() : null))
+      .then(() => (!hasEvening(cadence()) ? null : config.demo ? printEveningFor(dayKey(Date.now())) : eveningIfDue()))
       .then(() => spotlight())
       .catch((e) => log(`[${tr({ en: 'backfill', it: 'arretrati' })}] ${e.message}`));
   }

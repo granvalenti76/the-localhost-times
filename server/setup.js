@@ -7,7 +7,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import { execFile } from 'node:child_process';
-import { ROOT } from './config.js';
+import { ROOT, loadConfig } from './config.js';
+import { Store } from './db.js';
+import { saveLine, getLine } from './newsroom/line.js';
 import { setLang, tr } from './i18n.js';
 import { findLocalServer, connectLLM, llmStatus } from './newsroom/llm.js';
 import { SOURCES } from './sources/index.js';
@@ -92,13 +94,28 @@ if (llm.baseUrl) {
 console.log(`\n${B(tr({ en: '2. Notifications', it: '2. Notifiche' }))}`);
 const notify = await yes(tr({ en: 'A macOS notification when a new edition is out?', it: 'Una notifica di macOS quando esce una nuova edizione?' }), current.notifications?.enabled ?? true);
 
-// 4. write config.json
+// 4. how often it comes out
+console.log(`\n${B(tr({ en: '3. How often', it: '3. Ogni quanto' }))}`);
+console.log(tr({
+  en: '  1  every morning: yesterday, told over breakfast (recommended)\n  2  every week\n  3  every hour (experimental: many hours have little to tell)',
+  it: '  1  ogni mattina: ieri, raccontato a colazione (consigliato)\n  2  ogni settimana\n  3  ogni ora (sperimentale: molte ore hanno poco da dire)',
+}));
+const kind = { 1: 'daily', 2: 'weekly', 3: 'hourly' }[await ask(tr({ en: 'Choose:', it: 'Scegli:' }), '1')] || 'daily';
+let pressHour = 7;
+if (kind !== 'hourly') {
+  const h = Number(await ask(tr({ en: 'At what hour does it go to press? (0–23)', it: 'A che ora va in stampa? (0–23)' }), '7'));
+  if (Number.isInteger(h) && h >= 0 && h <= 23) pressHour = h;
+}
+
+// 5. write config.json, and the cadence into the paper
 const next = { ...current, language, llm, notifications: { ...(current.notifications || {}), enabled: notify } };
 fs.writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`);
+const store = new Store(loadConfig().dbFile);
+saveLine(store, { cadence: { ...getLine(store).cadence, kind, pressHour } });
 console.log(`\n${OK('✓')} ${tr({ en: 'Saved', it: 'Salvato' })} ${path.relative(process.cwd(), file) || file}`);
 
-// 5. permissions
-console.log(`\n${B(tr({ en: '3. Permissions', it: '3. Permessi' }))}`);
+// 6. permissions
+console.log(`\n${B(tr({ en: '4. Permissions', it: '4. Permessi' }))}`);
 if (process.platform !== 'darwin') {
   console.log(WARN(tr({ en: 'This is not a Mac: only the demo will work (npm run demo).', it: 'Questo non è un Mac: funzionerà solo la demo (npm run demo).' })));
 } else {
@@ -120,7 +137,7 @@ if (process.platform !== 'darwin') {
   }
 }
 
-// 6. next steps
+// 7. next steps
 console.log(`\n${B(tr({ en: 'Ready.', it: 'Pronto.' }))} ${tr({ en: 'Next:', it: 'Adesso:' })}
   npm start                  ${DIM(tr({ en: 'the paper → http://localhost:4321', it: 'il giornale → http://localhost:4321' }))}
   npm run service:install    ${DIM(tr({ en: 'or: start it at every login, in the background', it: 'oppure: avvialo a ogni accesso, in background' }))}

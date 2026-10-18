@@ -9,7 +9,7 @@ import { DEFAULT_DESKS, WRITER_IDS, STAFF_KINDS, isHire, rosterIds } from './wri
 import { peopleOf } from './people.js';
 import { setChief, cleanChief } from './chief.js';
 import { voicePrompt } from './voice.js';
-import { cadenceOf } from './cadence.js';
+import { cadenceOf, DEFAULT_CADENCE } from './cadence.js';
 
 const LENGTH_LABELS = { en: { short: 'Short', standard: 'Standard', long: 'Long' }, it: { short: 'Corti', standard: 'Standard', long: 'Lunghi' } };
 const FACTORS = { short: 0.8, standard: 1, long: 1.25 };
@@ -48,7 +48,7 @@ export const DEFAULT_LINE = {
   // the editor's part in the paper and the paper's games: each can be turned off in the Newsroom
   features: { ...DEFAULT_FEATURES },
   directorName: '',            // how the editor signs their own pieces ('' = "The Editor")
-  cadence: { kind: 'hourly', pressHour: 19, weekday: 0 }, // how often the paper comes out (cadence.js)
+  cadence: { ...DEFAULT_CADENCE }, // how often the paper comes out (cadence.js)
   wires: {},                   // per source: 'full' (default), 'titles' (no contents) or 'off'
   strictness: 'balanced',      // how picky the meeting is: 'loose', 'balanced', 'strict'
   manual: {},                  // the Editor's own version of some layers of the writers' instructions (manual.js)

@@ -44,14 +44,17 @@ const chess = (h, from, to) => Array.from({ length: to - from }, (_, k) => {
   return { id: `c${i}`, source: 'safari', kind: 'visit', ts: h + (i % 50 + 1) * MIN, title: `alice vs. bob | Analysis ${i}`, detail: null, url: 'https://www.chess.com/game', meta: { host: 'chess.com' } };
 });
 
-test('drafts during the hour, the Editor\'s hand, and the press', async () => {
+test('drafts during the hour, the Editor\'s hand, and the press', async (t) => {
   setLang('en');
+  // the clock stops at :25 of the hour, whatever time the tests run
+  const h0 = hourStart(Date.now());
+  t.mock.timers.enable({ apis: ['Date'], now: h0 + 25 * MIN });
   const { server, port } = await mock();
   const { config, store, cleanup } = sandbox();
   config.llm.baseUrl = `http://127.0.0.1:${port}/v1`;
   config.llm.timeoutMs = 5000;
   try {
-    const h = hourStart(Date.now());
+    const h = h0;
     const at = h + 25 * MIN;
     store.insertEvents(chess(h, 0, 20));
     // the :20 round is due at :25, the :40 is not

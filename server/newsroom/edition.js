@@ -405,10 +405,11 @@ export async function printEdition({ store, config, start, final = true, force =
   // what the Editor and the paper add to the facts: tips, records
   const stats = computeStats(news, windowStart, end);
   const time = computeTime(events, windowStart, end);
-  const single = windowStart === hour;
-  const records = safely(() => checkRecords(store, metrics({ news, stats, time }), { editionId: id, at: hour, single }), [], log);
+  // an hourly edition that merged quiet hours can't be compared with a single hour; a day is a day
+  const single = cad.kind !== 'hourly' || windowStart === hour;
+  const records = safely(() => checkRecords(store, metrics({ news, stats, time, cadence: cad.kind }), { editionId: id, at: hour, single }), [], log);
   const tipped = featureOn(line, 'tips') ? safely(() => tipsForEdition(store, main, { end, editionId: id }), { facts: new Map(), box: [] }, log) : { facts: new Map(), box: [] };
-  const metricList = records.length ? metrics({ news, stats, time }) : [];
+  const metricList = records.length ? metrics({ news, stats, time, cadence: cad.kind }) : [];
   for (const s of main) {
     s.records = records.filter((r) => metricList.find((m) => m.key === r.key)?.story(s));
     s.tipped = tipped.facts.has(s.id);

@@ -3,32 +3,34 @@ import assert from 'node:assert/strict';
 import { setLang } from '../server/i18n.js';
 import { sizeOf, widen, expandPrompt, wordCount, articlePrompt } from '../server/newsroom/prompts.js';
 
-const story = (n, weight = 1) => ({ events: Array.from({ length: n }, () => ({})), weight });
+// the formats of the hourly paper (the daily and the weekly give more room)
+const H = { cadence: { kind: 'hourly' } };
+const story = (n, weight = 1) => ({ events: Array.from({ ...H, length: n }, () => ({})), weight });
 
 test('length: "long" promotes stories and the top of the page is never a note', () => {
   setLang('en');
-  assert.equal(sizeOf(story(5), 0, { length: 'standard' }).id, 'article');
-  assert.equal(sizeOf(story(5), 0, { length: 'long' }).id, 'lead');
-  assert.equal(sizeOf(story(2), 0, { length: 'long' }).id, 'brief');
-  assert.equal(sizeOf(story(9), 2, { length: 'long' }).id, 'article');
-  assert.equal(sizeOf(story(9), 2, { length: 'standard' }).id, 'brief');
-  assert.equal(sizeOf(story(9), 0, { length: 'short' }).id, 'article');
-  const lead = sizeOf(story(20), 0, { length: 'long' });
+  assert.equal(sizeOf(story(5), 0, { ...H, length: 'standard' }).id, 'article');
+  assert.equal(sizeOf(story(5), 0, { ...H, length: 'long' }).id, 'lead');
+  assert.equal(sizeOf(story(2), 0, { ...H, length: 'long' }).id, 'brief');
+  assert.equal(sizeOf(story(9), 2, { ...H, length: 'long' }).id, 'article');
+  assert.equal(sizeOf(story(9), 2, { ...H, length: 'standard' }).id, 'brief');
+  assert.equal(sizeOf(story(9), 0, { ...H, length: 'short' }).id, 'article');
+  const lead = sizeOf(story(20), 0, { ...H, length: 'long' });
   assert.deepEqual([lead.min, lead.max, lead.paras], [315, 500, '3-5']);
   // the three formats of the style guide
-  const sizes = (l) => [sizeOf(story(1), 1, { length: l }), sizeOf(story(13), 1, { length: l }), sizeOf(story(20), 0, { length: l })].map((s) => [s.id, s.min, s.max, s.paras]);
+  const sizes = (l) => [sizeOf(story(1), 1, { ...H, length: l }), sizeOf(story(13), 1, { ...H, length: l }), sizeOf(story(20), 0, { ...H, length: l })].map((s) => [s.id, s.min, s.max, s.paras]);
   assert.deepEqual(sizes('standard'), [['brief', 40, 90, '1'], ['article', 150, 300, '2-4'], ['lead', 250, 400, '3-5']]);
 });
 
 test('length: a lead from the Editor widens the piece, a note becomes a piece', () => {
-  const note = widen(sizeOf(story(1), 1, { length: 'standard' }), 1);
+  const note = widen(sizeOf(story(1), 1, { ...H, length: 'standard' }), 1);
   assert.deepEqual([note.id, note.paras], ['article', '2']);
-  assert.equal(widen(sizeOf(story(13), 1, { length: 'standard' }), 2).paras, '4-6');
+  assert.equal(widen(sizeOf(story(13), 1, { ...H, length: 'standard' }), 2).paras, '4-6');
 });
 
 test('length: a short draft goes back with its word count and the minimum', () => {
   setLang('it');
-  const size = sizeOf(story(20), 0, { length: 'long' });
+  const size = sizeOf(story(20), 0, { ...H, length: 'long' });
   const draft = { kicker: 'K', headline: 'H', dek: 'D', body: ['uno due tre', 'quattro'] };
   assert.equal(wordCount(draft), 4);
   const msgs = expandPrompt([{ role: 'user', content: 'x' }], draft, size);
@@ -40,9 +42,9 @@ test('length: a short draft goes back with its word count and the minimum', () =
 test('length: a note is asked for a top, a piece for a range, never padded', () => {
   setLang('en');
   const kind = { kind: 'site' };
-  const note = articlePrompt(kind, 'F', '18:00', sizeOf(story(1), 1, { length: 'standard' }), null).at(-1).content;
+  const note = articlePrompt(kind, 'F', '18:00', sizeOf(story(1), 1, { ...H, length: 'standard' }), null).at(-1).content;
   assert.match(note, /NOTE — up to 90 words, 1 paragraph/);
-  const piece = articlePrompt(kind, 'F', '18:00', sizeOf(story(13), 1, { length: 'standard' }), null).at(-1).content;
+  const piece = articlePrompt(kind, 'F', '18:00', sizeOf(story(13), 1, { ...H, length: 'standard' }), null).at(-1).content;
   assert.match(piece, /PIECE — 150-300 words, 2-4 paragraphs; fewer if the facts run out, never padded/);
 });
 

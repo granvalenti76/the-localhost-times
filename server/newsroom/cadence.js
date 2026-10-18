@@ -1,6 +1,6 @@
 /**
- * How often the paper comes out: every hour, once a day, or once a week. Chosen by the publisher
- * (the Editor, in the Publishing House) and stored with the editorial line. Everything that used
+ * How often the paper comes out: once a day (the default: every morning at 7:00), once a week, or
+ * every hour. Chosen in the Settings and stored with the editorial line. Everything that used
  * to assume "the hour" asks here instead: which edition is in the works, when the press runs,
  * how far back an edition reaches, when the reporters draft and when the desk closes.
  *
@@ -17,15 +17,15 @@ const DAY = 24 * HOUR;
 export const CADENCES = ['hourly', 'daily', 'weekly'];
 
 export const DEFAULT_CADENCE = {
-  kind: 'hourly',
-  pressHour: 19,   // daily and weekly: when the paper goes to press
+  kind: 'daily',   // the morning paper: yesterday, told over breakfast
+  pressHour: 7,    // daily and weekly: when the paper goes to press
   weekday: 0,      // weekly: the day it comes out (0 = Sunday)
 };
 
-/** The cadence of a line, cleaned up (older lines have none: hourly). */
+/** The cadence of a line, cleaned up (a line without one gets the morning paper). */
 export function cadenceOf(line) {
   const c = { ...DEFAULT_CADENCE, ...(line?.cadence || {}) };
-  if (!CADENCES.includes(c.kind)) c.kind = 'hourly';
+  if (!CADENCES.includes(c.kind)) c.kind = DEFAULT_CADENCE.kind;
   c.pressHour = Math.max(0, Math.min(23, Math.round(Number(c.pressHour)) || 0));
   c.weekday = Math.max(0, Math.min(6, Math.round(Number(c.weekday)) || 0));
   return c;

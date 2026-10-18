@@ -72,7 +72,7 @@ if (config.demo) {
   const n = seedDemo(store);
   if (n) log(tr({ en: `[demo] ${n} demo events inserted`, it: `[demo] ${n} eventi dimostrativi inseriti` }));
   for (const s of SOURCES) sourceStatus[s.id] = { id: s.id, label: s.label, state: 'demo' };
-  seedDemoDesk(store, config).catch((e) => log(`[demo] ${e.message}`));
+  seedDemoDesk(store).catch((e) => log(`[demo] ${e.message}`));
 }
 
 const app = express();

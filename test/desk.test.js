@@ -74,6 +74,10 @@ test('records: only with enough history; reprints don\'t count twice', async () 
     const evs = hourOfChess(hourStart(Date.now()), 45);
     const m = metrics({ news: evs, stats: { total: evs.length, commands: 6, searches: 0 }, time: null });
     assert.ok(m.some((x) => x.key === 'site:chess.com'));
+    // a daily paper keeps its own records, in its own words
+    const d = metrics({ news: evs, stats: { total: evs.length }, time: null, cadence: 'daily' }).find((x) => x.kind === 'site');
+    assert.equal(d.key, 'daily:site:chess.com');
+    assert.match(d.label, /in a day/);
   } finally { cleanup(); }
 });
 
