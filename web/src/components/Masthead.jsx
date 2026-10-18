@@ -39,11 +39,12 @@ export default function Masthead({ edition, evening, day, status, activeSlug }) 
       </div>
       <nav className="sections" aria-label={tr({ en: 'Sections', it: 'Sezioni' })}>
         <a href={edition ? href.edition(edition.id) : href.latest()} className={!activeSlug ? 'on' : ''}>{tr({ en: 'Front page', it: 'Prima pagina' })}</a>
-        {SECTIONS.map((s) => (
+        {/* only the sections in this edition (and the one on screen): a short menu, never empty links */}
+        {SECTIONS.filter((s) => activeSlug === s.slug || present.has(s.id) || present.has(s.slug)).map((s) => (
           <a
             key={s.slug}
             href={href.section(day, s.slug)}
-            className={`${activeSlug === s.slug ? 'on' : ''} ${edition && !present.has(s.id) && !present.has(s.slug) ? 'dim' : ''}`}
+            className={activeSlug === s.slug ? 'on' : ''}
           >
             {s.name}
           </a>
