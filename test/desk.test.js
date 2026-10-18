@@ -5,7 +5,7 @@ import { printEdition } from '../server/newsroom/edition.js';
 import { getSteer, nextEditionId } from '../server/newsroom/next.js';
 import { addTip, matchTip, tipsFromNotes } from '../server/newsroom/tips.js';
 import { checkRecords, metrics } from '../server/newsroom/records.js';
-import { lint } from '../server/newsroom/lint.js';
+import { lint, similes } from '../server/newsroom/lint.js';
 import { paragraphAction, verdict, headlineOptions, getTaste } from '../server/newsroom/bench.js';
 import { tastePrompt } from '../server/newsroom/writers.js';
 import { getLine, saveLine } from '../server/newsroom/line.js';
@@ -90,6 +90,15 @@ test('lint: the tics of small models are counted', () => {
     assert.ok(bad.issues.some((i) => i.id === 'invented-absence'));
     const good = lint(['Il pomeriggio comincia con un uomo che spiega come si paga un caffè con il telefono. Finisce con un illusionista di Las Vegas.']);
     assert.equal(good.score, 100);
+    // similes: one is an image, two are a tic, one already used in the edition is a repeat
+    assert.deepEqual(similes(['Legge come chi ha fretta. Chiude come se fosse tardi.']), ['come chi', 'come se']);
+    assert.ok(lint(['Legge come chi ha fretta. Poi chiude come chi chiude un libro.']).issues.some((i) => i.id === 'simile'));
+    assert.ok(!lint(['Legge come chi ha fretta.']).issues.some((i) => i.id === 'simile'));
+    const again = lint(['Scorre il catalogo come chi cerca un libro.'], { seen: ['come chi'] }).issues.find((i) => i.id === 'simile-again');
+    assert.match(again.msg, /come chi.*altro pezzo/);
+    assert.ok(!lint(['Scorre il catalogo come se cercasse un libro.'], { seen: ['come chi'] }).issues.some((i) => i.id === 'simile-again'));
+    // the owner, under any name
+    assert.ok(lint(['Il padrone di casa apre Safari. Il proprietario cerca. Il padrone di casa chiude.']).issues.some((i) => i.id === 'owner'));
   } finally { setLang('en'); }
 });
 

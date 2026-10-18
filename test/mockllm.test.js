@@ -45,7 +45,7 @@ function answer(messages) {
   return '{}';
 }
 
-function mockServer() {
+function mockServer(reply = answer) {
   const calls = [];
   const server = http.createServer((req, res) => {
     let body = '';
@@ -55,7 +55,7 @@ function mockServer() {
       if (req.url.endsWith('/models')) return res.end(JSON.stringify({ data: [{ id: 'mock-writer' }] }));
       const j = JSON.parse(body || '{}');
       calls.push(j.messages);
-      res.end(JSON.stringify({ choices: [{ message: { content: answer(j.messages) }, finish_reason: 'stop' }] }));
+      res.end(JSON.stringify({ choices: [{ message: { content: reply(j.messages) }, finish_reason: 'stop' }] }));
     });
   });
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ server, calls, port: server.address().port })));
@@ -102,6 +102,35 @@ test('with a writer: the desk reads, sends back and passes a piece; the bench', 
     const p = await paragraphAction(store, config, ed.id, a.id, { index: 0, op: 'rewrite', instruction: 'meaner' });
     assert.match(p.articles.find((x) => x.id === a.id).body[0], /meaner paragraph/);
     assert.deepEqual((await headlineOptions(store, config, ed.id, a.id)).options.length, 3);
+  } finally {
+    cleanup();
+    server.close();
+  }
+});
+
+test('with a writer: the same simile on the next page goes back to the desk', async () => {
+  setLang('en');
+  // every writer reaches for the same image
+  const simile = (messages) => {
+    const sys = messages[0]?.content || '';
+    if (/"kicker"/.test(sys) && !/"verdict"/.test(sys)) return JSON.stringify({ kicker: 'K', headline: 'A page', dek: 'D.', body: ['He scrolled like someone who had lost a key, page after page.', 'Then the evening went on, one page at a time, without hurry.'] });
+    if (/"verdict"/.test(sys)) return JSON.stringify({ verdict: 'ok', notes: [], praise: '' });
+    return answer(messages);
+  };
+  const { server, port } = await mockServer(simile);
+  const { config, store, cleanup } = sandbox();
+  config.llm.baseUrl = `http://127.0.0.1:${port}/v1`;
+  config.llm.timeoutMs = 5000;
+  try {
+    const h = hourStart(Date.now()) - 3 * HOUR;
+    store.insertEvents(hourOfChess(h));
+    const ed = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
+    const written = ed.articles.filter((a) => a.writer === 'mock-writer');
+    assert.ok(written.length >= 2, `${written.length} pieces by the writer`);
+    const flagsOf = (a) => (a.chain || []).filter((x) => x.who === 'triage').flatMap((x) => x.flags || []).join(' ');
+    assert.doesNotMatch(flagsOf(written[0]), /already in another piece/, 'the first piece has nothing to repeat');
+    assert.match(flagsOf(written[1]), /like someone who.*already in another piece/);
+    assert.ok(written[1].lint.issues.some((i) => i.id === 'simile-again'));
   } finally {
     cleanup();
     server.close();

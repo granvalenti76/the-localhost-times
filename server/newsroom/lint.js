@@ -36,11 +36,26 @@ export function registerCheck(body) {
   return { score, words: Object.entries(count).sort((a, b) => b[1] - a[1]).map(([w, k]) => ({ w, n: k })).slice(0, 8), times, pct, figures, slop: [...new Set(slop)].slice(0, 8) };
 }
 
+/** The stock simile of small models: "come chi chiude un libro", "like someone who…", "as if…". */
+const SIMILE = {
+  en: /\b(like (?:someone|somebody|a man|a woman|a person) who|as if|as though)\b/gi,
+  it: /\b(come (?:chi|se|qualcuno che|una persona che|un uomo che|una donna che))\b/gi,
+};
+
+/** The similes of a text, by their construction ("come chi", "as if"), in order. */
+export function similes(paragraphs) {
+  const text = Array.isArray(paragraphs) ? paragraphs.join('\n\n') : String(paragraphs || '');
+  return [...text.matchAll(lang() === 'en' ? SIMILE.en : SIMILE.it)].map((m) => m[1].toLowerCase().replace(/\s+/g, ' '));
+}
+
 export const sentences = (text) => String(text).split(/(?<=[.!?…»”])\s+(?=[A-ZÀ-Ý«“"])/).map((s) => s.trim()).filter(Boolean);
 const count = (text, re) => (String(text).match(re) || []).length;
 
-/** Issues in a text (a list of paragraphs or a string). */
-export function lint(paragraphs) {
+/**
+ * Issues in a text (a list of paragraphs or a string). `seen`: the similes already printed in
+ * this edition's other pieces, so the same image never comes back on the next page.
+ */
+export function lint(paragraphs, { seen = [] } = {}) {
   const text = Array.isArray(paragraphs) ? paragraphs.join('\n\n') : String(paragraphs || '');
   const en = lang() === 'en';
   const words = text.split(/\s+/).filter(Boolean).length || 1;
@@ -51,7 +66,7 @@ export function lint(paragraphs) {
   const timeStarts = sents.filter((s) => (en ? /^(at|by|around)\s+\d{1,2}[:.]\d{2}/i : /^(alle|verso le|poco dopo le)\s+\d{1,2}[:.]\d{2}/i).test(s)).length;
   add('time-starts', timeStarts > 1 ? timeStarts : 0, tr({ en: `${timeStarts} sentences open with a time`, it: `${timeStarts} frasi cominciano con un orario` }));
 
-  const owner = count(text, en ? /\bthe (owner|user)\b/gi : /\b(il|del|al|dal) (proprietario|utente)\b/gi);
+  const owner = count(text, en ? /\bthe (owner|user)\b/gi : /\b(?:(?:il|del|al|dal|nel|sul) (?:proprietario|padrone di casa|utente)|l'utente|dell'utente|all'utente)\b/gi);
   const ownerMax = Math.max(2, Math.round(words / 120));
   add('owner', owner > ownerMax ? owner : 0, tr({ en: `“the owner” ${owner} times`, it: `«il proprietario» ${owner} volte` }));
 
@@ -86,10 +101,19 @@ export function lint(paragraphs) {
   add('many-times', reg.times > timesMax ? reg.times : 0, tr({ en: `${reg.times} times of day: keep the one or two that matter`, it: `${reg.times} orari: tieni i due che contano` }));
   add('slop', reg.slop.length, tr({ en: `machine-made phrasing: ${reg.slop.map((x) => `“${x}”`).join(', ')}`, it: `frasi da macchina: ${reg.slop.map((x) => `«${x}»`).join(', ')}` }));
 
+  // one simile is an image; two in a piece are a tic; one already used on another page is a repeat
+  const sim = similes(text);
+  add('simile', sim.length > 1 ? sim.length : 0, tr({ en: `${sim.length} similes (“${sim[0]}…”): keep one, or none`, it: `${sim.length} similitudini («${sim[0]}…»): tienine una, o nessuna` }));
+  const again = [...new Set(sim.filter((x) => seen.includes(x)))];
+  add('simile-again', again.length, tr({
+    en: `“${again[0]}…” is already in another piece of this edition: find another image, or drop it`,
+    it: `«${again[0]}…» c'è già in un altro pezzo di questa edizione: trova un'altra immagine, o toglila`,
+  }));
+
   const unknown = count(text, en ? /\bwe (don't|do not) know why\b/gi : /\bnon (sappiamo|si sa) perch[ée]\b/gi);
   add('dont-know', unknown > 1 ? unknown : 0, tr({ en: `“we don't know why” ×${unknown}`, it: `«non sappiamo perché» ×${unknown}` }));
 
-  const weight = { 'time-starts': 6, owner: 4, hedges: 4, 'invented-absence': 10, 'maybe-maybe': 8, inflated: 6, 'same-start': 6, 'dont-know': 5, dashboard: 4, 'many-times': 4, slop: 8 };
+  const weight = { 'time-starts': 6, owner: 4, hedges: 4, 'invented-absence': 10, 'maybe-maybe': 8, inflated: 6, 'same-start': 6, 'dont-know': 5, dashboard: 4, 'many-times': 4, slop: 8, simile: 5, 'simile-again': 6 };
   const score = Math.max(0, 100 - issues.reduce((t, i) => t + (weight[i.id] || 5) * Math.min(4, i.n), 0));
   return { score, issues };
 }

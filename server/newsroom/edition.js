@@ -20,7 +20,7 @@ import { computeTime, computeMac, isAmbient } from './time.js';
 import { tipsForEdition, tipFolders, isTipNote } from './tips.js';
 import { metrics, checkRecords, recordFact } from './records.js';
 import { featureOn } from './line.js';
-import { lint } from './lint.js';
+import { lint, similes } from './lint.js';
 import { say } from './chatter.js';
 import { editionId, hhmm, mapLimit, isSelfUrl, hourStart } from '../util.js';
 import { cadenceOf, spanHours, maxArticlesFor } from './cadence.js';
@@ -145,7 +145,7 @@ export async function composeText(story, rank, ctx, { prev = null, instruction =
   const first = { headline: text.headline, dek: text.dek, body: [...text.body] };
   // every piece crosses the desk. The managing editor reads the front page and whatever the
   // rules flag; the reporter rewrites if sent back; the copy desk checks the figures
-  const flags = triageFlags(text, facts);
+  const flags = triageFlags(text, facts, ctx.similes || []);
   // who reads it: the Editor, for a rewrite they asked for and for everything the intern writes;
   // nobody but the copy desk, for a trusted byline away from the lead; the managing editor otherwise
   const skip = byEditor ? 'chief' : writer?.kind === 'intern' ? 'intern' : rank > 0 && can(writer, 'trusted') ? 'trusted' : null;
@@ -227,7 +227,9 @@ async function writeArticle(story, rank, ctx) {
     }
   }
   text ||= fallbackArticle(story);
-  text.lint = lint(text.body);
+  text.lint = lint(text.body, { seen: ctx.similes || [] });
+  // what this piece compared things to: the next pieces of the edition look for another image
+  ctx.similes?.push(...similes(text.body));
   return {
     id: story.id,
     series: story.series || null,
@@ -442,7 +444,7 @@ export async function printEdition({ store, config, start, final = true, force =
 
   const llm = await connectLLM(config);
   // the drafts written during the hour, read by the desk and by the Editor
-  const ctx = { llm, config, hourLabel, log, line, store, hour: windowStart, editionId: id, workbench: getWorkbench(store, id) };
+  const ctx = { llm, config, hourLabel, log, line, store, hour: windowStart, editionId: id, workbench: getWorkbench(store, id), similes: [] };
   log(tr({
     en: `[newsroom] edition ${id}${windowStart < hour ? ` (since ${hhmm(windowStart)})` : ''}: ${news.length} events, ${stories.length} stories, writer ${llm ? llm.model : 'offline → automatic typesetting'}`,
     it: `[redazione] edizione ${id}${windowStart < hour ? ` (dalle ${hhmm(windowStart)})` : ''}: ${news.length} eventi, ${stories.length} storie, redattore ${llm ? llm.model : 'offline → tipografia'}`,

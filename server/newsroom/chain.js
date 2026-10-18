@@ -40,11 +40,11 @@ export function chainFor(config, rank, flags = []) {
 }
 
 /** What the rules see in a draft, before anyone reads it: figures not in the facts, the tics of small models. */
-export function triageFlags(text, facts) {
+export function triageFlags(text, facts, seen = []) {
   const unverified = numbersCheck(text, facts).unverified;
   return [
     ...(unverified.length ? [{ id: 'figures', msg: tr({ en: `figures not in the facts: ${unverified.join(', ')}`, it: `cifre che nei fatti non ci sono: ${unverified.join(', ')}` }) }] : []),
-    ...lint(text.body).issues.map((i) => ({ id: i.id, msg: i.msg })),
+    ...lint(text.body, { seen }).issues.map((i) => ({ id: i.id, msg: i.msg })),
   ];
 }
 
@@ -252,11 +252,11 @@ export async function copyDesk(text, facts, { llm, config, chat } = {}) {
 }
 
 /** The managing editor reads a version: his verdict, at most three notes, what works. */
-async function editorRead(text, facts, { llm, config, chat, log, story }) {
+async function editorRead(text, facts, { llm, config, chat, log, story, seen = [] }) {
   const check = numbersCheck(text, facts);
   const flags = [
     ...(check.unverified.length ? [tr({ en: `figures not in the facts: ${check.unverified.join(', ')}`, it: `cifre che nei fatti non ci sono: ${check.unverified.join(', ')}` })] : []),
-    ...lint(text.body).issues.map((i) => i.msg),
+    ...lint(text.body, { seen }).issues.map((i) => i.msg),
   ];
   let verdict = 'ok';
   let notes = [];
@@ -294,7 +294,7 @@ export async function deskChain(text, { facts, msgs, ctx, chat, maxTokens, fromL
 
   // 1. the managing editor
   progress('editor');
-  const first = await editorRead(text, facts, { llm, config, chat, log, story });
+  const first = await editorRead(text, facts, { llm, config, chat, log, story, seen: ctx.similes || [] });
   steps.push({ who: 'editor', name: people.editor.name, verdict: first.verdict, notes: first.notes, praise: first.praise });
   if (store) say(store, people.editor.name, first.verdict === 'rework'
     ? tr({ en: `${writer?.name || 'Reporter'}, “${text.headline}” comes back: ${first.notes[0]}`, it: `${writer?.name || 'Cronista'}, «${text.headline}» torna indietro: ${first.notes[0].charAt(0).toLowerCase()}${first.notes[0].slice(1)}` })
@@ -315,7 +315,7 @@ export async function deskChain(text, { facts, msgs, ctx, chat, maxTokens, fromL
         best = { ...v2, expanded: text.expanded };
         steps.push({ who: 'reporter', name: writer?.name || null, rewrote: true, words: wordCount(v2), lint: lint(v2.body).score });
         progress('reread');
-        const again = await editorRead(v2, facts, { llm, config, chat, log, story });
+        const again = await editorRead(v2, facts, { llm, config, chat, log, story, seen: ctx.similes || [] });
         steps.push({ who: 'editor', name: people.editor.name, reread: true, verdict: again.verdict, notes: again.notes, praise: again.praise });
       } else {
         steps.push({ who: 'reporter', name: writer?.name || null, rewrote: false, why: !okLength ? 'short' : !okFacts ? 'figures' : 'style' });
