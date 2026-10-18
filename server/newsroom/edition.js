@@ -25,7 +25,6 @@ import { flashesBetween } from './flash.js';
 import { featureOn } from './line.js';
 import { lint } from './lint.js';
 import { say } from './chatter.js';
-import { commissionedFor } from './features.js';
 import { editionId, hhmm, mapLimit, isSelfUrl, hourStart } from '../util.js';
 import { cadenceOf, spanHours, maxArticlesFor } from './cadence.js';
 import { liveStart, liveEnd, liveHooks, factLines } from './live.js';
@@ -441,13 +440,6 @@ export async function printEdition({ store, config, start, final = true, force =
   const articles = await mapLimit(main, llm ? config.llm.concurrency : 8, (s, i) => writeArticle(s, i, ctx));
   const written = articles.slice(); // the photos follow the stories, whatever comes in front of them
   const briefs = rest.map((s) => ({ section: s.section, slug: SECTIONS[s.source].slug, ts: s.last, text: fallbackBrief(s) }));
-
-  // the pieces the Editor commissioned and approved for this edition: at the top or right after it
-  for (const c of safely(() => commissionedFor(store, id), [], log)) {
-    if (articles.some((a) => a.id === c.article.id)) continue;
-    if (c.placement === 'lead') articles.unshift(c.article);
-    else articles.splice(Math.min(1, articles.length), 0, c.article);
-  }
 
   // Photos: in parallel with the Punto and the Borsa
   const photosJob = line.photos && !config.demo

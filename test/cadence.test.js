@@ -334,39 +334,3 @@ test('sources: attention weighs the web, a project becomes one story, the termin
   }
   setLang('en');
 });
-
-test('the Editor\'s dispatches: a piece of their own, or a fact of a story in the works', async () => {
-  setLang('it');
-  const { config, store, cleanup } = sandbox();
-  try {
-    const { addDispatch, dispatches, withdrawDispatch } = await import('../server/newsroom/dispatches.js');
-    const { buildStories, factSheet } = await import('../server/newsroom/cluster.js');
-    const h = at(2026, 10, 14, 15);
-    assert.throws(() => addDispatch(store, { section: 'nowhere', title: 'x', text: 'abbastanza lungo' }), /sezione/);
-    const solo = addDispatch(store, { section: 'files', title: 'Il trasloco dello studio', text: 'Ho spostato la scrivania vicino alla finestra. Ora vedo il cortile.', attribution: 'editor', size: 'lead', at: h + 10 * 60e3 }, h + 20 * 60e3);
-    // a terminal session in the same hour, and a dispatch tied to it
-    store.insertEvents(['npm test', 'git status', 'npm run build'].map((c, i) => ({ id: `c${i}`, source: 'terminal', kind: 'command', ts: h + (5 + i) * 60e3, title: c, meta: { family: c.split(' ').slice(0, 2).join(' '), timed: true } })));
-    const tied = addDispatch(store, { section: 'terminal', storyId: 'terminal:session:all', title: 'Il motivo dei test', text: 'I test giravano per la demo di domani mattina.', attribution: 'source' }, h + 30 * 60e3);
-    const stories = buildStories(store.eventsBetween(h, h + 3600e3));
-    const own = stories.find((s) => s.kind === 'dispatch');
-    assert.equal(own.source, 'files');
-    assert.equal(own.size, 'lead');
-    assert.equal(stories[0].id, own.id, 'a lead dispatch should top the meeting');
-    assert.match(factSheet(own), /Riferisce il Direttore|riferisce il Direttore|secondo il Direttore/i);
-    const session = stories.find((s) => s.id === 'terminal:session:all');
-    assert.match(factSheet(session), /L'APPUNTO DEL DIRETTORE/);
-    assert.match(factSheet(session), /fonte vicina al proprietario/);
-    // printed by the typesetting: the dispatch is in the paper, and can no longer be withdrawn
-    const ed = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
-    const a = ed.articles.find((x) => x.id === own.id);
-    assert.ok(a, 'the dispatch did not reach the page');
-    assert.equal(a.size, 'lead');
-    assert.ok(ed.articles.find((x) => x.id === 'terminal:session:all')?.dispatches?.includes(tied));
-    const list = dispatches(store, null, h + 2 * 3600e3);
-    assert.equal(list.find((x) => x.id === solo).status, 'printed');
-    assert.throws(() => withdrawDispatch(store, solo), /pagina/);
-  } finally {
-    cleanup();
-    setLang('en');
-  }
-});

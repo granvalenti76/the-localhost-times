@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, href, hhmm, edHour, readingTime, styleName } from '../lib.js';
 import { tr } from '../i18n.js';
 import Para from './Para.jsx';
-import { DeepenButton } from './Features.jsx';
 
 const T = tr({
   en: {
@@ -205,7 +204,6 @@ export default function Bench({ editionId }) {
             <button className="btn-ghost danger bench-cut" disabled={busy} onClick={() => judge('cut')}>← {T.spike}</button>
             <button className={`btn-ghost ${panel === 'rewrite' ? 'on' : ''}`} disabled={busy} onClick={() => setPanel(panel === 'rewrite' ? null : 'rewrite')}>{T.rewrite}</button>
             <button className={`btn-ghost ${panel === 'heads' ? 'on' : ''}`} disabled={busy} onClick={() => setPanel(panel === 'heads' ? null : 'heads')}>{T.heads}</button>
-            <DeepenButton editionId={ed.id} articleId={a.id} />
             <button className="btn bench-keep" disabled={busy} onClick={() => judge('keep')}>{T.keep} →</button>
           </div>
         </article>

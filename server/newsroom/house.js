@@ -9,7 +9,6 @@ import { staff, writerFor, DEFAULT_DESKS, HIRE_KINDS, hireDefaults, rosterIds, f
 import { bylines, recordOf, lessonsOf, ABILITIES, can, forgetLevels } from './people.js';
 import { getDirector, rankOf } from './director.js';
 import { say } from './chatter.js';
-import { topicProposals } from './features.js';
 import { systemLayers, articlePrompt } from './prompts.js';
 import { buildStories, factSheet } from './cluster.js';
 import { cleanEvents, sizeFor, DeskError, dayLabel, isTypeset } from './edition.js';
@@ -127,23 +126,6 @@ export function promote(store, id, role = '') {
   store.setSetting('line', s);
   say(store, id, tr({ en: `${w.name}: they've made me a reporter. Drinks are on me.`, it: `${w.name}: mi hanno fatto cronista. Offro io.` }));
   forgetLevels();
-}
-
-/** What writers with a nose for stories propose: a long read on their own beat. */
-export function proposals(store, config) {
-  const line = getLine(store);
-  const people = staff(line);
-  const desks = { ...DEFAULT_DESKS, ...line.desks };
-  let topics = [];
-  try { topics = topicProposals(store, config).filter((t) => !t.inWork && t.kind === 'now'); } catch { return []; }
-  const out = [];
-  for (const w of Object.values(people)) {
-    if (!can(w, 'nose')) continue;
-    const beats = new Set(Object.entries(desks).filter(([, v]) => v === w.id).map(([k]) => k));
-    const t = topics.find((x) => x.storyId && beats.has(String(x.storyId).split(':')[0]));
-    if (t) out.push({ writer: { id: w.id, name: w.name }, topic: t.topic, storyId: t.storyId, why: t.why });
-  }
-  return out;
 }
 
 // ───────────────────────── The wires ─────────────────────────

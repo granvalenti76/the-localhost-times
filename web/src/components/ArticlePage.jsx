@@ -4,7 +4,6 @@ import { Toast, useDirector } from './Rooms.jsx';
 import Para from './Para.jsx';
 import { tr } from '../i18n.js';
 import Photo from './Photo.jsx';
-import { DeepenButton } from './Features.jsx';
 import { Xray, xrayLabels, DeskCredits } from './Craft.jsx';
 
 const KIND = tr({
@@ -84,9 +83,6 @@ export default function ArticlePage({ edition, article: a, xray: xrayAtStart = f
         <a className="back" href={href.edition(edition.id)}>← {tr({ en: `The ${hhmm(edHour(edition))} front page`, it: `Prima pagina delle ${hhmm(edHour(edition))}` })}</a>
         <span className="story-top-right">
           <button className={`btn-ghost xray-toggle ${xray ? 'on' : ''}`} onClick={() => setXray((x) => !x)}>{xray ? xrayLabels().on : `◐ ${xrayLabels().off}`}</button>
-          {a.commissioned
-            ? <a className="btn-ghost" href={href.feature(a.commissioned.featureId)}>{tr({ en: 'The draft and its tips', it: 'La lavorazione e le soffiate' })}</a>
-            : <DeepenButton editionId={edition.id} articleId={a.id} className="btn-ghost" />}
           <a className="back" href={href.desk(edition.id)}>{tr({ en: 'Open in the newsroom', it: 'Apri in redazione' })}</a>
         </span>
       </div>

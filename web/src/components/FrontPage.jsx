@@ -13,7 +13,6 @@ import FactCheck from './FactCheck.jsx';
 import RadioBox from './Radio.jsx';
 import { FlashBand, ChatterBox } from './Live.jsx';
 import { SportBox, OracleBox, SerialBox, RumoursBox } from './Games.jsx';
-import { FeaturesBox } from './Features.jsx';
 import { EditorNote } from './Craft.jsx';
 
 /** Small flags on an article: the Editor's choice, a record, a quote, a tip. */
@@ -246,7 +245,6 @@ export default function FrontPage({ edition }) {
         <SerialBox serial={edition.serial} />
         <SportBox sport={edition.sport} />
         <OracleBox oracle={edition.oracle} />
-        <FeaturesBox />
         <InvestigationBox />
         <LettersBox letters={edition.letters} />
         <TimeBox time={edition.time} />

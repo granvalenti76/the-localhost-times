@@ -19,7 +19,6 @@ import { publishEvening, editEveningCartoon } from './newsroom/evening.js';
 import { SCENES } from './newsroom/scenes.js';
 import { createNotifier } from './notify.js';
 import { staff } from './newsroom/writers.js';
-import { styleList } from './newsroom/styles.js';
 import { menubarText } from './menubar.js';
 import { radioFeed, radioDir } from './newsroom/radio.js';
 import { tr, lang, locale } from './i18n.js';
@@ -29,35 +28,23 @@ import { preview, steer } from './newsroom/next.js';
 import { workbenchView, approvePiece, editPiece, killPiece, sendBack, queueNote, getWorkbench } from './newsroom/workbench.js';
 import { liveView } from './newsroom/live.js';
 import { directorView, award, PAGE_AWARDS } from './newsroom/director.js';
-import { staffView, wiresView, manualView, trialRun, hire, fire, rehire, promote, proposals } from './newsroom/house.js';
+import { staffView, wiresView, manualView, trialRun, hire, fire, rehire, promote } from './newsroom/house.js';
 import { addLesson, removeLesson, lessonFromMark } from './newsroom/people.js';
 import { chiefView } from './newsroom/chief.js';
 import { mailbox, decideLetter, cast } from './newsroom/readers.js';
 import { coffeeBreak } from './newsroom/coffee.js';
-import { addDispatch, dispatches, withdrawDispatch } from './newsroom/dispatches.js';
-import { SECTION_ORDER, SECTIONS as SECTION_MAP } from './newsroom/sections.js';
 import { nextEditionId } from './newsroom/next.js';
 import { createInvestigation, suggestions, interruptedInvestigations } from './newsroom/investigations.js';
 import { board, leadAction, teaser, recoverLeads, leadFromTip } from './newsroom/spotlight/desk.js';
 import { discuss, applyAction, getThreadRepaired } from './newsroom/meeting.js';
 import { submitLetter, answerNow } from './newsroom/letters.js';
 import { openCalls, callView, answerCall, followLead } from './newsroom/calls.js';
-import {
-  createInquiry, getInquiry, inquiries, editInquiry, deleteInquiry, replyInquiry, chooseAngle, confirmData, addInquirySource,
-  editInquirySource, confirmSources, approveInquiryOutline, retryInquiry, backInquiry, toDesk, talkDesk, applyDeskAction,
-  sectionAction, publishInquiry, interruptedInquiries, rewriteAllInquiry,
-} from './newsroom/inquiry.js';
 import { chatter, say } from './newsroom/chatter.js';
 import { tips, addTip, archiveTip } from './newsroom/tips.js';
 import { oracleBoard, bet } from './newsroom/oracle.js';
 import { recordBook } from './newsroom/sport.js';
 import { latestFlashes } from './newsroom/flash.js';
 import { episodes } from './newsroom/serial.js';
-import {
-  features, createFeature, getFeature, briefFeature, approveOutline, continueFeature, blockAction, editFeature,
-  reviewFeature, publishFeature, unpublishFeature, deleteFeature, stopFeature, interruptedFeatures,
-  approveFeature, withdrawFeature, addSource, piecesInWork, topicProposals, setNotifier, rewriteAllFeature,
-} from './newsroom/features.js';
 import { paragraphAction, headlineOptions, verdict, scoreboard, getTaste, forgetExample, headlinesFor, draftTaste } from './newsroom/bench.js';
 
 const [maj, min] = process.versions.node.split('.').map(Number);
@@ -83,8 +70,6 @@ if (process.env.LOCALHOST_TIMES_SERVICE === '1') {
 const store = new Store(config.dbFile);
 interruptedInvestigations(store);
 recoverLeads(store);
-interruptedFeatures(store);
-interruptedInquiries(store);
 if (store.needsReindex()) {
   // first start after the archive was added: index what is already there
   store.reindex();
@@ -92,7 +77,6 @@ if (store.needsReindex()) {
 const log = (...a) => console.log(new Date().toLocaleTimeString(locale()), ...a);
 const notify = createNotifier(config, log);
 const newsroom = createNewsroom({ store, config, log, notify });
-setNotifier(notify);
 
 if (config.demo) {
   const n = seedDemo(store);
@@ -167,7 +151,7 @@ app.post('/api/print', wrap(async (req, res) => {
 }));
 
 // ── The Newsroom ──
-app.get('/api/line', (req, res) => { const line = getLine(store); res.json({ line, lengths: LENGTHS, weights: WEIGHTS, staff: staff(line), styles: styleList() }); });
+app.get('/api/line', (req, res) => { const line = getLine(store); res.json({ line, lengths: LENGTHS, weights: WEIGHTS, staff: staff(line) }); });
 app.put('/api/line', (req, res) => { const line = saveLine(store, req.body || {}); res.json({ line, staff: staff(line) }); });
 app.get('/api/drafts', (req, res) => res.json(store.drafts()));
 
@@ -230,58 +214,6 @@ app.get('/api/oracle', (req, res) => res.json(oracleBoard(store)));
 app.post('/api/oracle/bet', wrap((req, res) => res.json(bet(store, String(req.body?.id || ''), req.body?.yes))));
 app.get('/api/records', (req, res) => res.json(recordBook(store)));
 app.get('/api/serial', (req, res) => res.json(episodes(store)));
-
-// ── Long pieces (Approfondisci) ──
-const F = '/api/features/:id';
-app.get('/api/features', (req, res) => res.json(features(store, {
-  status: req.query.status ? String(req.query.status).split(',') : null,
-  target: ['edition', 'longread'].includes(req.query.target) ? req.query.target : null,
-  limit: Math.min(100, num(req.query.limit) || 30),
-})));
-app.post('/api/features', wrap(async (req, res) => res.json(await createFeature(store, config, {
-  editionId: req.body?.editionId, articleId: req.body?.articleId, storyId: req.body?.storyId, topic: req.body?.topic, days: req.body?.days,
-  target: req.body?.target === 'edition' ? 'edition' : 'longread',
-}, log))));
-// a new article for the edition: what the newsroom proposes, and what is in the works
-app.get('/api/commissions', (req, res) => res.json({ proposals: topicProposals(store, config), pieces: piecesInWork(store) }));
-app.post(`${F}/approve`, wrap((req, res) => res.json(approveFeature(store, req.params.id, { placement: req.body?.placement }))));
-app.post(`${F}/withdraw`, wrap((req, res) => res.json(withdrawFeature(store, req.params.id))));
-app.post(`${F}/rewrite-all`, wrap((req, res) => res.json(rewriteAllFeature(store, config, req.params.id, log))));
-app.post(`${F}/sources`, wrap((req, res) => res.json(addSource(store, req.params.id, { text: req.body?.text, via: req.body?.via }))));
-app.get(F, wrap((req, res) => res.json(getFeature(store, req.params.id))));
-app.patch(F, wrap((req, res) => res.json(editFeature(store, req.params.id, req.body || {}))));
-app.delete(F, wrap((req, res) => { deleteFeature(store, req.params.id); res.status(204).end(); }));
-app.post(`${F}/brief`, wrap((req, res) => res.json(briefFeature(store, config, req.params.id, req.body || {}, log))));
-app.post(`${F}/outline`, wrap((req, res) => res.json(approveOutline(store, config, req.params.id, req.body?.outline, log))));
-app.post(`${F}/continue`, wrap((req, res) => res.json(continueFeature(store, config, req.params.id, log))));
-app.post(`${F}/stop`, wrap((req, res) => res.json(stopFeature(store, req.params.id))));
-app.post(`${F}/blocks/:i`, wrap((req, res) => res.json(blockAction(store, config, req.params.id, req.params.i, req.body || {}, log))));
-app.post(`${F}/review`, wrap((req, res) => res.json(reviewFeature(store, config, req.params.id, log))));
-app.post(`${F}/publish`, wrap((req, res) => res.json(publishFeature(store, req.params.id))));
-app.post(`${F}/unpublish`, wrap((req, res) => res.json(unpublishFeature(store, req.params.id))));
-
-// ── The inquiry (Newsroom → Inquiry) and the Editor desk ──
-const I = '/api/inquiries/:id';
-app.get('/api/inquiries', (req, res) => res.json(inquiries(store, { limit: Math.min(100, num(req.query.limit) || 30) })));
-app.post('/api/inquiries', wrap((req, res) => res.json(createInquiry(store, config, { topic: req.body?.topic, lead: req.body?.lead, days: req.body?.days }, log))));
-app.get(I, wrap((req, res) => res.json(getInquiry(store, req.params.id))));
-app.patch(I, wrap((req, res) => res.json(editInquiry(store, req.params.id, req.body || {}))));
-app.delete(I, wrap((req, res) => { deleteInquiry(store, req.params.id); res.status(204).end(); }));
-app.post(`${I}/reply`, wrap((req, res) => res.json(replyInquiry(store, config, req.params.id, req.body || {}, log))));
-app.post(`${I}/angle`, wrap((req, res) => res.json(chooseAngle(store, config, req.params.id, req.body || {}, log))));
-app.post(`${I}/data`, wrap((req, res) => res.json(confirmData(store, config, req.params.id, req.body || {}, log))));
-app.post(`${I}/sources`, wrap((req, res) => res.json(addInquirySource(store, req.params.id, req.body || {}))));
-app.patch(`${I}/sources/:sid`, wrap((req, res) => res.json(editInquirySource(store, req.params.id, req.params.sid, req.body || {}))));
-app.post(`${I}/sources/done`, wrap((req, res) => res.json(confirmSources(store, config, req.params.id, log))));
-app.post(`${I}/outline`, wrap((req, res) => res.json(approveInquiryOutline(store, config, req.params.id, req.body?.outline, log))));
-app.post(`${I}/retry`, wrap((req, res) => res.json(retryInquiry(store, config, req.params.id, log))));
-app.post(`${I}/back`, wrap((req, res) => res.json(backInquiry(store, req.params.id, String(req.body?.to || '')))));
-app.post(`${I}/desk`, wrap((req, res) => res.json(toDesk(store, config, req.params.id, log))));
-app.post(`${I}/desk/talk`, wrap(async (req, res) => res.json(await talkDesk(store, config, req.params.id, req.body?.text, log))));
-app.post(`${I}/desk/apply`, wrap((req, res) => res.json(applyDeskAction(store, config, req.params.id, req.body || {}, log))));
-app.post(`${I}/blocks/:k`, wrap((req, res) => res.json(sectionAction(store, config, req.params.id, req.params.k, req.body || {}, log))));
-app.post(`${I}/rewrite-all`, wrap((req, res) => res.json(rewriteAllInquiry(store, config, req.params.id, log))));
-app.post(`${I}/publish`, wrap((req, res) => res.json(publishInquiry(store, req.params.id))));
 
 // ── Evening edition ──
 app.get('/api/evening/:day', (req, res) => {
@@ -417,29 +349,6 @@ app.post('/api/workbench/:sid/paragraph', wrap((req, res) => {
   res.json({ ok: true, award: fresh ? award(store, 'heart', `${p.id}:${i}`) : null });
 }));
 
-// ── The Editor's dispatches: facts the Mac can't record, written as traces for the newsroom ──
-const dispatchView = () => {
-  const v = bench();
-  const stories = [...v.pieces.filter((p) => p.status !== 'killed').map((p) => ({ id: p.id, source: p.source, topic: p.text?.headline || p.topic })), ...v.forming.map((f) => ({ id: f.id, source: f.source, topic: f.topic }))]
-    .filter((x) => !String(x.id).includes(':dispatch:'));
-  return {
-    list: dispatches(store, v),
-    sections: SECTION_ORDER.map((id) => ({ id, name: SECTION_MAP[id].name })),
-    stories,
-    editionId: v.editionId,
-    printsAt: v.printsAt,
-  };
-};
-app.get('/api/dispatches', (req, res) => res.json(dispatchView()));
-app.post('/api/dispatches', wrap((req, res) => {
-  const b = req.body || {};
-  addDispatch(store, { section: b.section, storyId: b.storyId || null, title: b.title, text: b.text, at: b.at, attribution: b.attribution, size: b.size });
-  // "write it now": a drafting round at once (the dispatch is the strongest story of the hour)
-  if (b.writeNow) newsroom.draftNow().catch((e) => log(`[drafts] ${e.message}`));
-  res.json(dispatchView());
-}));
-app.delete('/api/dispatches/:id', wrap((req, res) => { withdrawDispatch(store, req.params.id); res.json(dispatchView()); }));
-
 // ── The Editor's career: copies, rank, the day's missions ──
 app.get('/api/director', (req, res) => res.json(directorView(store)));
 app.get('/api/chief', (req, res) => res.json(chiefView(store)));
@@ -454,7 +363,6 @@ app.post('/api/director/award', wrap((req, res) => {
 
 // ── The Publishing House: the staff, the wires, the style manual ──
 app.get('/api/staff', (req, res) => res.json(staffView(store)));
-app.get('/api/staff/proposals', (req, res) => res.json(proposals(store, config)));
 app.post('/api/staff/hire', wrap((req, res) => { const id = hire(store, req.body || {}); res.json({ ...staffView(store), hired: id }); }));
 app.post('/api/staff/:id/fire', wrap((req, res) => { fire(store, req.params.id, String(req.body?.heir || '')); res.json(staffView(store)); }));
 app.post('/api/staff/:id/rehire', wrap((req, res) => { rehire(store, req.params.id); res.json(staffView(store)); }));

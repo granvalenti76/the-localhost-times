@@ -10,7 +10,6 @@ import { printEdition } from '../server/newsroom/edition.js';
 import { enrichEdition } from '../server/newsroom/extras.js';
 import { interviewRound, answerCall, openCalls, followLead } from '../server/newsroom/calls.js';
 import { addTip } from '../server/newsroom/tips.js';
-import { createFeature, briefFeature, getFeature, approveOutline, blockAction, reviewFeature, editFeature } from '../server/newsroom/features.js';
 import { paragraphAction, headlineOptions } from '../server/newsroom/bench.js';
 import { episodes } from '../server/newsroom/serial.js';
 import { hourStart } from '../server/util.js';
@@ -80,7 +79,7 @@ const wait = async (cond, ms = 5000) => {
   }
 };
 
-test('with a writer: interview question, quote in the piece, extras after the press, long piece, bench', async () => {
+test('with a writer: interview question, quote in the piece, extras after the press, bench', async () => {
   setLang('en');
   const { server, calls, port } = await mockServer();
   const { config, store, cleanup } = sandbox();
@@ -128,37 +127,6 @@ test('with a writer: interview question, quote in the piece, extras after the pr
     const p = await paragraphAction(store, config, ed.id, a.id, { index: 0, op: 'rewrite', instruction: 'meaner' });
     assert.match(p.articles.find((x) => x.id === a.id).body[0], /meaner paragraph/);
     assert.deepEqual((await headlineOptions(store, config, ed.id, a.id)).options.length, 3);
-
-    // a long piece: outline approved by the Editor, sections written, one rewritten, the headline
-    let f = await createFeature(store, config, { editionId: ed.id, articleId: a.id }, quiet);
-    assert.deepEqual(f.questions.map((x) => x.q).slice(0, 1), ['Chief, why chess tonight?']);
-    f = briefFeature(store, config, f.id, { answers: ['Because bob'], mode: 'together' }, quiet);
-    await wait(() => getFeature(store, f.id).status === 'outline');
-    f = getFeature(store, f.id);
-    assert.equal(f.outline.length, 3);
-    approveOutline(store, config, f.id, [...f.outline.slice(0, 2), { heading: 'My own section', point: 'The cat' }], quiet);
-    await wait(() => getFeature(store, f.id).status === 'draft' && !getFeature(store, f.id).busy);
-    f = getFeature(store, f.id);
-    assert.equal(f.blocks.length, 3);
-    assert.equal(f.headline, 'The knight shift');
-    assert.deepEqual(f.alternatives, ['Bob, again', 'Thirty moves']);
-    assert.ok(calls.some((m) => /Because bob/.test(m.map((x) => x.content).join('\n'))), 'the answer never reached the writer');
-    blockAction(store, config, f.id, 1, { op: 'edit', paragraphs: ['I wrote this start myself.'] }, quiet);
-    blockAction(store, config, f.id, 1, { op: 'continue' }, quiet);
-    await wait(() => !getFeature(store, f.id).busy);
-    assert.equal(getFeature(store, f.id).blocks[1].paragraphs[0], 'I wrote this start myself.');
-    assert.ok(getFeature(store, f.id).blocks[1].paragraphs.length > 1);
-    assert.doesNotMatch(getFeature(store, f.id).blocks.flatMap((b) => b.paragraphs).join(' '), BROKEN);
-
-    // the Editor's own piece, read by the desk
-    let y = await createFeature(store, config, { topic: 'chess.com' }, quiet);
-    y = briefFeature(store, config, y.id, { mode: 'yours' }, quiet);
-    editFeature(store, y.id, { text: 'I played 999 games tonight.' });
-    reviewFeature(store, config, y.id, quiet);
-    await wait(() => getFeature(store, y.id).review?.status === 'done');
-    const rv = getFeature(store, y.id).review;
-    assert.equal(rv.claims.length, 1);
-    assert.deepEqual(rv.headlines, ['Mine', 'Yours', 'Ours']);
   } finally {
     cleanup();
     server.close();

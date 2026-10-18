@@ -42,13 +42,9 @@ export const shortDate = (ms) =>
 export function parseRoute(hash) {
   const p = hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
   if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'banco' || p[1] === 'bench')) return { desk: true, bench: true, edition: p[2] || null };
-  // the newsroom's own rooms: the inquiry and the Editor desk
-  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'inquiry' || p[1] === 'inchiesta')) return { inquiry: p[2] || true };
-  if ((p[0] === 'newsroom' || p[0] === 'redazione') && p[1] === 'editor-desk') return { editorDesk: p[2] || true };
   // the two rooms that take the whole page: the writing room and the proof round
   if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'write' || p[1] === 'scrittura')) return { room: 'write', sid: p[2] || null };
   if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'proofs' || p[1] === 'bozze')) return { room: 'proofs', sid: p[2] || null };
-  if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'sources' || p[1] === 'fonti')) return { dispatches: true };
   // the editorial line moved to the Publishing House
   if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'linea' || p[1] === 'line')) return { house: 'masthead' };
   if (p[0] === 'house' || p[0] === 'casa-editrice') return { house: p[1] || 'masthead' };
@@ -60,8 +56,6 @@ export function parseRoute(hash) {
   if ((p[0] === 'investigation' || p[0] === 'inchiesta') && p[1]) return { investigation: p[1] };
   if (p[0] === 'spotlight') return p[1] ? { scoop: p[1] } : { spotlight: true };
   if (p[0] === 'calls' || p[0] === 'chiamate') return { calls: p[1] || true };
-  if ((p[0] === 'feature' || p[0] === 'approfondimento') && p[1]) return { feature: p[1] };
-  if (p[0] === 'features' || p[0] === 'approfondimenti') return { features: true };
   if (p[0] === 'serial' || p[0] === 'feuilleton') return { serial: p[1] || true };
   if (p[0] === 'sport') return { sport: true };
   if (p[0] === 'e' && p[1]) return { edition: p[1], article: p[2] === 'a' ? p[3] : null, xray: p[2] === 'a' && p[4] === 'x' };
@@ -83,18 +77,13 @@ export const href = {
   spotlight: (id) => (id ? `#/spotlight/${id}` : '#/spotlight'),
   spotlightDesk: () => '#/newsroom/spotlight',
   calls: (id) => (id ? `#/calls/${id}` : '#/calls'),
-  feature: (id) => `#/feature/${id}`,
-  features: () => '#/features',
   serial: (id) => (id ? `#/serial/${id}` : '#/serial'),
-  inquiry: (id) => (id ? `#/newsroom/inquiry/${id}` : '#/newsroom/inquiry'),
-  editorDesk: (id) => (id ? `#/newsroom/editor-desk/${id}` : '#/newsroom/editor-desk'),
   bench: (id) => (id ? `#/newsroom/banco/${encodeURIComponent(id)}` : '#/newsroom/banco'),
   line: () => '#/house',
   write: (sid) => (sid ? `#/newsroom/write/${encodeURIComponent(sid)}` : '#/newsroom/write'),
   proofs: (sid) => (sid ? `#/newsroom/proofs/${encodeURIComponent(sid)}` : '#/newsroom/proofs'),
   house: (tab) => (tab ? `#/house/${tab}` : '#/house'),
   nextDetail: () => '#/newsroom/next',
-  dispatches: () => '#/newsroom/sources',
   sport: () => '#/sport',
 };
 

@@ -8,10 +8,8 @@ import { tr, quote } from '../i18n.js';
 import { Track, Workings, TableSummary, stampOf } from './Proof.jsx';
 import { SpotlightDesk } from './Spotlight.jsx';
 import { Paragraphs, HeadlinePicker } from './Bench.jsx';
-import { DeepenButton } from './Features.jsx';
 import { ChatterFeed } from './Live.jsx';
-import CommissionPanel, { PiecesStrip } from './Commissions.jsx';
-import { NewsroomNav } from './Inquiry.jsx';
+import NewsroomNav from './NewsroomNav.jsx';
 
 const T = tr({
   en: {
@@ -216,7 +214,6 @@ function Draft({ a, i, n, ed, onChange, setError, onDiscuss }) {
                 <button className={`btn-link-ink ${mode === 'heads' ? 'on' : ''}`} onClick={() => toggle('heads')}>{T.heads}</button>
                 <button className="btn-link-ink" onClick={() => onDiscuss?.(a)}>{T.discuss}</button>
                 {i > 0 && <button className="btn-link-ink" disabled={busy} onClick={() => call('/move', { method: 'POST', json: { to: 'top' } })}>{T.toLead}</button>}
-                <DeepenButton editionId={ed.id} articleId={a.id} className="btn-link-ink" />
                 <button className="btn-link-ink danger" disabled={busy} onClick={() => call('/spike', { method: 'POST' })}>{T.spike}</button>
               </div>
             </div>
@@ -268,7 +265,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(null);
   const [armed, setArmed] = useState(false);
-  const [commission, setCommission] = useState(requested === 'nuovo' || requested === 'new');
 
   function reprint() {
     // an edition edited by hand: a second click confirms
@@ -344,7 +340,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
         <p>{T.subtitle}</p>
         <NewsroomNav on="desk" />
       </div>
-      <button className={`btn new-article ${commission ? 'on' : ''}`} onClick={() => setCommission((c) => !c)}>＋ {T.newArticle}</button>
     </header>
   );
 
@@ -359,7 +354,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
     <div className="desk fullbleed">
       <div className="desk-inner">
         {head}
-        {commission && <CommissionPanel onClose={() => setCommission(false)} />}
 
         <div className="desk-grid">
           <section className="desk-main">
@@ -390,8 +384,6 @@ export default function Newsroom({ editionId: requested, onPublished }) {
                 )}
               </div>
             </div>
-
-            <PiecesStrip />
 
             {otherDrafts.length > 0 && (
               <p className="desk-alert">

@@ -50,7 +50,6 @@ export default function Masthead({ edition, evening, day, status, activeSlug }) 
         ))}
         <a href={href.letters()} className={`letters-link ${activeSlug === 'letters' ? 'on' : ''}`}>{tr({ en: 'Letters', it: 'Lettere' })}</a>
         <a href={href.spotlight()} className={`spot-link ${activeSlug === 'spotlight' ? 'on' : ''}`}>Spotlight</a>
-        <a href={href.features()} className={activeSlug === 'features' ? 'on' : ''}>{tr({ en: 'Long reads', it: 'Approfondimenti' })}</a>
         <a href={href.archive()} className={activeSlug === 'archive' ? 'on' : ''}>{tr({ en: 'Archive', it: 'Archivio' })}</a>
         {/* the newsroom and its rooms: hover (or focus) opens the submenu */}
         <span className="nav-drop">
@@ -60,11 +59,8 @@ export default function Masthead({ edition, evening, day, status, activeSlug }) 
           </a>
           <span className="nav-sub" role="menu">
             <a role="menuitem" href={href.desk()}>{tr({ en: 'The desk', it: 'La scrivania' })}<em>{tr({ en: 'where the next edition stands', it: 'a che punto è il prossimo numero' })}</em></a>
-            <a role="menuitem" href={href.dispatches()}>{tr({ en: 'Sources', it: 'Fonti' })}<em>{tr({ en: 'what the Mac can\'t know: your traces', it: 'quello che il Mac non sa: le tue tracce' })}</em></a>
             <a role="menuitem" href={href.write()}>{tr({ en: 'Writing room', it: 'Sala scrittura' })}<em>{tr({ en: 'the pieces as they are typed', it: 'i pezzi mentre vengono scritti' })}</em></a>
             <a role="menuitem" href={href.proofs()}>{tr({ en: 'Proof round', it: 'Giro di bozze' })}<em>{tr({ en: 'the red pencil, one draft at a time', it: 'la matita rossa, una bozza alla volta' })}</em></a>
-            <a role="menuitem" href={href.inquiry()}>{tr({ en: 'Inquiry', it: 'Inchiesta' })}<em>{tr({ en: 'a long piece, built together', it: 'un pezzo lungo, costruito insieme' })}</em></a>
-            <a role="menuitem" href={href.editorDesk()}>Editor desk<em>{tr({ en: 'sources, structure, style', it: 'fonti, struttura, stile' })}</em></a>
             <a role="menuitem" href={href.house()}>{tr({ en: 'Publishing House', it: 'Casa Editrice' })}<em>{tr({ en: 'what paper to make: cadence, wires, staff, style', it: 'che giornale fare: uscita, agenzie, redattori, stile' })}</em></a>
           </span>
         </span>

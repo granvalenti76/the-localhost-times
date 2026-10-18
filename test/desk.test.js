@@ -9,7 +9,6 @@ import { checkRecords, peekRecords, metrics } from '../server/newsroom/sport.js'
 import { oracleRound, bet, judge } from '../server/newsroom/oracle.js';
 import { parseEpisode } from '../server/newsroom/serial.js';
 import { lint } from '../server/newsroom/lint.js';
-import { createFeature, briefFeature, getFeature, publishFeature, editFeature, reviewFeature, features } from '../server/newsroom/features.js';
 import { paragraphAction, verdict, headlineOptions, getTaste } from '../server/newsroom/bench.js';
 import { tastePrompt } from '../server/newsroom/writers.js';
 import { getLine, saveLine } from '../server/newsroom/line.js';
@@ -267,47 +266,6 @@ test('lint: the tics of small models are counted', () => {
 });
 
 for (const l of ['en', 'it']) {
-  test(`[${l}] a long piece: brief, outline, written section by section, published; the Editor's own piece reviewed`, async () => {
-    setLang(l);
-    const { config, store, cleanup } = sandbox();
-    try {
-      const h = hourStart(Date.now()) - 2 * HOUR;
-      store.insertEvents([...hourOfChess(h - 24 * HOUR), ...hourOfChess(h)]);
-      const ed = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
-      const a = ed.articles.find((x) => x.kind === 'site' && x.id.includes('chess.com'));
-      let f = await createFeature(store, config, { editionId: ed.id, articleId: a.id }, quiet);
-      assert.equal(f.status, 'brief');
-      assert.ok(f.questions.length >= 2);
-      assert.match(f.dossier, /chess\.com/);
-      f = briefFeature(store, config, f.id, { answers: ['I always lose to bob'], sources: ['I play every evening after dinner'], mode: 'desk' }, quiet);
-      await wait(() => getFeature(store, f.id).status === 'draft');
-      f = getFeature(store, f.id);
-      assert.ok(f.blocks.length >= 2 && f.blocks.every((b) => b.paragraphs.length), 'empty sections');
-      assert.ok(f.headline);
-      assert.doesNotMatch(f.blocks.flatMap((b) => b.paragraphs).join(' '), BROKEN);
-      f = publishFeature(store, f.id);
-      assert.equal(f.status, 'published');
-      assert.equal(features(store, { status: 'published' }).length, 1);
-
-      // together: the outline waits for the Editor
-      let t = await createFeature(store, config, { topic: 'chess.com' }, quiet);
-      t = briefFeature(store, config, t.id, { mode: 'together' }, quiet);
-      await wait(() => getFeature(store, t.id).status === 'outline');
-
-      // yours: the Editor writes, the desk checks
-      let y = await createFeature(store, config, { topic: 'chess.com' }, quiet);
-      y = briefFeature(store, config, y.id, { mode: 'yours' }, quiet);
-      assert.equal(y.status, 'draft');
-      assert.equal(y.byline.id, 'director');
-      y = editFeature(store, y.id, { headline: 'My evenings with bob.', text: '## The games\n\nI played 999 games tonight.\n\nAll lost.' });
-      assert.equal(y.headline, 'My evenings with bob');
-      assert.equal(y.blocks[0].heading, 'The games');
-      assert.ok(y.check.unverified.includes('999'), 'an invented figure went unnoticed');
-      reviewFeature(store, config, y.id, quiet);
-      await wait(() => getFeature(store, y.id).review?.status === 'done');
-      assert.ok(Array.isArray(getFeature(store, y.id).review.suggestions));
-    } finally { cleanup(); setLang('en'); }
-  });
 }
 
 test('the bench: a paragraph liked becomes an example, keep and cut are counted', async () => {
@@ -349,44 +307,4 @@ test('the menu bar shows the calls with one-click answers, and the flash', () =>
   assert.match(txt.split('\n')[0], /⚡ Record on chess.com/);
   assert.match(txt, /api\/calls\/7\/answer\?option=s0/);
   assert.match(txt, /#\/calls\/8/);
-});
-
-test('a new article: proposed from the signals, commissioned, tipped, approved, printed in the next edition', async () => {
-  const { config, store, cleanup } = sandbox();
-  try {
-    const { topicProposals, approveFeature, withdrawFeature, addSource } = await import('../server/newsroom/features.js');
-    const now = Date.now();
-    const h = hourStart(now);
-    store.insertEvents([...hourOfChess(h - 24 * HOUR), ...hourOfChess(h).map((e) => ({ ...e, ts: Math.min(e.ts, now - 1000) }))]);
-    const props = topicProposals(store, config, now);
-    const p = props.find((x) => x.kind === 'now' && x.topic === 'chess.com');
-    assert.ok(p, `no proposal from the signals: ${JSON.stringify(props.map((x) => x.topic))}`);
-    let f = await createFeature(store, config, { storyId: p.storyId, target: 'edition', now }, quiet);
-    assert.equal(f.target, 'edition');
-    assert.equal(f.format, 'article');
-    assert.ok(f.evidence.length > 0);
-    assert.ok(topicProposals(store, config, now).find((x) => x.storyId === p.storyId).inWork, 'not marked as in the works');
-    f = briefFeature(store, config, f.id, { answers: ['bob is a machine'], tips: [], mode: 'desk' }, quiet);
-    await wait(() => getFeature(store, f.id).status === 'draft');
-    f = addSource(store, f.id, { text: 'he plays every evening after dinner' });
-    assert.equal(f.sources.at(-1).via, 'tip');
-    f = approveFeature(store, f.id, { placement: 'lead' }, now);
-    assert.equal(f.status, 'approved');
-    f = withdrawFeature(store, f.id);
-    assert.equal(f.status, 'draft');
-    approveFeature(store, f.id, { placement: 'lead' }, now);
-    const ed = await printEdition({ store, config, start: h, final: false, force: true, log: quiet });
-    assert.equal(ed.articles[0].kind, 'commissioned', 'not at the top');
-    assert.equal(ed.articles[0].featureId, f.id);
-    assert.ok(ed.articles[0].body.length > 0);
-    assert.ok(ed.articles[0].quotes.length === 1);
-    assert.equal(getFeature(store, f.id).status, 'published');
-    assert.equal(getFeature(store, f.id).printedIn, ed.id);
-    // the final print of the same hour keeps it, once
-    const again = await printEdition({ store, config, start: h, final: true, force: true, log: quiet });
-    assert.equal(again.articles.filter((a) => a.kind === 'commissioned').length, 1);
-    assert.doesNotMatch(again.articles[0].body.join(' '), BROKEN);
-    // and it can't be approved twice
-    assert.throws(() => approveFeature(store, f.id, {}), /already|già/);
-  } finally { cleanup(); }
 });

@@ -167,7 +167,7 @@ export function badSentences(body, facts) {
  * The phrasing desk, sentence by sentence: the sentences with machine-made phrasing ("it's not X,
  * it's Y") or dashboard talk ("signals", "the system records") are sent back one by one and replaced
  * where they stand. Small models rewrite a sentence well and a whole piece badly; the rest of the
- * text is never touched. Used on the hourly articles and on the inquiry.
+ * text is never touched. Used on the hourly articles.
  */
 export async function phrasingDesk(paras, { llm, config, chat, report } = {}) {
   if (!llm || !paras?.length) return paras;

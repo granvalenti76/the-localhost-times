@@ -12,15 +12,12 @@ import EveningPage from './components/EveningPage.jsx';
 import LettersPage from './components/Letters.jsx';
 import ArchivePage from './components/ArchivePage.jsx';
 import { InvestigationsPage, InvestigationPage } from './components/Investigations.jsx';
-import { InquiryPage, EditorDeskPage } from './components/Inquiry.jsx';
 import { SpotlightList, SpotlightPage } from './components/Spotlight.jsx';
 import { CallsBar, CallsPage } from './components/Live.jsx';
-import { FeaturePage, FeaturesList } from './components/Features.jsx';
 import { SerialPage, SportPage } from './components/Games.jsx';
 import Bench from './components/Bench.jsx';
 import WritingRoom from './components/WritingRoom.jsx';
 import Desk from './components/Desk.jsx';
-import Dispatches from './components/Dispatches.jsx';
 import ProofRoom from './components/ProofRoom.jsx';
 import House from './components/House.jsx';
 
@@ -53,7 +50,7 @@ export default function App() {
   // The current edition
   useEffect(() => {
     let alive = true;
-    const page = route.room || route.house || route.dispatches || route.desk || route.inquiry || route.editorDesk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.calls || route.feature || route.features || route.serial || route.sport;
+    const page = route.room || route.house || route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.calls || route.serial || route.sport;
     if (page) { setLoaded(true); return () => { alive = false; }; }
     const p = route.edition ? api(`/editions/${encodeURIComponent(route.edition)}`) : route.day ? Promise.resolve(null) : api('/editions/latest');
     p.then((e) => {
@@ -65,7 +62,7 @@ export default function App() {
       .catch((err) => alive && (setEdition(null), setError(route.edition ? err.message : null)))
       .finally(() => alive && setLoaded(true));
     return () => { alive = false; };
-  }, [route.room, route.house, route.dispatches, route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop, route.calls, route.feature, route.features, route.serial, route.sport, route.inquiry, route.editorDesk]);
+  }, [route.room, route.house, route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop, route.calls, route.serial, route.sport]);
 
   useEffect(() => { if (route.day) setDay(route.day); }, [route.day]);
   useEffect(() => { if (route.evening) setDay(route.evening); }, [route.evening]);
@@ -114,8 +111,8 @@ export default function App() {
 
   const article = route.article && edition?.articles.find((a) => a.id === route.article);
   // pages of their own: no timeline bar above them
-  const standalone = route.house || route.dispatches || route.desk || route.inquiry || route.editorDesk || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop
-    || route.calls || route.feature || route.features || route.serial || route.sport;
+  const standalone = route.house || route.desk || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop
+    || route.calls || route.serial || route.sport;
 
   // the writing room and the proof round take the whole page: nothing else on screen
   if (route.room) {
@@ -128,7 +125,7 @@ export default function App() {
 
   return (
     <div className="paper">
-      <Masthead edition={route.desk || route.evening || standalone ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk || route.inquiry || route.editorDesk || route.house || route.dispatches ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.features || route.feature ? 'features' : route.archive || route.investigations || route.investigation ? 'archive' : route.evening ? 'evening' : route.section} />
+      <Masthead edition={route.desk || route.evening || standalone ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk || route.house ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.archive || route.investigations || route.investigation ? 'archive' : route.evening ? 'evening' : route.section} />
       {!route.calls && <CallsBar />}
       {!standalone && (
         <EditionBar day={day} list={list} current={route.evening ? evening?.id : edition?.id} onPrint={printNow} printing={printing}
@@ -143,22 +140,12 @@ export default function App() {
       )}
       {error && <p className="notice" role="status">{error}</p>}
       <main>
-        {route.dispatches ? (
-          <Dispatches />
-        ) : route.house ? (
+        {route.house ? (
           <House tab={route.house} />
-        ) : route.inquiry ? (
-          <InquiryPage key={String(route.inquiry)} id={route.inquiry === true ? null : route.inquiry} />
-        ) : route.editorDesk ? (
-          <EditorDeskPage key={String(route.editorDesk)} id={route.editorDesk === true ? null : route.editorDesk} />
         ) : route.desk && route.bench ? (
           <Bench key={route.edition || 'bench'} editionId={route.edition} />
         ) : route.calls ? (
           <CallsPage id={route.calls === true ? null : route.calls} />
-        ) : route.feature ? (
-          <FeaturePage key={route.feature} id={route.feature} />
-        ) : route.features ? (
-          <FeaturesList />
         ) : route.serial ? (
           <SerialPage id={route.serial === true ? null : route.serial} />
         ) : route.sport ? (

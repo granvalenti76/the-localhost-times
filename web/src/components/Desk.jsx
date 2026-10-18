@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, href, hhmm, dayKey, shortDate } from '../lib.js';
 import { tr } from '../i18n.js';
-import { NewsroomNav } from './Inquiry.jsx';
+import NewsroomNav from './NewsroomNav.jsx';
 import { Medallion, DirectorChip, Missions, Streak, Toast, useDirector, stepText, SoundToggle, Press, MOODS } from './Rooms.jsx';
 
 /*
@@ -253,32 +253,6 @@ function Chief() {
   );
 }
 
-/** What writers with a nose for stories propose: a long read on their beat, commissioned with one click. */
-function Ideas() {
-  const [list, setList] = useState([]);
-  const [done, setDone] = useState({});
-  const [busy, setBusy] = useState(null);
-  useEffect(() => { api('/staff/proposals').then(setList).catch(() => {}); }, []);
-  if (!list.length) return null;
-  async function commission(x) {
-    setBusy(x.storyId);
-    try { const f = await api('/features', { method: 'POST', json: { storyId: x.storyId, topic: x.topic, target: 'longread' } }); setDone((d) => ({ ...d, [x.storyId]: f.id })); } catch { /* stays on offer */ } finally { setBusy(null); }
-  }
-  return (
-    <div className="rd-box">
-      <div className="rd-sh"><h4>{T.ideas}</h4></div>
-      {list.map((x) => (
-        <div key={x.storyId} className="rd-idea">
-          <Medallion writer={x.writer} size="sm" />
-          <div><b>{x.topic}</b><small>{x.writer.name} {T.ideaWhy}</small>
-            {done[x.storyId] ? <a href={href.feature(done[x.storyId])}>{T.commissioned}</a> : <button className="rd-link" disabled={busy === x.storyId} onClick={() => commission(x)}>{T.commission}</button>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function Desk() {
   const [v, setV] = useState(null);
   const [staff, setStaff] = useState(null);
@@ -385,7 +359,6 @@ export default function Desk() {
           <aside className="rd-side">
             <Missions d={d} />
             <Chief />
-            <Ideas />
             <Staff staff={staff} v={v} />
             <Streak d={d} />
           </aside>
