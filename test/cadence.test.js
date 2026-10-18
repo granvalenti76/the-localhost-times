@@ -13,7 +13,7 @@ import { systemFor } from '../server/newsroom/prompts.js';
 import { personaPrompt, staff } from '../server/newsroom/writers.js';
 import { marksFor, applyFix } from '../server/newsroom/marks.js';
 import { partialArticle } from '../server/newsroom/live.js';
-import { manualView, staffView, hire, fire, rehire, promote } from '../server/newsroom/house.js';
+import { staffView } from '../server/newsroom/house.js';
 import { nudge, addLesson, lessonFromMark, moodOf } from '../server/newsroom/people.js';
 import { writerFor } from '../server/newsroom/writers.js';
 import { workbenchView, dueRounds, getWorkbench } from '../server/newsroom/workbench.js';
@@ -109,9 +109,6 @@ test('a writer\'s character and the Editor\'s own manual reach the instructions'
     assert.match(sys, /nell'ultima ora/);
     const daily = saveLine(store, { cadence: { kind: 'daily' } });
     assert.match(systemFor(daily, w), /nell'ultimo giorno/);
-    const m = manualView(store, 'local');
-    assert.equal(m.layers.find((x) => x.id === 'voice').own, 'VOCE DEL DIRETTORE');
-    assert.ok(m.layers.find((x) => x.id === 'facts').locked);
     assert.equal(staffView(store).staff.find((x) => x.id === 'local').traits.irony, 4);
   } finally {
     cleanup();
@@ -159,7 +156,7 @@ test('a rewrite keeps the corrections the Editor made by hand', () => {
   setLang('en');
 });
 
-test('the staff grows: moods, lessons, hires, firings, the intern promoted', () => {
+test('the staff: moods and lessons reach the writers', () => {
   setLang('it');
   const { store, cleanup } = sandbox();
   try {
@@ -174,20 +171,7 @@ test('the staff grows: moods, lessons, hires, firings, the intern promoted', () 
     assert.equal(addLesson(store, 'local', lessonFromMark('inflated', 'cruciale')), false);
     assert.match(personaPrompt(staff(getLine(store)).local), /Non scrivere «cruciale»/);
 
-    const id = hire(store, { kind: 'intern', name: 'Pietro Gallo' });
-    const v = staffView(store);
-    assert.equal(v.staff.find((x) => x.id === id).kind, 'intern');
-    assert.ok(v.hires.find((x) => x.kind === 'intern').taken);
-    // the intern takes Tonino's beats when he is let go
-    fire(store, 'local', id);
-    const line = getLine(store);
-    assert.equal(writerFor(line, 'files').id, id);
-    assert.ok(!staff(line).local);
-    assert.match(personaPrompt(writerFor(line, 'files')), /SEI LO STAGISTA/);
-    rehire(store, 'local');
-    assert.ok(staff(getLine(store)).local);
-    // not promotable yet
-    assert.throws(() => promote(store, id), /pronto/);
+    assert.equal(staffView(store).staff.find((x) => x.id === 'local').lessons.length, 1);
     assert.equal(moodOf([], 'x'), 'fine');
   } finally {
     cleanup();

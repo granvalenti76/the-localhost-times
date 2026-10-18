@@ -41,7 +41,7 @@ export const shortDate = (ms) =>
 // Routes are in English; the Italian ones still work (old links, bookmarks).
 export function parseRoute(hash) {
   const p = hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
-  // the editorial line moved to the Publishing House
+  // the editorial line moved to the settings
   if ((p[0] === 'newsroom' || p[0] === 'redazione') && (p[1] === 'linea' || p[1] === 'line')) return { house: 'masthead' };
   if (p[0] === 'house' || p[0] === 'casa-editrice') return { house: p[1] || 'masthead' };
   if (p[0] === 'newsroom' || p[0] === 'redazione') return { desk: true, edition: p[1] || null };

@@ -10,7 +10,7 @@ import { tr } from '../i18n.js';
 import { hhmm } from '../util.js';
 import { connectLLM } from './llm.js';
 import { composeText, UPDATE, DeskError, cleanHeadline, sameText, sizeFor, dayLabel, keepHand } from './edition.js';
-import { cadenceOf, nextPress, workHour, draftTimes, maxArticlesFor, closingTime, lastPress } from './cadence.js';
+import { cadenceOf, nextPress, workHour, draftTimes, maxArticlesFor, lastPress } from './cadence.js';
 import { getLine } from './line.js';
 import { liveStart, liveEnd, liveHooks, factLines } from './live.js';
 import { marksFor } from './marks.js';
@@ -317,10 +317,8 @@ export function workbenchView(store, config, { now = Date.now(), nextPress: pres
     windowStart,
     lastPress: lastPress(cad, now),
     printsAt,
-    closingAt: closingTime(cad, config, nextPress(cad, now)),
     minutesLeft: Math.max(0, Math.round((printsAt - now) / 60e3)),
     minute,
-    closingMinute: config.desk?.closingMinute ?? 55,
     rounds,
     nextRound: rounds.find((r) => !r.done && r.at > now) || null,
     running: w.running && now - w.running < STALE ? w.running : null,

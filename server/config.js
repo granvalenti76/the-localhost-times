@@ -70,7 +70,6 @@ const DEFAULTS = {
     sound: false,
   },
   desk: {
-    closingMinute: 55,   // when the desk asks the Editor about the edition about to close
     chain: 'triage',     // which articles the managing editor reads: 'triage' (first three + any the rules flag), 'all', 'top' (first three), 'lead', 'off'
     rounds: [20, 40],    // minutes of the hour when the reporters draft the next edition ([] = only at the press)
     draftTop: 5,         // how many of the strongest stories get a draft during the hour

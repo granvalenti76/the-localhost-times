@@ -26,7 +26,7 @@ import { rssFeed } from './feed.js';
 import { search, ask } from './newsroom/archive.js';
 import { preview, steer } from './newsroom/next.js';
 import { workbenchView } from './newsroom/workbench.js';
-import { staffView, wiresView, manualView, trialRun, hire, fire, rehire, promote } from './newsroom/house.js';
+import { staffView, wiresView, trialRun } from './newsroom/house.js';
 import { addLesson, removeLesson } from './newsroom/people.js';
 import { chiefView } from './newsroom/chief.js';
 import { nextEditionId } from './newsroom/next.js';
@@ -241,10 +241,6 @@ app.get('/api/chief', (req, res) => res.json(chiefView(store)));
 
 // ── The Publishing House: the staff, the wires, the style manual ──
 app.get('/api/staff', (req, res) => res.json(staffView(store)));
-app.post('/api/staff/hire', wrap((req, res) => { const id = hire(store, req.body || {}); res.json({ ...staffView(store), hired: id }); }));
-app.post('/api/staff/:id/fire', wrap((req, res) => { fire(store, req.params.id, String(req.body?.heir || '')); res.json(staffView(store)); }));
-app.post('/api/staff/:id/rehire', wrap((req, res) => { rehire(store, req.params.id); res.json(staffView(store)); }));
-app.post('/api/staff/:id/promote', wrap((req, res) => { promote(store, req.params.id, String(req.body?.role || '')); res.json(staffView(store)); }));
 // the Editor teaches a writer in their own words, or takes a lesson back
 app.post('/api/staff/:id/lessons', wrap((req, res) => {
   const text = String(req.body?.text || '').trim();
@@ -254,7 +250,6 @@ app.post('/api/staff/:id/lessons', wrap((req, res) => {
 }));
 app.delete('/api/staff/:id/lessons', wrap((req, res) => { removeLesson(store, req.params.id, String(req.body?.key || '')); res.json(staffView(store)); }));
 app.get('/api/wires', (req, res) => res.json(wiresView(store, config)));
-app.get('/api/manual', (req, res) => res.json(manualView(store, req.query.writer ? String(req.query.writer) : null)));
 app.post('/api/manual/trial', wrap(async (req, res) => {
   res.json(await newsroom.queue(() => trialRun(store, config, { manual: req.body?.manual || null, writer: req.body?.writer || null }, log)));
 }));

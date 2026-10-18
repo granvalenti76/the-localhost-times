@@ -31,9 +31,8 @@ const OLD_LENGTHS = { corti: 'short', lunghi: 'long' };
 export const lengthId = (l) => OLD_LENGTHS[l] || (FACTORS[l] ? l : 'standard');
 
 /** The editor's part and the games, all on by default. */
-export const FEATURE_IDS = ['interview', 'closing', 'tips', 'flash', 'sport', 'oracle', 'serial', 'chatter', 'readers', 'coffee'];
+export const FEATURE_IDS = ['tips'];
 export const DEFAULT_FEATURES = Object.fromEntries(FEATURE_IDS.map((id) => [id, true]));
-export const SERIAL_GENRES = ['giallo', 'spy', 'scifi', 'feuilleton', 'western'];
 
 /** Is a feature on in this editorial line? */
 export const featureOn = (line, id) => line?.features?.[id] !== false;
@@ -48,7 +47,6 @@ export const DEFAULT_LINE = {
   staff: {},                   // the editor's edits to the bylines: { web: { name, role, style } }
   // the editor's part in the paper and the paper's games: each can be turned off in the Newsroom
   features: { ...DEFAULT_FEATURES },
-  serialGenre: 'giallo',       // the genre of the serial (feuilleton)
   directorName: '',            // how the editor signs their own pieces ('' = "The Editor")
   cadence: { kind: 'hourly', pressHour: 19, weekday: 0 }, // how often the paper comes out (cadence.js)
   wires: {},                   // per source: 'full' (default), 'titles' (no contents) or 'off'
@@ -96,7 +94,6 @@ export function saveLine(store, patch) {
   next.autoPublish = !!next.autoPublish;
   next.photos = !!next.photos;
   next.features = Object.fromEntries(FEATURE_IDS.map((id) => [id, (patch.features || {})[id] ?? cur.features[id] ?? true].map((v, i) => (i ? !!v : v))));
-  if (!SERIAL_GENRES.includes(next.serialGenre)) next.serialGenre = 'giallo';
   next.directorName = String(next.directorName || '').trim().slice(0, 60);
   next.cadence = cadenceOf({ cadence: { ...cur.cadence, ...(patch.cadence || {}) } });
   next.chief = cleanChief({ ...cur.chief, ...(patch.chief || {}) });

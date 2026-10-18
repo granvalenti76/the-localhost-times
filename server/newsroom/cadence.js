@@ -90,12 +90,6 @@ export function draftTimes(cad, config, press) {
   return before.map((h) => ({ key: press - h * HOUR, at: press - h * HOUR }));
 }
 
-/** When the desk calls the Editor about the edition about to close. */
-export function closingTime(cad, config, press) {
-  if (cad.kind === 'hourly') return press - HOUR + (config.desk?.closingMinute ?? 55) * 60e3;
-  return press - 30 * 60e3;
-}
-
 /** Is an evening edition part of this paper? Only the hourly one has a day to sum up. */
 export const hasEvening = (cad) => cad.kind === 'hourly';
 

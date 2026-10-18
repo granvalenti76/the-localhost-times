@@ -3,8 +3,8 @@ import { href } from '../lib.js';
 import { tr } from '../i18n.js';
 
 const T = tr({
-  en: { rooms: 'Newsroom rooms', desk: 'The edition', lineRoom: 'Publishing House' },
-  it: { rooms: 'Stanze della redazione', desk: 'L\'edizione', lineRoom: 'Casa Editrice' },
+  en: { rooms: 'Newsroom rooms', desk: 'The edition', lineRoom: 'Settings' },
+  it: { rooms: 'Stanze della redazione', desk: 'L\'edizione', lineRoom: 'Impostazioni' },
 });
 
 /** The newsroom's rooms, as tabs under a room's title. */
