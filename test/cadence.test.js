@@ -48,7 +48,7 @@ test('the presses of each cadence', () => {
 });
 
 const visits = (from, n, step, host = 'chess.com') => Array.from({ length: n }, (_, i) => ({
-  id: `v${from}-${i}`, source: 'safari', kind: 'visit', ts: from + i * step, title: `alice vs. bob | Analysis ${i}`, detail: 'a detail', url: `https://${host}/game/${i}`, meta: { host },
+  id: `v${from}-${i}`, source: 'safari', kind: 'visit', ts: from + i * step, title: host === 'chess.com' ? `alice vs. bob | Analysis ${i}` : `${host.split('.')[0]} story ${i}`, detail: 'a detail', url: `https://${host}/game/${i}`, meta: { host },
 }));
 
 test('a daily paper covers the day since the last press', async () => {

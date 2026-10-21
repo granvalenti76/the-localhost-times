@@ -5,6 +5,7 @@ import { computeTime } from './time.js';
 import { SECTIONS } from './sections.js';
 import { hhmm, dayKey } from '../util.js';
 import { tr, lang } from '../i18n.js';
+import { findSubjects } from './subjects.js';
 
 const log2 = (n) => Math.log2(Math.max(1, n));
 
@@ -411,9 +412,35 @@ export function mergeProjects(stories, events = []) {
   return out;
 }
 
-export function buildStories(events) {
+/**
+ * A subject as a story: what the owner was busy with, from every app that spoke of it. Its id
+ * doesn't depend on the app that spoke loudest, so the same subject on another day is the same
+ * continuing story.
+ */
+function subjectStory(sub) {
+  const evs = sub.events;
+  const counts = [...groupBy(evs, (e) => e.source)].sort((a, b) => b[1].length - a[1].length);
+  const searches = uniqBy(evs.filter((e) => e.kind === 'search'), (e) => e.title.toLowerCase());
+  const pages = uniqBy(evs.filter((e) => e.source === 'safari' && e.kind === 'visit'), (e) => e.title);
+  const weight = 3 + Math.min(sub.places.size, 6) * 1.2 + log2(evs.length) * 0.9 + (searches.length ? 0.6 : 0);
+  const s = story(counts[0][0], 'subject', sub.key, evs, weight, {
+    topic: sub.label,
+    terms: sub.terms,
+    places: [...sub.places].sort((a, b) => b[1] - a[1]).map(([place, n]) => ({ place, n })),
+    searches,
+    pages,
+  });
+  return { ...s, id: `subject:${sub.key}`.replace(/[^\w:.-]+/g, '-').slice(0, 120) };
+}
+
+export function buildStories(events, { subjects = true } = {}) {
   const out = [];
-  const bySource = groupBy(events, (e) => e.source);
+  // first the subjects: their events leave the stories of the sites and apps they came from
+  const found = subjects ? findSubjects(events) : [];
+  const taken = new Set(found.flatMap((x) => x.events));
+  out.push(...found.map(subjectStory));
+  const own = taken.size ? events.filter((e) => !taken.has(e)) : events;
+  const bySource = groupBy(own, (e) => e.source);
   // the projects known to the files and git sources: the terminal follows the owner into them
   const projects = new Set([
     ...(bySource.get('files') || []).map((e) => e.meta?.project && String(e.meta.project).toLowerCase()),
@@ -421,7 +448,7 @@ export function buildStories(events) {
   ].filter(Boolean));
   for (const [src, list] of bySource) {
     if (src === 'editor') continue; // the Editor's dispatches: placed below, once the stories exist
-    if (src === 'terminal') out.push(...terminalStories(list, events, projects));
+    if (src === 'terminal') out.push(...terminalStories(list, own, projects));
     else if (src === 'safari') out.push(...safariStories(list, events));
     else if (BUILDERS[src]) out.push(...BUILDERS[src](list));
   }
@@ -487,6 +514,24 @@ function moment(ms) {
   return evening;
 }
 
+/** A place a subject came up in, in words: a site, the searches, an app. */
+function placeName(place, T) {
+  if (place === 'search') return T('web searches', 'ricerche sul web');
+  if (SECTIONS[place]) return { books: 'Books', podcasts: 'Podcasts', notes: T('Notes', 'Note'), mail: 'Mail' }[place] || place;
+  return place;
+}
+
+/** One event of a subject, for the writer. */
+function subjectLine(e, T, q) {
+  if (e.kind === 'search') return T(`searched ${q(e.title)}`, `cerca ${q(e.title)}`);
+  if (e.source === 'safari') return `${siteOf(e.meta?.host || '')}: ${q(e.title)}`;
+  if (e.source === 'books') return T(`Books: ${e.kind === 'highlight' ? 'underlines a passage of' : 'reads'} ${q(e.title)}`, `Libri: ${e.kind === 'highlight' ? 'sottolinea un passo di' : 'legge'} ${q(e.title)}`);
+  if (e.source === 'podcasts') return T(`Podcasts: listens to ${q(e.title)}`, `Podcast: ascolta ${q(e.title)}`);
+  if (e.source === 'notes') return T(`Notes: writes ${q(e.title)}`, `Note: scrive ${q(e.title)}`);
+  if (e.source === 'mail') return T(`Mail: ${e.kind === 'sent' ? 'writes' : 'receives'} ${q(e.title)}`, `Posta: ${e.kind === 'sent' ? 'scrive' : 'riceve'} ${q(e.title)}`);
+  return q(e.title);
+}
+
 /** The story described in words, for the writer (the LLM). */
 export function factSheet(s) {
   const en = lang() === 'en';
@@ -500,6 +545,14 @@ export function factSheet(s) {
   L.push(T(`Section: ${s.section}`, `Sezione: ${s.section}`));
   L.push(T(`Time span: ${t({ ts: s.first })}–${t({ ts: s.last })} (time of day: ${moment(s.first)})`, `Intervallo: ${t({ ts: s.first })}–${t({ ts: s.last })} (momento della giornata: ${moment(s.first)})`));
   switch (s.kind) {
+    case 'subject': {
+      const where = s.places.map((p) => `${placeName(p.place, T)} (${p.n})`).join(', ');
+      L.push(T(`Subject: ${q(s.topic)} — it came up in ${s.places.length} different places: ${where}.`, `Argomento: ${q(s.topic)} — è tornato in ${s.places.length} posti diversi: ${where}.`));
+      if (s.terms.length > 1) L.push(T(`Words that went with it: ${s.terms.slice(1, 5).map(q).join(', ')}.`, `Parole che lo accompagnavano: ${s.terms.slice(1, 5).map(q).join(', ')}.`));
+      L.push(T('What the owner did about it, in order:', 'Cosa ne ha fatto il proprietario, in ordine:'));
+      uniqBy(s.events, (e) => `${e.kind}|${e.title}`).slice(0, 30).forEach((e) => L.push(`- ${t(e)} ${subjectLine(e, T, q)}`));
+      break;
+    }
     case 'searches':
       L.push(T(`Web searches (${s.events.length}):`, `Ricerche fatte sul web (${s.events.length}):`));
       s.events.slice(0, 30).forEach((e) => L.push(`- ${t(e)} [${e.detail}] ${q(e.title)}`));

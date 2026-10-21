@@ -241,6 +241,7 @@ const STORIES = {
     city: 'Lisbon',
     searches: ['flights Boston Lisbon', 'Lisbon what to see in 3 days', 'tram 28 Lisbon times'],
     page: 'Lisbon travel guide – Lonely Planet',
+    more: ['Tram 28 in Lisbon: the complete guide – Time Out', 'Where to eat in Alfama, Lisbon – The Infatuation', 'lisbon pastel de nata best'],
     mail: ['TAP Air Portugal', 'booking@tap.example', 'Booking confirmed: Boston → Lisbon'],
     file: 'Lisbon_guide.pdf',
     note: 'Lisbon — things to see',
@@ -252,6 +253,7 @@ const STORIES = {
     city: 'Lisbona',
     searches: ['voli Milano Lisbona', 'Lisbona cosa vedere in 3 giorni', 'tram 28 Lisbona orari'],
     page: 'Lisbona: guida di viaggio – Lonely Planet',
+    more: ['Il tram 28 di Lisbona: la guida completa – Time Out', 'Dove mangiare ad Alfama, Lisbona – Gambero Rosso', 'lisbona pastel de nata migliore'],
     mail: ['TAP Air Portugal', 'booking@tap.example', 'Prenotazione confermata: Milano → Lisbona'],
     file: 'Guida_Lisbona.pdf',
     note: 'Lisbona — cose da vedere',
@@ -289,6 +291,11 @@ export function demoHistory(now = Date.now()) {
   add('mail', 'received', at(1, 9, 42), S.mail[2], S.mail[0], { from: S.mail[1], fromName: S.mail[0], unread: false, mailbox: 'INBOX' });
   add('files', 'downloaded', at(1, 12, 5), S.file, 'Downloads', { folder: 'Downloads', dir: 'Downloads', ext: 'pdf', site: 'tap.example' });
   add('notes', 'created', at(1, 22, 30), S.note, 'Notes', { folder: 'Notes', snippet: null });
+  // and yesterday evening the trip took over: the morning paper's subject
+  add('safari', 'visit', at(1, 20, 5), S.more[0], null, { host: 'timeout.com' }, 'https://www.timeout.com/lisbon');
+  add('safari', 'visit', at(1, 20, 21), S.more[1], null, { host: 'theinfatuation.com' }, 'https://www.theinfatuation.com/lisbon');
+  add('safari', 'search', at(1, 20, 25), S.more[2], 'Google', { host: 'google.com', engine: 'Google' });
+  add('safari', 'visit', at(1, 20, 40), S.page, null, { host: 'lonelyplanet.com' }, 'https://www.lonelyplanet.com/portugal/lisbon');
   add('safari', 'search', now - 2 * HOUR, S.searches[2], 'Google', { host: 'google.com', engine: 'Google' });
   // chess.com: once in the fortnight before, then every evening
   add('safari', 'visit', at(9, 18, 20), S.chess[2], null, { host: 'chess.com' }, 'https://www.chess.com/');

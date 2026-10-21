@@ -46,6 +46,24 @@ function notable(s) {
 }
 
 const W = {
+  subject(s, P) {
+    const sites = s.places.filter((p) => p.place !== 'search' && !['books', 'podcasts', 'notes', 'mail'].includes(p.place)).map((p) => p.place);
+    const apps = s.places.filter((p) => ['books', 'podcasts', 'notes', 'mail'].includes(p.place)).map((p) => ({ books: 'Books', podcasts: 'Podcasts', notes: 'Notes', mail: 'Mail' })[p.place]);
+    const where = [...sites.slice(0, 3), ...apps];
+    const titles = s.pages.map((e) => e.title).filter((t) => t.length > 8);
+    return {
+      kicker: 'The subject',
+      headline: P([`${s.topic}, from every side`, `The ${ofPeriod('en').replace(/^of the /, '')} of ${s.topic}`, `${s.topic}, again and again`]),
+      dek: `${cap(span(s))} ${s.topic} came up in ${plural(s.places.length, 'place', 'different places')}: ${list(where)}${s.searches.length ? `, and in ${plural(s.searches.length, 'search', 'searches')}` : ''}.`,
+      body: [
+        s.searches.length
+          ? `It starts, as these things do, with a question: ${q(short(s.searches[0].title, 80))}${s.searches.length > 1 ? `, followed by ${list(s.searches.slice(1, 4).map((e) => q(short(e.title, 60))))}` : ''}.`
+          : `${s.topic} turns up first on ${where[0]}, and does not leave.`,
+        titles.length ? `Along the way: ${list(titles.slice(0, 3).map((t) => q(short(t, 80))))}${titles.length > 3 ? `, and ${plural(titles.length - 3, 'other page', 'other pages')}` : ''}.` : '',
+        P(['A curiosity that crosses apps is rarely idle.', 'The paper notes the subject; what the owner meant to do with it, the paper does not presume.']),
+      ].filter(Boolean),
+    };
+  },
   searches(s, P) {
     const qs = s.events.map((e) => e.title);
     const n = qs.length;

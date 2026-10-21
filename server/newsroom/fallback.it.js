@@ -45,6 +45,24 @@ function notable(s) {
 }
 
 const W = {
+  subject(s, P) {
+    const sites = s.places.filter((p) => p.place !== 'search' && !['books', 'podcasts', 'notes', 'mail'].includes(p.place)).map((p) => p.place);
+    const apps = s.places.filter((p) => ['books', 'podcasts', 'notes', 'mail'].includes(p.place)).map((p) => ({ books: 'Libri', podcasts: 'Podcast', notes: 'Note', mail: 'Mail' })[p.place]);
+    const where = [...sites.slice(0, 3), ...apps];
+    const titles = s.pages.map((e) => e.title).filter((t) => t.length > 8);
+    return {
+      kicker: 'L\'argomento',
+      headline: P([`${s.topic}, da ogni lato`, `${s.topic}, ancora una volta`, `Tutte le strade portano a ${s.topic}`]),
+      dek: `${cap(span(s))} ${s.topic} è tornato in ${plural(s.places.length, 'posto', 'posti diversi')}: ${list(where)}${s.searches.length ? `, e in ${plural(s.searches.length, 'ricerca', 'ricerche')}` : ''}.`,
+      body: [
+        s.searches.length
+          ? `Comincia, come spesso accade, con una domanda: ${q(short(s.searches[0].title, 80))}${s.searches.length > 1 ? `, seguita da ${list(s.searches.slice(1, 4).map((e) => q(short(e.title, 60))))}` : ''}.`
+          : `${s.topic} compare prima su ${where[0]}, e non se ne va più.`,
+        titles.length ? `Lungo la strada: ${list(titles.slice(0, 3).map((t) => q(short(t, 80))))}${titles.length > 3 ? `, e ${plural(titles.length - 3, 'altra pagina', 'altre pagine')}` : ''}.` : '',
+        P(['Una curiosità che attraversa le app di rado è oziosa.', 'Il giornale registra l\'argomento; che cosa il proprietario intenda farne, il giornale non lo presume.']),
+      ].filter(Boolean),
+    };
+  },
   searches(s, P) {
     const qs = s.events.map((e) => e.title);
     const n = qs.length;

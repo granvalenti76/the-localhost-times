@@ -85,6 +85,7 @@ export function systemLayers(line, writer = null) {
 export const systemFor = (line, writer = null) => systemLayers(line, writer).map((x) => x.text).filter(Boolean).join('\n');
 
 const HINTS_EN = {
+  subject: 'A subject the owner kept coming back to, from several apps and sites: the piece is about the subject, not the sites. What was the owner after, judging by what they searched, read, watched, asked? Name the places only as the route the curiosity took. If the facts say it came up on earlier days too, it is a continuing interest: say so.',
   searches: 'The searches column: what was the owner trying to find out? Put the questions side by side, don\'t comment on them one by one.',
   site: 'Time spent on one site: what was the owner dealing with, judging by the titles. Pages marked "generic" (home, feeds) mean scrolling more than reading.',
   roundup: 'Short visits to different sites: the tone of a column of briefs.',
@@ -108,6 +109,7 @@ const HINTS_EN = {
 };
 
 const HINTS_IT = {
+  subject: 'Un argomento a cui il proprietario è tornato più volte, da app e siti diversi: il pezzo parla dell\'argomento, non dei siti. Che cosa cercava il proprietario, a giudicare da ciò che ha cercato, letto, guardato, chiesto? I posti si nominano solo come la strada che ha fatto la curiosità. Se i fatti dicono che era già comparso nei giorni prima, è un interesse che dura: dillo.',
   searches: 'Rubrica delle ricerche: cosa cercava di capire il proprietario? Accosta le domande, non commentarle una per una.',
   site: 'Tempo passato su un sito: di cosa si stava occupando, a giudicare dai titoli. Le pagine marcate «generica» (home, feed) indicano scorrimento più che lettura.',
   roundup: 'Visite brevi su siti diversi: tono da colonnino di brevi.',

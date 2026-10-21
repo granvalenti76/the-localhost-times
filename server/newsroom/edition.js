@@ -1,4 +1,5 @@
 import { buildStories, factSheet, crossFacts } from './cluster.js';
+import { subjectPast } from './subjects.js';
 import { deskChain, chainFor, phrasingDesk, triageFlags, rulesDesk } from './chain.js';
 import { SECTIONS, SECTION_ORDER } from './sections.js';
 import { fallbackArticle, fallbackBrief, fallbackSummary } from './fallback.js';
@@ -439,7 +440,8 @@ export async function printEdition({ store, config, start, final = true, force =
   for (const s of main) {
     s.records = records.filter((r) => metricList.find((m) => m.key === r.key)?.story(s));
     s.tipped = tipped.facts.has(s.id);
-    s.extra = (tipped.facts.get(s.id) || '') + s.records.map(recordFact).join('') + safely(() => crossFacts(s, events), '', log);
+    s.extra = (tipped.facts.get(s.id) || '') + s.records.map(recordFact).join('') + safely(() => crossFacts(s, events), '', log)
+      + (s.kind === 'subject' ? safely(() => subjectPast(store, s, { before: windowStart, lang: lang() }), '', log) : '');
   }
 
   const llm = await connectLLM(config);
