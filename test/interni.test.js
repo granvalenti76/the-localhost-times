@@ -89,12 +89,12 @@ test('strip: lanes where something happened, the subjects pinned where they were
   const ev = (source, h, meta = {}, kind = 'visit') => ({ source, kind, ts: at(h), meta });
   const events = [ev('safari', 1, { host: 'nytimes.com' }), ev('safari', 1.05, { host: 'nytimes.com' }), ev('git', 4, {}, 'commit'), ev('safari', 9, { host: 'youtube.com' }),
     ev('power', 17, {}, 'sleep'), ev('power', 23, {}, 'wake')];
-  const articles = [{ id: 'subject:eco', kind: 'subject', topic: 'Umberto Eco', first: at(0.5), sources: [{ ts: at(0.5) }, { ts: at(6) }, { ts: at(7) }] }];
+  const articles = [{ id: 'subject:lisbon', kind: 'subject', topic: 'Lisbon', first: at(0.5), sources: [{ ts: at(0.5) }, { ts: at(6) }, { ts: at(7) }] }];
   const s = dayStrip(events, articles, from, to);
   assert.equal(s.lanes.world.length, 1);
   assert.equal(s.lanes.home.length, 1);
   assert.equal(s.lanes.culture.length, 1, 'YouTube is culture');
   assert.deepEqual(s.sleep, [[0.708, 0.958]]);
-  assert.equal(s.labels[0].text, 'Umberto Eco');
+  assert.equal(s.labels[0].text, 'Lisbon');
   assert.equal(s.labels[0].at, 0.25);
 });

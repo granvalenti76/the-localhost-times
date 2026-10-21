@@ -34,9 +34,9 @@ On the first start the paper reads the past your Mac already keeps (a year of Sa
 ## What's in it
 
 - **Home Affairs (Interni), your projects.** Choose the folder of your repositories in the Settings: the paper reads them (never writes) and every morning tells what you built, in your own commit messages, where in the project the work went, what was born, which dependencies arrived; and keeps a board of how every project stands: work not committed and since when, commits not pushed, projects gone quiet. Each project has its own page.
-- **What you were busy with, not where.** The stories are subjects: Umberto Eco searched on Google, watched on YouTube, asked of ChatGPT and read in Books is one piece, followed from day to day, not four entries in a log.
+- **What you were busy with, not where.** The stories are subjects: a trip searched on Google, booked by mail, read about on three travel sites and noted in Notes is one piece, followed from day to day, not four entries in a log.
 - **The Year in Review:** the subjects of every month, the habits and the discoveries, the hours the Mac kept, the books, the shows, the repositories. And on the front page, *a year ago today*.
-- **A memory, without screenshots.** *“What was that article about fountain pens I read on Tuesday?”*: the archive answers with the page itself, and its link. From the paper, the menu bar or `npm run recall`.
+- **A memory, without screenshots.** *“What was that article about the trams in Lisbon I read on Tuesday?”*: the archive answers with the page itself, and its link. From the paper, the menu bar or `npm run recall`.
 - **The standup, written by itself:** yesterday's commits, pull requests, pushes, tests and meetings, ready to paste. One click in the menu bar, or `npm run standup -- --copy`.
 - **A front page laid out like a paper:** the day in a strip at the top, a lead with its engraving, the pages numbered by section (A1, A2…), *The Brief*, a New Yorker-style cartoon, *in this issue*, the website market, the records the day broke, and **Spotlight**, the patterns across weeks you may not have noticed.
 - **Every morning:** a notification with the lead headline, a one-minute radio bulletin read by your Mac's own voice, the RSS feed, the headline in the menu bar.

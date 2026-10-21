@@ -5,7 +5,7 @@ import { tr } from '../i18n.js';
 const T = tr({
   en: {
     title: 'The Archive', sub: 'Everything the paper printed, and every signal it read.',
-    askPh: 'What was that article about fountain pens I read on Tuesday?', ask: 'Remember', asking: 'Looking through the archive…',
+    askPh: 'What was that article about the trams in Lisbon I read on Tuesday?', ask: 'Remember', asking: 'Looking through the archive…',
     remember: 'Remember', rememberSub: 'Ask for a page, a video, a search, a book or a command the way you remember it: roughly, with a day if you have one. “How many times…” questions work too.',
     examples: ['that video on Saturday evening', 'the book I was reading', 'what did I search on Thursday afternoon'], visits: (n) => `${n} times`, firstLast: 'from', to: 'to', noRecall: 'Nothing like that in the archive. Try other words, or another day.',
     searchPh: 'Search articles and signals', all: 'All', articles: 'Articles', signals: 'Signals', evenings: 'Editorials',
@@ -18,7 +18,7 @@ const T = tr({
   },
   it: {
     title: 'L\'emeroteca', sub: 'Tutto quello che il giornale ha stampato, e ogni segnale che ha letto.',
-    askPh: 'Cos\'era quell\'articolo sulle stilografiche che ho letto martedì?', ask: 'Ricorda', asking: 'Cerco nell\'archivio…',
+    askPh: 'Cos\'era quell\'articolo sui tram di Lisbona che ho letto martedì?', ask: 'Ricorda', asking: 'Cerco nell\'archivio…',
     remember: 'Ricorda', rememberSub: 'Chiedi una pagina, un video, una ricerca, un libro o un comando come te lo ricordi: a grandi linee, con il giorno se ce l\'hai. Funzionano anche le domande «quante volte…».',
     examples: ['quel video di sabato sera', 'il libro che leggevo', 'cosa ho cercato giovedì pomeriggio'], visits: (n) => `${n} volte`, firstLast: 'dal', to: 'al', noRecall: 'Niente del genere in archivio. Prova altre parole, o un altro giorno.',
     searchPh: 'Cerca negli articoli e nei segnali', all: 'Tutto', articles: 'Articoli', signals: 'Segnali', evenings: 'Editoriali',

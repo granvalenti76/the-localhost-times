@@ -74,8 +74,8 @@ test('recall: the time of a question, in both languages', () => {
   const march = whenOf('a marzo', now);
   assert.equal(new Date(march.from).getMonth(), 2);
   assert.equal(whenOf('that article about pens', now), null);
-  assert.equal(keywordsOf("Cos'era quell'articolo sulle stilografiche che ho letto lunedì?"), 'stilografiche');
-  assert.equal(keywordsOf('what was that video about umberto eco I watched on Saturday'), 'umberto eco');
+  assert.equal(keywordsOf("Cos'era quell'articolo sui tram di Lisbona che ho letto lunedì?"), 'tram lisbona');
+  assert.equal(keywordsOf('what was that video about lisbon trams I watched on Saturday'), 'lisbon trams');
   assert.ok(isCounting('quante volte sono stato su YouTube?'));
   assert.ok(!isCounting('quel video su YouTube'));
 });
@@ -87,21 +87,21 @@ test('recall: the pages come back one per thing, with their links, the kind of t
     const now = Date.now();
     const v = (id, ts, host, title, url) => ({ id, source: 'safari', kind: 'visit', ts, title, detail: null, url, meta: { host } });
     store.insertEvents([
-      v('1', now - 2 * DAY, 'youtube.com', 'Umberto Eco on The Name of the Rose - YouTube', 'https://youtube.com/watch?v=1'),
-      v('2', now - 2 * DAY + 60e3, 'youtube.com', 'Umberto Eco on The Name of the Rose - YouTube', 'https://youtube.com/watch?v=1'),
-      v('3', now - 2 * DAY + 120e3, 'repubblica.it', 'Umberto Eco, dieci anni dopo', 'https://repubblica.it/eco'),
-      { id: '4', source: 'books', kind: 'opened', ts: now - DAY, title: 'The Name of the Rose', detail: 'Umberto Eco', url: null, meta: { author: 'Umberto Eco' } },
+      v('1', now - 2 * DAY, 'youtube.com', 'Riding tram 28 through Lisbon - YouTube', 'https://youtube.com/watch?v=1'),
+      v('2', now - 2 * DAY + 60e3, 'youtube.com', 'Riding tram 28 through Lisbon - YouTube', 'https://youtube.com/watch?v=1'),
+      v('3', now - 2 * DAY + 120e3, 'timeout.com', 'Lisbon, the essential guide', 'https://timeout.com/lisbon'),
+      { id: '4', source: 'books', kind: 'opened', ts: now - DAY, title: 'A walking guide', detail: 'Lisbon Press', url: null, meta: { author: 'Lisbon Press' } },
     ]);
-    const r = await recall(store, config, 'that video about Umberto Eco', { llm: false });
+    const r = await recall(store, config, 'that video about Lisbon', { llm: false });
     assert.equal(r.mode, 'recall');
     assert.equal(r.results.length, 1);
     assert.equal(r.results[0].url, 'https://youtube.com/watch?v=1');
     assert.equal(r.results[0].times, 2);
-    const all = await recall(store, config, "Umberto Eco", { llm: false });
+    // the guide too: its publisher is in the archive
+    const all = await recall(store, config, "Lisbon", { llm: false });
     assert.equal(all.results.length, 3);
-    // the book by Eco too: its author is in the archive
     const book = await recall(store, config, 'the book I was reading', { llm: false });
-    assert.deepEqual(book.results.map((x) => x.title), ['The Name of the Rose']);
+    assert.deepEqual(book.results.map((x) => x.title), ['A walking guide']);
   } finally {
     cleanup();
   }

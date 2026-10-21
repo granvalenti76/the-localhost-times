@@ -1,6 +1,6 @@
 /**
  * Subjects: what the owner was really busy with, across apps. A site is where something
- * happened; a subject is what it was about. Umberto Eco searched on Google, watched on YouTube,
+ * happened; a subject is what it was about. A trip to Lisbon searched on Google, watched on YouTube,
  * asked of ChatGPT and read in Books is one story, not four: the subject finds the events that
  * speak of it (search queries, page titles, books, episodes, notes, mail subjects) and gathers
  * them, whatever app they came from.
@@ -43,7 +43,7 @@ forecast weather meteo tempo complete completa completo social media digital net
 
 const fold = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-/** One word for its singular and plural (stilografica, stilografiche; pen, pens). */
+/** One word for its singular and plural (guida, guide; ticket, tickets). */
 const stem = (f) => (f.length >= 6 ? f.replace(/h[ei]$/, '').replace(/(es|[aeios])$/, '') : f.replace(/s$/, ''));
 
 /** The words of a text, as they were written and folded, without the noise. */
@@ -55,7 +55,7 @@ function tokens(text) {
     out.push({ raw, f, s: stem(f), stop: STOP.has(f) || f.length < 3 || /^\d+$/.test(f) });
   }
   // a capital in the middle of a title is a name (a person, a book, a product), unless the title
-  // capitalises every word, as English headlines do; "DeepSeek" is a name anywhere
+  // capitalises every word, as English headlines do; "JavaScript" is a name anywhere
   const words = out.filter((t) => !t.stop);
   const titleCase = words.length >= 3 && words.filter((t) => /^\p{Lu}/u.test(t.raw)).length >= words.length * 0.6;
   out.forEach((t, i) => { t.proper = (!titleCase && i > 0 && /^\p{Lu}\p{Ll}/u.test(t.raw)) || /\p{Ll}\p{Lu}/u.test(t.raw); });
@@ -83,7 +83,7 @@ export function textOf(e) {
   return String(e.title || '').trim() || null;
 }
 
-/** The terms of a text: the words that matter, and the pairs of them ("umberto eco"). */
+/** The terms of a text: the words that matter, and the pairs of them ("pastel de nata"). */
 function termsOf(text, banned) {
   const tk = tokens(text);
   const out = new Map(); // stemmed term → { raw: as written, phrase: as folded, proper }
@@ -150,11 +150,11 @@ export function findSubjects(events, { max = 3 } = {}) {
     }
   }
   // a single word is a subject if it reads as a name in the titles, or the owner typed it in a search twice;
-  // a pair of words ("fountain pen", "intelligenza artificiale") is specific enough on its own
+  // a pair of words ("travel guide", "intelligenza artificiale") is specific enough on its own
   // (or it was searched once and then found in three places or more)
   const specific = (x) => x.term.includes(' ') || x.proper >= x.events.size * 0.4 || x.searched >= 2 || (x.searched && x.places.size >= 3) || x.places.size >= 4;
   let cands = [...byTerm.values()].filter((x) => x.places.size >= 2 && x.events.size >= 3 && x.titles.size >= 2 && specific(x));
-  // a pair that covers most of its words' events is the better name ("umberto eco" over "umberto")
+  // a pair that covers most of its words' events is the better name ("travel guide" over "travel")
   const pairs = cands.filter((x) => x.term.includes(' '));
   cands = cands.filter((x) => {
     if (x.term.includes(' ')) {
@@ -169,7 +169,7 @@ export function findSubjects(events, { max = 3 } = {}) {
   // terms that share most of their events are one subject ("eco" and "nome della rosa" in the same titles)
   const out = [];
   for (const x of cands) {
-    // the same words joined or apart ("fountainpen", "fountain pen") are one subject too
+    // the same words joined or apart ("ebook", "e book") are one subject too
     const same = out.find((s) => overlap(s.events, x.events) >= 0.6 || s.compact === x.term.replace(/\s+/g, ''));
     if (same) {
       for (const e of x.events) same.events.add(e);

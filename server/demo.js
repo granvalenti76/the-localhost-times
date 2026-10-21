@@ -322,7 +322,7 @@ const YEAR = {
     ['rust ownership', 'Understanding Ownership – The Rust Programming Language', 'doc.rust-lang.org', 'Rust ownership explained – Reddit', 'reddit.com', ['books', 'Programming Rust', 'Jim Blandy']],
     ['film photography portra', 'Kodak Portra 400 review – Kosmo Foto', 'kosmofoto.com', 'Shooting film in 2026 – PetaPixel', 'petapixel.com', null],
     ['sqlite fts5', 'SQLite FTS5 Extension', 'sqlite.org', 'Full-text search with SQLite FTS5 – Simon Willison', 'simonwillison.net', null],
-    ['fountain pen ink', 'Best fountain pen inks of the year – Goulet Pens', 'gouletpens.com', 'Fountain pens for beginners – r/fountainpens', 'reddit.com', ['podcasts', 'The Pen Addict', 'Inks of the summer']],
+    ['chess openings', 'The best chess openings for beginners – Chess.com', 'chess.com', 'The Sicilian Defence explained – Lichess', 'lichess.org', ['podcasts', 'Perpetual Chess', 'Openings, slowly']],
     ['kobo libra colour', 'Kobo Libra Colour review – The Verge', 'theverge.com', 'Kobo vs Kindle: which e-reader – Wired', 'wired.com', null],
   ],
   it: [
@@ -333,7 +333,7 @@ const YEAR = {
     ['rust ownership', 'Understanding Ownership – The Rust Programming Language', 'doc.rust-lang.org', 'Rust ownership explained – Reddit', 'reddit.com', ['books', 'Programming Rust', 'Jim Blandy']],
     ['pellicola portra', 'Kodak Portra 400: la prova – Fotografia.it', 'fotografia.it', 'Fotografare a pellicola nel 2026 – PetaPixel', 'petapixel.com', null],
     ['sqlite fts5', 'SQLite FTS5 Extension', 'sqlite.org', 'Full-text search with SQLite FTS5 – Simon Willison', 'simonwillison.net', null],
-    ['inchiostro stilografica', 'I migliori inchiostri per stilografica – Stilografica Milano', 'lastilograficamilano.it', 'Stilografiche per principianti – r/fountainpens', 'reddit.com', ['podcasts', 'The Pen Addict', 'Inks of the summer']],
+    ['aperture scacchi', 'Le migliori aperture per principianti – Chess.com', 'chess.com', 'La difesa siciliana spiegata – Lichess', 'lichess.org', ['podcasts', 'Scacchi in poltrona', 'Le aperture, con calma']],
     ['kobo libra colour', 'Kobo Libra Colour: la prova – Il Post', 'ilpost.it', 'Kobo o Kindle: quale e-reader – Wired', 'wired.it', null],
   ],
 };
