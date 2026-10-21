@@ -1,0 +1,30 @@
+name: New source
+description: Propose a Mac app the paper should read.
+labels: [source]
+body:
+  - type: input
+    id: app
+    attributes:
+      label: App
+      placeholder: Messages, Music, Maps…
+    validations:
+      required: true
+  - type: textarea
+    id: stories
+    attributes:
+      label: What stories it would make
+      description: An example headline or two helps.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Where the data lives and what it would read
+      description: The database or file, and the fields. Say also what it must never read.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: The source can work read-only, from data already on this Mac, with nothing sent anywhere.
+          required: true

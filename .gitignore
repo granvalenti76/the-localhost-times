@@ -4,3 +4,8 @@ data/
 config.json
 .DS_Store
 *.tgz
+
+# local tooling and logs
+.claude/
+*.log
+.env

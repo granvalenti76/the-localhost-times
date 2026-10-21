@@ -27,7 +27,7 @@ const SKIP_HOSTS = [
 const SECRET_QUERY = /[?&](token|key|auth|session|sid|code|password|pwd|signature|sig|access_token|otp)=/i;
 const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1)|\.local$|\.lan$|\.internal$/i;
 const IMG_TYPES = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif' };
-// the "section" of a page: /granvalenti76/TurboCode/pulse → /granvalenti76/TurboCode
+// the "section" of a page: github.com/owner/repo/pulse → github.com/owner/repo
 function section(url) {
   try {
     const u = new URL(url);

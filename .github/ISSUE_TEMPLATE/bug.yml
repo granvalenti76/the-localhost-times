@@ -1,0 +1,39 @@
+name: Bug report
+description: Something in the paper doesn't work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: probe
+    attributes:
+      label: Output of `npm run probe`
+      description: It lists your sources and model, never their contents. Read it before you paste it.
+      render: text
+  - type: input
+    id: versions
+    attributes:
+      label: macOS, Node.js and model
+      placeholder: macOS 26.1, Node 22.14, Ollama gemma3:4b
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How you run it
+      options:
+        - npm start
+        - Background service
+        - npm run demo
+        - npm run dev
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: The relevant lines from the terminal or `npm run service:logs`. Remove anything personal.
+      render: text

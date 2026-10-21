@@ -1,7 +1,13 @@
 {
   "name": "localhost-times",
   "version": "0.1.0",
-  "description": "An hourly newspaper written from what your Mac did. Local LLM, no cloud: all the news that never left the machine.",
+  "description": "A daily newspaper about your Mac, written by your local LLM. Nothing leaves the machine.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/granvalenti76/the-localhost-times.git"
+  },
+  "homepage": "https://github.com/granvalenti76/the-localhost-times#readme",
+  "bugs": "https://github.com/granvalenti76/the-localhost-times/issues",
   "license": "MIT",
   "private": true,
   "type": "module",

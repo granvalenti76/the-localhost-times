@@ -7,13 +7,16 @@ import { systemFor, summaryPrompt, marketPrompt } from '../server/newsroom/promp
 import { linePrompt } from '../server/newsroom/line.js';
 import { figures, numbersCheck } from '../server/newsroom/factcheck.js';
 
-const guide = readFileSync(new URL('../docs/STYLE.md', import.meta.url), 'utf8');
+const guides = {
+  en: readFileSync(new URL('../docs/STYLE.md', import.meta.url), 'utf8'),
+  it: readFileSync(new URL('../docs/STYLE.it.md', import.meta.url), 'utf8'),
+};
 
 test('voice: the examples in the prompts are the style guide\'s, word for word', () => {
   for (const l of ['en', 'it']) {
     const e = EXAMPLES[l];
     for (const text of [e.brief, e.inflated, e.log, e.note.headline, e.note.dek, ...e.note.body, e.piece.headline, e.piece.dek, ...e.piece.body]) {
-      assert.ok(guide.includes(text), `${l}: not in docs/STYLE.md: ${text.slice(0, 60)}…`);
+      assert.ok(guides[l].includes(text), `${l}: not in its style guide: ${text.slice(0, 60)}…`);
     }
   }
 });

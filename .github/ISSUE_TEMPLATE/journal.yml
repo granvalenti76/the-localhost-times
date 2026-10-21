@@ -1,0 +1,20 @@
+name: Journal not found
+description: The Journal source found nothing on your Mac.
+labels: [source, journal]
+body:
+  - type: markdown
+    attributes:
+      value: Apple doesn't document where Journal keeps its entries. `npm run probe` lists the candidate folders and tables it looked at, by name only, never their contents.
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+    validations:
+      required: true
+  - type: textarea
+    id: probe
+    attributes:
+      label: The Journal part of `npm run probe`
+      render: text
+    validations:
+      required: true

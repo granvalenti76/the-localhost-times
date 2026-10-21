@@ -1,12 +1,12 @@
 /**
  * The house voice: one voice for the whole paper, in the manner of The New Yorker.
- * This is the translation of docs/STYLE.md for the writers: when a rule changes, it changes there
- * first, in both languages. The examples are quoted word for word from the guide (a test checks it).
+ * This is the translation of the style guide for the writers (docs/STYLE.md, and docs/STYLE.it.md
+ * for the Italian paper): when a rule changes, it changes there first, in both guides. The examples are quoted word for word from the guide (a test checks it).
  *
  * voicePrompt()      the voice, for every piece the paper prints (via linePrompt in line.js)
  * headlinePrompt()   headlines, kickers and deks, for the articles
  * examplesPrompt()   the examples to imitate and to avoid, for the articles
- * columnVoice(id)    the jargon of each column: brief, cartoon, market, sport, editorial
+ * columnVoice(id)    the jargon of each column: brief, cartoon, market, editorial
  */
 import { L } from '../i18n.js';
 
@@ -125,14 +125,12 @@ const COLUMNS = {
     brief: `The Brief is the most literary piece in the paper: two sentences, 45 words at most. Put the hour's most distant things side by side, bring the apps to life, draw no moral. For example: “${EXAMPLES.en.brief}”`,
     cartoon: 'The cartoon: one sentence of 14 words at most, said by the owner to someone off-panel. Understatement, everyday absurdity.',
     market: 'The jargon of the financial pages (session, rally, profit-taking, suspended on excessive losses), delivered with the gravity of a stock table.',
-    sport: 'The tone of an old sportswriter who has read a few books: Monday-morning player ratings, wry and exact.',
     editorial: 'The thread of the day, not a list. Here the house "we" is at home.',
   },
   it: {
     brief: `Il Punto è il pezzo più letterario del giornale: due frasi, massimo 45 parole. Accosta le cose più distanti dell'ora, dà vita alle app, nessuna morale. Per esempio: «${EXAMPLES.it.brief}»`,
     cartoon: 'La vignetta: una frase di massimo 14 parole, detta dal proprietario a qualcuno fuori scena. Understatement, assurdo quotidiano.',
     market: 'Il gergo delle pagine finanziarie (seduta, rally, prese di beneficio, sospeso per eccesso di ribasso), detto con la serietà di un listino.',
-    sport: 'Il tono di un vecchio cronista sportivo con buone letture: le pagelle del lunedì, sorniona ed esatta.',
     editorial: 'Il filo della giornata, non l\'elenco. Qui il «noi» della casa è di casa.',
   },
 };
