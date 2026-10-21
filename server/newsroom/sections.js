@@ -5,6 +5,7 @@ import { L } from '../i18n.js';
 const NAMES = {
   en: {
     safari:   { slug: 'world',          name: 'World',          tag: 'From the web' },
+    git:      { slug: 'home',           name: 'Home Affairs',   tag: 'Projects' },
     mail:     { slug: 'correspondence', name: 'Correspondence', tag: 'Mail' },
     terminal: { slug: 'workshop',       name: 'Workshop',       tag: 'Terminal' },
     notes:    { slug: 'notebook',       name: 'Notebook',       tag: 'Notes' },
@@ -17,6 +18,7 @@ const NAMES = {
   },
   it: {
     safari:   { slug: 'esteri',         name: 'Esteri',         tag: 'Dal web' },
+    git:      { slug: 'interni',        name: 'Interni',        tag: 'Progetti' },
     mail:     { slug: 'corrispondenza', name: 'Corrispondenza', tag: 'Posta' },
     terminal: { slug: 'officina',       name: 'Officina',       tag: 'Terminale' },
     notes:    { slug: 'taccuino',       name: 'Taccuino',       tag: 'Note' },
@@ -29,10 +31,10 @@ const NAMES = {
   },
 };
 
-export const SECTION_ORDER = ['safari', 'mail', 'terminal', 'files', 'apps', 'notes', 'journal', 'podcasts', 'books', 'photos'];
+export const SECTION_ORDER = ['safari', 'git', 'mail', 'terminal', 'files', 'apps', 'notes', 'journal', 'podcasts', 'books', 'photos'];
 
 // sources without a section of their own: their news goes in a neighbour's pages
-export const SECTION_OF = { git: 'terminal', reminders: 'notes', calendar: 'notes' };
+export const SECTION_OF = { reminders: 'notes', calendar: 'notes' };
 
 const section = (id) => ({
   id,

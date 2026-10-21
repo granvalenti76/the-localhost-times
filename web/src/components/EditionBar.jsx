@@ -1,9 +1,37 @@
 import React, { useEffect, useRef } from 'react';
 import { href, shiftDay, dayKey, dayFromKey, shortDate, edHour } from '../lib.js';
 import ExportMenu from './ExportMenu.jsx';
-import { tr } from '../i18n.js';
+import { tr, locale } from '../i18n.js';
 
-export default function EditionBar({ day, list, current, onPrint, printing, evening, exportable }) {
+/** A daily or weekly paper: one issue a day, so the bar walks the days, not the hours. */
+function DayBar({ day, onPrint, printing, exportable }) {
+  const today = dayKey(Date.now());
+  const fmt = (k, long) => new Intl.DateTimeFormat(locale, long ? { weekday: 'long', day: 'numeric', month: 'long' } : { weekday: 'short', day: 'numeric' }).format(dayFromKey(k));
+  const prev = shiftDay(day, -1);
+  const next = shiftDay(day, 1);
+  return (
+    <div className="edbar edbar-days">
+      <nav className="edbar-walk" aria-label={tr({ en: 'The issues, day by day', it: 'I numeri, giorno per giorno' })}>
+        <a href={href.day(prev)} className="edbar-side">‹ {fmt(prev)}</a>
+        <strong className="edbar-now">{day === today ? tr({ en: 'Today', it: 'Oggi' }) : fmt(day, true)}</strong>
+        {day < today ? <a href={href.day(next)} className="edbar-side">{fmt(next)} ›</a> : <span className="edbar-side ghost">{fmt(next)} ›</span>}
+      </nav>
+      <div className="edbar-acts">
+        {exportable && <ExportMenu {...exportable} />}
+        <button className="btn btn-small" onClick={onPrint} disabled={printing}>
+          {printing ? tr({ en: 'Printing…', it: 'In stampa…' }) : tr({ en: 'Print now', it: 'Stampa ora' })}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function EditionBar({ day, list, current, onPrint, printing, evening, exportable, daily = false }) {
+  if (daily) return <DayBar day={day} onPrint={onPrint} printing={printing} exportable={exportable} />;
+  return <HourBar day={day} list={list} current={current} onPrint={onPrint} printing={printing} evening={evening} exportable={exportable} />;
+}
+
+function HourBar({ day, list, current, onPrint, printing, evening, exportable }) {
   const byHour = new Map(list.map((e) => [new Date(edHour(e)).getHours(), e]));
   // hours absorbed by a later edition: marked as "merged"
   const merged = new Set();

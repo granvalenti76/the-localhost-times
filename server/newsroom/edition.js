@@ -1,6 +1,9 @@
 import { buildStories, factSheet, crossFacts } from './cluster.js';
 import { subjectPast } from './subjects.js';
 import { yearAgo } from './review.js';
+import { interniStories, getInterni } from './interni.js';
+import { dayStrip } from './strip.js';
+import { standup } from './standup.js';
 import { deskChain, chainFor, phrasingDesk, triageFlags, rulesDesk } from './chain.js';
 import { SECTIONS, SECTION_ORDER } from './sections.js';
 import { fallbackArticle, fallbackBrief, fallbackSummary } from './fallback.js';
@@ -239,6 +242,14 @@ async function writeArticle(story, rank, ctx) {
     section: story.section,
     slug: SECTIONS[story.source].slug,
     kind: story.kind,
+    topic: story.kind === 'subject' || story.kind === 'cantiere' ? story.topic : undefined,
+    repo: story.repo ? { name: story.repo.name, title: story.repo.title } : undefined,
+    // a project's numbers, for the Interni band: where the work went, what was born, what arrived
+    site: story.kind === 'cantiere' ? {
+      commits: story.work.commits.length, others: story.work.commits.filter((c) => !c.mine).length, added: story.work.added, removed: story.work.removed,
+      areas: story.work.areas, born: story.work.born.slice(0, 12), bornCount: story.work.born.length, deps: story.work.deps, tags: story.work.tags,
+      dirty: story.status.dirty, ahead: story.status.ahead, branch: story.status.branch,
+    } : undefined,
     weight: Math.round(story.weight * 100) / 100,
     size: size.id,
     first: story.first,
@@ -422,9 +433,26 @@ export async function printEdition({ store, config, start, final = true, force =
   // the editor's steering for this edition: lead with, leave out, one-off instructions
   const steer = getSteer(store, id);
   const line = steerLine(base, steer);
-  const stories = applySteer(weightedStories(events, line), steer);
+  let stories = applySteer(weightedStories(events, line), steer);
+  // Interni: the projects, read from their repositories (the demo keeps to its invented ones)
+  let board = null;
+  if (!config.demo) {
+    try {
+      const r = await interniStories(store, config, stories, { from: windowStart, to: end });
+      stories = applySteer(r.stories, steer);
+      board = r.board;
+    } catch (e) {
+      log(`[interni] ${e.message}`);
+    }
+  }
   const max = maxArticlesFor(cad, config, line.strictness);
   const { main, rest } = pickNews(stories, max, cad);
+  // Interni always has its place: up to two projects, whatever the web did
+  const home = (x) => x.source === 'git' && (x.work?.commits.length || x.events.length >= 3);
+  for (const x of rest.filter(home).slice(0, Math.max(0, 2 - main.filter((y) => y.source === 'git').length))) {
+    main.push(x);
+    rest.splice(rest.indexOf(x), 1);
+  }
   // continuing stories: previous instalments in the last 7 days
   const series = findSeries(store, main, { before: windowStart, excludeId: id });
   for (const s of main) s.series = seriesInfo(series.get(s.id));
@@ -505,6 +533,9 @@ export async function printEdition({ store, config, start, final = true, force =
     spotlight: existing?.spotlight || pendingScoop(store, id),
     records: records.length ? records : undefined,
     yearAgo: safely(() => yearAgo(store, end - 1), null, log) || undefined,
+    strip: safely(() => dayStrip(events, articles, windowStart, end), null, log),
+    interni: board ? { folder: getInterni(store).folder || null, board } : demoBoard(main),
+    standup: safely(() => standup(store, config, { now: end }).text, null, log),
     stats,
     time,
     mac,
@@ -516,6 +547,20 @@ export async function printEdition({ store, config, start, final = true, force =
   store.saveEdition(edition);
   if (final) clearSteer(store, id);
   return edition;
+}
+
+/** The demo's projects, made up from its project stories: the board of Interni without real repositories. */
+function demoBoard(main) {
+  const list = main.filter((s) => s.source === 'git' && s.project);
+  if (!list.length) return null;
+  return {
+    folder: '~/Work/git',
+    board: [
+      ...list.map((s) => ({ name: s.project, title: s.topic, branch: 'main', branches: 2, dirty: 3, dirtySince: s.last, ahead: 1, last: s.last, idleDays: 0, active: true, commits: s.git?.commits || 0 })),
+      { name: 'turbocode', title: 'TurboCode', branch: 'dev', branches: 5, dirty: 0, dirtySince: null, ahead: 0, last: Date.now() - 5 * 864e5, idleDays: 5, active: false, commits: 0 },
+      { name: 'dotfiles', title: 'dotfiles', branch: 'main', branches: 1, dirty: 1, dirtySince: Date.now() - 12 * 864e5, ahead: null, last: Date.now() - 40 * 864e5, idleDays: 40, active: false, commits: 0 },
+    ],
+  };
 }
 
 // ───────────────────────── The newsroom desk ─────────────────────────
@@ -638,7 +683,10 @@ export async function rewriteArticle(store, config, id, aid, instruction, log = 
   const prev = ed.articles[i];
   const ctx = await ctxFor(store, config, ed, log);
   if (prev.kind === 'commissioned') throw new DeskError(tr({ en: 'A commissioned piece is rewritten from its own page (Newsroom → New article).', it: 'Un pezzo su commissione si riscrive dalla sua pagina (Redazione → Nuovo articolo).' }), 409);
-  const story = buildStories(cleanEvents(store.eventsBetween(ed.start, ed.end), config, ctx.line)).find((s) => s.id === aid);
+  let stories = buildStories(cleanEvents(store.eventsBetween(ed.start, ed.end), config, ctx.line));
+  // a project of Interni is rebuilt from its repository
+  if (aid.startsWith('interni:') && !config.demo) stories = (await interniStories(store, config, stories, { from: ed.start, to: ed.end })).stories;
+  const story = stories.find((s) => s.id === aid);
   if (!story) throw new DeskError(tr({ en: 'The facts behind this article are no longer available.', it: 'Non trovo più i fatti di questo articolo.' }), 409);
   story.series = prev.series || null;
   const writer = writerFor(ctx.line, story.source);

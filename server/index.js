@@ -39,6 +39,7 @@ import { paragraphAction, headlineOptions } from './newsroom/bench.js';
 import { computeReview, typesetReview, latestReview, printReview } from './newsroom/review.js';
 import { recall } from './newsroom/recall.js';
 import { standup, polishStandup } from './newsroom/standup.js';
+import { getInterni, saveInterni, interniStatus, interniRepos, repoStatus, repoWork, commitsPerDay } from './newsroom/interni.js';
 
 const [maj, min] = process.versions.node.split('.').map(Number);
 if (maj < 22 || (maj === 22 && min < 13)) {
@@ -69,6 +70,8 @@ if (store.needsReindex()) {
 }
 const log = (...a) => console.log(new Date().toLocaleTimeString(locale()), ...a);
 const notify = createNotifier(config, log);
+// the projects' folder chosen in the Settings: the git source looks there
+config.interni = getInterni(store);
 const newsroom = createNewsroom({ store, config, log, notify });
 
 if (config.demo) {
@@ -290,6 +293,64 @@ app.get('/api/review', (req, res) => {
   res.json(r ? { ...r, ...typesetReview(r), draft: true } : null);
 });
 app.post('/api/review', wrap(async (req, res) => res.json(await newsroom.queue(() => printReview(store, config, { log })))));
+
+// ── Interni: the projects ──
+app.get('/api/interni', wrap(async (req, res) => {
+  const prefs = getInterni(store);
+  res.json({ folder: prefs.folder || null, repos: config.demo ? [] : await interniStatus(store, config) });
+}));
+app.post('/api/interni', wrap(async (req, res) => {
+  const b = req.body || {};
+  saveInterni(store, config, { folder: b.folder, repo: b.repo, on: b.on, title: b.title });
+  res.json({ folder: getInterni(store).folder || null, repos: await interniStatus(store, config) });
+}));
+// the Mac's own folder picker: the page can't open one that returns a path
+app.post('/api/interni/choose', wrap(async (req, res) => {
+  if (process.platform !== 'darwin') return res.status(400).json({ error: tr({ en: 'Type the folder\'s path instead.', it: 'Scrivi invece il percorso della cartella.' }) });
+  const { execFile } = await import('node:child_process');
+  const prompt = tr({ en: 'The folder of your projects', it: 'La cartella dei tuoi progetti' });
+  execFile('/usr/bin/osascript', ['-e', `POSIX path of (choose folder with prompt "${prompt}")`], { timeout: 120000 }, async (err, stdout) => {
+    if (err) return res.json({ cancelled: true });
+    const folder = stdout.trim().replace(/\/$/, '');
+    saveInterni(store, config, { folder });
+    res.json({ folder, repos: await interniStatus(store, config) });
+  });
+}));
+// a project's own page: how it stands, what it is, thirty days of commits, the week's work, its chronicle
+app.get('/api/interni/:name', wrap(async (req, res) => {
+  const name = req.params.name;
+  const r = config.demo ? null : interniRepos(store, config).find((x) => x.name === name);
+  // the pieces the paper wrote about it: the project's own, or the older project stories of the same name
+  const ids = new Set([`interni:${name}`.replace(/[^\w:.-]+/g, '-'), `git:project:${name.toLowerCase()}`, `git:commits:git-${name}`, `terminal:project:${name.toLowerCase()}`]);
+  const chronicle = store.db.prepare(`SELECT id, payload FROM editions WHERE payload LIKE ? ORDER BY start_ts DESC LIMIT 60`).all(`%${name}%`)
+    .map((row) => {
+      const ed = JSON.parse(row.payload);
+      const a = ed.articles.find((x) => ids.has(x.id));
+      return a && { editionId: ed.id, day: ed.end - 1, articleId: a.id, headline: a.headline, dek: a.dek, body: a.body.slice(0, 2), first: a.first, last: a.last };
+    }).filter(Boolean).slice(0, 40);
+  if (!r) {
+    // a project the paper knows only from its archive (the demo's, or one moved away): what the reflog saw
+    const evs = store.db.prepare(`SELECT ts FROM events WHERE source = 'git' AND kind IN ('commit', 'merge', 'amend') AND json_extract(meta, '$.repo') = ? AND ts >= ?`).all(name, Date.now() - 30 * 864e5);
+    if (!evs.length && !chronicle.length) return res.status(404).json({ error: tr({ en: 'Project not found', it: 'Progetto non trovato' }) });
+    const start = new Date(Date.now() - 29 * 864e5).setHours(0, 0, 0, 0);
+    const bins = Array(30).fill(0);
+    for (const e of evs) { const i = Math.floor((e.ts - start) / 864e5); if (i >= 0 && i < 30) bins[i]++; }
+    return res.json({
+      name, title: chronicle[0]?.headline ? name : name, path: '—', branch: null, branches: 0, dirty: 0, ahead: null, commits: evs.length, description: null,
+      perDay: { start, bins }, week: { commits: 0, added: 0, removed: 0, areas: [], born: 0, gone: 0, deps: { arrived: [], left: [], updated: [] }, tags: [] },
+      chronicle, others: [],
+    });
+  }
+  const status = await repoStatus(r.path);
+  const week = await repoWork(r.path, Date.now() - 7 * 864e5, Date.now(), { me: status.me });
+  res.json({
+    name: r.name, title: r.title, path: r.path.replace(process.env.HOME || '', '~'), ...status,
+    perDay: await commitsPerDay(r.path),
+    week: { commits: week.commits.length, added: week.added, removed: week.removed, areas: week.areas, born: week.born.length, gone: week.gone.length, deps: week.deps, tags: week.tags },
+    chronicle,
+    others: interniRepos(store, config).filter((x) => x.on && x.name !== r.name).map((x) => x.name),
+  });
+}));
 
 // ── The standup, written by itself ──
 const standupOpts = (q) => ({ span: q.span === 'week' ? 'week' : 'day', format: ['markdown', 'slack', 'plain'].includes(q.format) ? q.format : 'markdown' });

@@ -348,7 +348,7 @@ function gitStories(evs) {
     const weight = commits.length
       ? 2.4 + log2(commits.length + 1) * 1.4 + Math.min(1.5, log2((added + removed) / 80 + 1) * 0.5) + (list.some((e) => e.kind === 'merge') ? 0.5 : 0)
       : 0.9 + list.length * 0.2;
-    out.push(story('terminal', 'commits', `git-${repo}`, list, weight, {
+    out.push(story('git', 'commits', `git-${repo}`, list, weight, {
       topic: repo, repo, project: String(repo || '').toLowerCase() || null, projectName: repo, commits: commits.length, branches,
       lines: sized ? { added, removed, files: commits.reduce((t, e) => t + (e.meta.files || 0), 0) } : null,
     }));
@@ -399,7 +399,7 @@ export function mergeProjects(stories, events = []) {
     const pages = events.filter((e) => e.source === 'safari' && e.kind === 'visit' && e.ts >= first - 30 * 60e3 && e.ts <= last + 30 * 60e3
       && /github\.com|gitlab\.com/.test(e.meta?.host || '') && String(e.url || '').toLowerCase().includes(`/${p}`));
     const commands = sessions.flatMap((x) => x.events);
-    out.push(story('terminal', 'project', p, evs, Math.max(...list.map((x) => x.weight)) + 1 + log2(list.length) * 0.5 + (tools.length ? 0.3 : 0), {
+    out.push(story('git', 'project', p, evs, Math.max(...list.map((x) => x.weight)) + 1 + log2(list.length) * 0.5 + (tools.length ? 0.3 : 0), {
       topic: list.find((x) => x.projectName)?.projectName || p,
       project: p,
       folder: folder ? { saves: folder.events.length, created: folder.created, exts: folder.exts, dirs: folder.dirs } : null,
@@ -545,6 +545,38 @@ export function factSheet(s) {
   L.push(T(`Section: ${s.section}`, `Sezione: ${s.section}`));
   L.push(T(`Time span: ${t({ ts: s.first })}–${t({ ts: s.last })} (time of day: ${moment(s.first)})`, `Intervallo: ${t({ ts: s.first })}–${t({ ts: s.last })} (momento della giornata: ${moment(s.first)})`));
   switch (s.kind) {
+    case 'cantiere': {
+      const w = s.work;
+      const mine = w.commits.filter((c) => c.mine);
+      const theirs = w.commits.filter((c) => !c.mine);
+      L.push(T(`Project: ${q(s.repo.title)}${s.repo.title !== s.repo.name ? ` (the folder ${q(s.repo.name)})` : ''}.`, `Progetto: ${q(s.repo.title)}${s.repo.title !== s.repo.name ? ` (la cartella ${q(s.repo.name)})` : ''}.`));
+      if (s.repo.description) L.push(T(`What it is, in its own README: ${q(s.repo.description)}`, `Che cos'è, dal suo README: ${q(s.repo.description)}`));
+      if (mine.length) {
+        L.push(T(`Commits by the owner (${mine.length}), in their own words:`, `Commit del proprietario (${mine.length}), con le sue parole:`));
+        mine.slice(0, 15).forEach((c) => L.push(`- ${t(c)} ${q(c.subject)} (+${c.added} −${c.removed}, ${c.files} file${c.files === 1 ? '' : 's'})`));
+      }
+      if (theirs.length) {
+        L.push(T(`Commits by others (${theirs.length}), arrived meanwhile:`, `Commit di altri (${theirs.length}), arrivati intanto:`));
+        theirs.slice(0, 8).forEach((c) => L.push(`- ${t(c)} ${c.author}: ${q(c.subject)}`));
+      }
+      if (w.commits.length) L.push(T(`In all: ${w.added} lines added, ${w.removed} removed.`, `In tutto: ${w.added} righe aggiunte, ${w.removed} tolte.`));
+      if (w.areas.length) L.push(T(`Where the work went (share of the changes): ${w.areas.map((a) => `${a.area} ${a.share}%`).join(', ')}.`, `Dove si è lavorato (quota delle modifiche): ${w.areas.map((a) => `${a.area} ${a.share}%`).join(', ')}.`));
+      if (w.born.length) L.push(T(`New files (${w.born.length}): ${w.born.slice(0, 10).join(', ')}.`, `File nuovi (${w.born.length}): ${w.born.slice(0, 10).join(', ')}.`));
+      if (w.gone.length) L.push(T(`Files removed (${w.gone.length}): ${w.gone.slice(0, 8).join(', ')}.`, `File eliminati (${w.gone.length}): ${w.gone.slice(0, 8).join(', ')}.`));
+      if (w.deps.arrived.length) L.push(T(`New dependencies: ${w.deps.arrived.join(', ')}.`, `Dipendenze nuove: ${w.deps.arrived.join(', ')}.`));
+      if (w.deps.left.length) L.push(T(`Dependencies removed: ${w.deps.left.join(', ')}.`, `Dipendenze tolte: ${w.deps.left.join(', ')}.`));
+      if (w.deps.updated.length) L.push(T(`Dependencies updated: ${w.deps.updated.join(', ')}.`, `Dipendenze aggiornate: ${w.deps.updated.join(', ')}.`));
+      if (w.tags.length) L.push(T(`Released: ${w.tags.join(', ')}.`, `Rilasciato: ${w.tags.join(', ')}.`));
+      if (s.commands) L.push(T(`Commands in the terminal inside the project: ${s.commands.all}${s.commands.families.length ? ` (${s.commands.families.join(', ')})` : ''}.`, `Comandi nel terminale dentro il progetto: ${s.commands.all}${s.commands.families.length ? ` (${s.commands.families.join(', ')})` : ''}.`));
+      if (s.saves) L.push(T(`Files saved in the folder: ${s.saves}.`, `File salvati nella cartella: ${s.saves}.`));
+      const st = s.status;
+      const now = [];
+      if (st.dirty) now.push(T(`${st.dirty} file${st.dirty === 1 ? '' : 's'} changed and not committed${st.dirtySince ? `, the oldest since ${dayKey(st.dirtySince)}` : ''}`, `${st.dirty} file modificat${st.dirty === 1 ? 'o' : 'i'} e non committat${st.dirty === 1 ? 'o' : 'i'}${st.dirtySince ? `, il più vecchio dal ${dayKey(st.dirtySince)}` : ''}`));
+      if (st.ahead) now.push(T(`${st.ahead} commit${st.ahead === 1 ? '' : 's'} not pushed`, `${st.ahead} commit non ancora pushat${st.ahead === 1 ? 'o' : 'i'}`));
+      if (st.branch) now.push(T(`on the branch ${q(st.branch)}`, `sul ramo ${q(st.branch)}`));
+      if (now.length) L.push(T(`How it stands now: ${now.join('; ')}.`, `Com'è adesso: ${now.join('; ')}.`));
+      break;
+    }
     case 'subject': {
       const where = s.places.map((p) => `${placeName(p.place, T)} (${p.n})`).join(', ');
       L.push(T(`Subject: ${q(s.topic)} — it came up in ${s.places.length} different places: ${where}.`, `Argomento: ${q(s.topic)} — è tornato in ${s.places.length} posti diversi: ${where}.`));

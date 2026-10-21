@@ -85,6 +85,7 @@ export function systemLayers(line, writer = null) {
 export const systemFor = (line, writer = null) => systemLayers(line, writer).map((x) => x.text).filter(Boolean).join('\n');
 
 const HINTS_EN = {
+  cantiere: 'A project of the owner, from Interni: what was built or changed, told from the commits in the owner\'s own words, where in the project the work went, what was born, what arrived (dependencies, releases) and, at the end, how it stands (work not committed, not pushed). The README says what the project is: use it so the reader knows, never explain the code. Plain words, the tone of a city reporter at a building site.',
   subject: 'A subject the owner kept coming back to, from several apps and sites: the piece is about the subject, not the sites. What was the owner after, judging by what they searched, read, watched, asked? Name the places only as the route the curiosity took. If the facts say it came up on earlier days too, it is a continuing interest: say so.',
   searches: 'The searches column: what was the owner trying to find out? Put the questions side by side, don\'t comment on them one by one.',
   site: 'Time spent on one site: what was the owner dealing with, judging by the titles. Pages marked "generic" (home, feeds) mean scrolling more than reading.',
@@ -109,6 +110,7 @@ const HINTS_EN = {
 };
 
 const HINTS_IT = {
+  cantiere: 'Un progetto del proprietario, dagli Interni: cosa è stato costruito o cambiato, raccontato dai commit con le parole del proprietario, in quale parte del progetto si è lavorato, cosa è nato, cosa è arrivato (dipendenze, rilasci) e, in chiusura, com\'è adesso (lavoro non committato, non pushato). Il README dice cos\'è il progetto: usalo perché il lettore lo sappia, non spiegare mai il codice. Parole semplici, il tono di un cronista cittadino davanti a un cantiere.',
   subject: 'Un argomento a cui il proprietario è tornato più volte, da app e siti diversi: il pezzo parla dell\'argomento, non dei siti. Che cosa cercava il proprietario, a giudicare da ciò che ha cercato, letto, guardato, chiesto? I posti si nominano solo come la strada che ha fatto la curiosità. Se i fatti dicono che era già comparso nei giorni prima, è un interesse che dura: dillo.',
   searches: 'Rubrica delle ricerche: cosa cercava di capire il proprietario? Accosta le domande, non commentarle una per una.',
   site: 'Tempo passato su un sito: di cosa si stava occupando, a giudicare dai titoli. Le pagine marcate «generica» (home, feed) indicano scorrimento più che lettura.',

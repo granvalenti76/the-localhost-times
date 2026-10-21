@@ -51,6 +51,7 @@ export function parseRoute(hash) {
   if (p[0] === 'remember' || p[0] === 'ricorda') return { archive: true, remember: true, query: '' };
   if (p[0] === 'year' || p[0] === 'annuario') return { year: true };
   if (p[0] === 'standup') return { standup: true };
+  if (p[0] === 'interni' || p[0] === 'home') return p[1] ? { project: p[1] } : { section: 'interni', day: null };
   if (p[0] === 'investigations' || p[0] === 'inchieste') return { investigations: true };
   if ((p[0] === 'investigation' || p[0] === 'inchiesta') && p[1]) return { investigation: p[1] };
   if (p[0] === 'spotlight') return p[1] ? { scoop: p[1] } : { spotlight: true };
@@ -71,6 +72,7 @@ export const href = {
   remember: () => '#/remember',
   year: () => '#/year',
   standup: () => '#/standup',
+  project: (name) => `#/interni/${encodeURIComponent(name)}`,
   investigations: () => '#/investigations',
   investigation: (id) => `#/investigation/${id}`,
   spotlight: (id) => (id ? `#/spotlight/${id}` : '#/spotlight'),
@@ -88,6 +90,7 @@ export const minutesLeft = (n) => tr({ en: n <= 0 ? 'closing now' : `${n} min le
 const SECTION_NAMES = {
   en: [
     { id: 'safari', slug: 'world', name: 'World', tag: 'From the web' },
+    { id: 'git', slug: 'home', name: 'Home Affairs', tag: 'Projects' },
     { id: 'mail', slug: 'correspondence', name: 'Correspondence', tag: 'Mail' },
     { id: 'terminal', slug: 'workshop', name: 'Workshop', tag: 'Terminal' },
     { id: 'notes', slug: 'notebook', name: 'Notebook', tag: 'Notes' },
@@ -100,6 +103,7 @@ const SECTION_NAMES = {
   ],
   it: [
     { id: 'safari', slug: 'esteri', name: 'Esteri', tag: 'Dal web' },
+    { id: 'git', slug: 'interni', name: 'Interni', tag: 'Progetti' },
     { id: 'mail', slug: 'corrispondenza', name: 'Corrispondenza', tag: 'Mail' },
     { id: 'terminal', slug: 'officina', name: 'Officina', tag: 'Terminale' },
     { id: 'notes', slug: 'taccuino', name: 'Taccuino', tag: 'Note' },
@@ -112,6 +116,19 @@ const SECTION_NAMES = {
   ],
 };
 export const SECTIONS = tr(SECTION_NAMES);
+
+/**
+ * The pages of an edition, as a paper numbers them: A1 the front page, then one page per section
+ * in the edition, in the paper's order. { sectionId: 'A2', … }
+ */
+export function pagesOf(edition) {
+  const present = new Set();
+  for (const a of edition?.articles || []) present.add(a.source === 'reminders' || a.source === 'calendar' ? 'notes' : a.source);
+  const out = {};
+  let n = 2;
+  for (const s of SECTIONS) if (present.has(s.id)) out[s.id] = `A${n++}`;
+  return out;
+}
 
 /** A section from a slug in any language (old editions keep the slugs they were printed with). */
 export function sectionBySlug(slug) {

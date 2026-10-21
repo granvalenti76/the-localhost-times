@@ -46,6 +46,29 @@ function notable(s) {
 }
 
 const W = {
+  cantiere(s, P) {
+    const w = s.work;
+    const mine = w.commits.filter((c) => c.mine);
+    const theirs = w.commits.filter((c) => !c.mine);
+    const area = w.areas[0]?.area;
+    const n = w.commits.length;
+    return {
+      kicker: s.repo.title,
+      headline: n
+        ? P([`${plural(n, 'commit', 'commits')} on the ${s.repo.title} site`, `Work goes on at ${s.repo.title}`, `${s.repo.title}, a day on the site`])
+        : P([`${s.repo.title}: work under way, nothing committed yet`, `Scaffolding at ${s.repo.title}`]),
+      dek: n ? `${cap(span(s))}: +${w.added} −${w.removed}${area ? `, mostly in ${area}` : ''}.` : `${cap(span(s))}: files saved, no commits.`,
+      body: [
+        s.repo.description ? `${s.repo.title}, for the benefit of less assiduous readers: ${short(s.repo.description, 160)}` : '',
+        mine.length ? `The work, in the owner's own words: ${list(mine.slice(-4).map((c) => q(short(c.subject, 70))))}${mine.length > 4 ? `, and ${mine.length - 4} more` : ''}.` : '',
+        theirs.length ? `Meanwhile, from others: ${list(theirs.slice(-3).map((c) => `${c.author}, ${q(short(c.subject, 60))}`))}.` : '',
+        w.born.length ? `New on the site: ${list(w.born.slice(0, 4).map((f) => f.split('/').pop()))}${w.born.length > 4 ? `, and ${w.born.length - 4} more files` : ''}.` : '',
+        w.deps.arrived.length ? `New arrivals in town: ${list(w.deps.arrived.slice(0, 4))}.` : '',
+        w.tags.length ? `Released: ${list(w.tags)}.` : '',
+        s.status.dirty ? `On the way out, ${plural(s.status.dirty, 'file was', 'files were')} left changed and not committed${s.status.ahead ? `, and ${plural(s.status.ahead, 'commit waits', 'commits wait')} to be pushed` : ''}.` : s.status.ahead ? `${plural(s.status.ahead, 'commit waits', 'commits wait')} to be pushed.` : '',
+      ].filter(Boolean),
+    };
+  },
   subject(s, P) {
     const sites = s.places.filter((p) => p.place !== 'search' && !['books', 'podcasts', 'notes', 'mail'].includes(p.place)).map((p) => p.place);
     const apps = s.places.filter((p) => ['books', 'podcasts', 'notes', 'mail'].includes(p.place)).map((p) => ({ books: 'Books', podcasts: 'Podcasts', notes: 'Notes', mail: 'Mail' })[p.place]);

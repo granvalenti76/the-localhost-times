@@ -9,3 +9,6 @@ config.json
 .claude/
 *.log
 .env
+
+# the data folder set aside before a fresh start
+data-*/

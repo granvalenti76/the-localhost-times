@@ -23,8 +23,8 @@ const MAX_STATS = 40; // commits sized per collection (one `git show` each)
 let repos = null;
 let reposAt = 0;
 
-function roots(config) {
-  const list = config.git?.folders?.length ? config.git.folders : config.files?.folders?.length ? config.files.folders : DEFAULT_FOLDERS;
+export function roots(config) {
+  const list = config.interni?.folder ? [config.interni.folder] : config.git?.folders?.length ? config.git.folders : config.files?.folders?.length ? config.files.folders : DEFAULT_FOLDERS;
   return [...new Set(list.map((f) => (f.startsWith('~') ? path.join(HOME, f.slice(1)) : path.isAbsolute(f) ? f : path.join(HOME, f))))]
     .filter((f) => { try { return fs.statSync(f).isDirectory(); } catch { return false; } });
 }
@@ -121,9 +121,9 @@ export function parseNumstat(out) {
 }
 
 // not /usr/bin/git on a Mac: without the developer tools it opens an installer dialog
-const gitBin = () => [...GITS, ...(process.platform === 'darwin' ? [] : ['/usr/bin/git'])].find((g) => fs.existsSync(g)) || null;
+export const gitBin = () => [...GITS, ...(process.platform === 'darwin' ? [] : ['/usr/bin/git'])].find((g) => fs.existsSync(g)) || null;
 
-function currentBranch(repo) {
+export function currentBranch(repo) {
   try {
     const head = fs.readFileSync(path.join(repo, '.git', 'HEAD'), 'utf8').trim();
     return (/^ref: refs\/heads\/(.+)$/.exec(head) || [])[1] || null;

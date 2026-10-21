@@ -1,9 +1,12 @@
 import React from 'react';
-import { href, hhmm, SECTIONS, episodeLabel, readingTime, layoutOf, fitOf } from '../lib.js';
+import { href, hhmm, SECTIONS, episodeLabel, readingTime, fitOf, pagesOf } from '../lib.js';
 import Para from './Para.jsx';
 import { TimeBox, MacLine } from './TimeBox.jsx';
 import { SpotlightBand, SpotlightBox } from './Spotlight.jsx';
-import { tr } from '../i18n.js';
+import { tr, lang } from '../i18n.js';
+import Engraving, { motifOf, MOTIFS } from './Engraving.jsx';
+import DayStrip from './DayStrip.jsx';
+import InterniBand from './InterniBand.jsx';
 import Photo from './Photo.jsx';
 import Market from './Market.jsx';
 import Cartoon from './Cartoon.jsx';
@@ -84,134 +87,106 @@ function Numbers({ stats }) {
   );
 }
 
-const more = () => tr({ en: 'Continue reading', it: 'Continua a leggere' });
+const onPage = (p) => tr({ en: `Continued on page ${p}`, it: `Continua a pagina ${p}` });
+const plateCaption = (a) => tr({ en: 'The typesetting’s plate for this story', it: 'La tavola della tipografia per questa storia' });
 
-/** The lead story, in one of its cuts: classic (two columns), banner (the full width), side (narrower). */
-function Lead({ a, edition, link, cut = 'classic' }) {
-  const paras = a.body.slice(0, cut === 'banner' ? 4 : 3);
-  const long = paras.join(' ').length > (cut === 'side' ? 900 : 480);
+/** The lead: a big headline, its plate (or its photo), the opening paragraphs, and where it goes on. */
+function Lead({ a, link, page, motif }) {
+  const paras = a.body.slice(0, 2);
   return (
-    <article className={`lead lead-${cut}`}>
+    <article className="lead v2">
       <Kicker a={a} />
       <h2 className={`hl-xl ${fitOf(a.headline)}`}><a href={link(a)}>{a.headline}</a></h2>
       {a.dek && <p className="dek dek-lg">{a.dek}</p>}
       <Meta a={a} />
-      {a.image && (cut === 'twin' || cut === 'side') && <Photo image={a.image} size="md" />}
-      {a.image && cut !== 'twin' && cut !== 'side' ? (
-        <div className="lead-split">
-          <Photo image={a.image} size="md" />
-          <div className="lead-body">
-            {paras.map((p, i) => <Para key={i} a={a} p={p} className={i === 0 && p.length > 120 ? 'dropcap' : ''} />)}
-            <a className="more" href={link(a)}>{more()} →</a>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className={`lead-body ${cut === 'banner' && long ? 'three' : long ? 'two' : ''}`}>
-            {paras.map((p, i) => <Para key={i} a={a} p={p} className={i === 0 && p.length > 160 ? 'dropcap' : ''} />)}
-          </div>
-          <a className="more" href={link(a)}>{more()} →</a>
-        </>
-      )}
+      {a.image ? <Photo image={a.image} size="lg" /> : <Engraving id={a.id} kind={a.kind} motif={motif} size="lg" lang={lang} caption={plateCaption(a)} />}
+      <div className="lead-body two">
+        {paras.map((p, i) => <Para key={i} a={a} p={p} className={i === 0 && p.length > 120 ? 'dropcap' : ''} />)}
+        <a className="more" href={link(a)}>{page ? onPage(page) : tr({ en: 'Continue reading', it: 'Continua a leggere' })} →</a>
+      </div>
     </article>
   );
 }
 
-/** A story with its opening paragraph: the second tier of the page. */
-function Card({ a, link, excerpt = true, size = 'lg' }) {
+/** The second tier: a plate, a headline, the opening, the page it goes on. */
+function Card({ a, link, page, plate = true, motif }) {
   return (
-    <article className={`card card-md ${a.image ? 'has-photo' : ''}`}>
-      <Photo image={a.image} size="md" caption={false} />
+    <article className="card v2">
+      {a.image ? <Photo image={a.image} size="md" caption={false} /> : plate && <Engraving id={a.id} kind={a.kind} motif={motif} size="sm" lang={lang} />}
       <Kicker a={a} />
-      <h2 className={`hl-${size} ${fitOf(a.headline)}`}><a href={link(a)}>{a.headline}</a></h2>
+      <h2 className={`hl-lg ${fitOf(a.headline)}`}><a href={link(a)}>{a.headline}</a></h2>
       {a.dek && <p className="dek">{a.dek}</p>}
-      {excerpt && <Para a={a} p={a.body[0]} className="excerpt" />}
       <Meta a={a} />
+      {page && <a className="more" href={link(a)}>{tr({ en: 'Page', it: 'Pagina' })} {page} →</a>}
     </article>
   );
 }
 
-function Grid({ list, link }) {
+function Grid({ list, link, pageOf }) {
   if (!list.length) return null;
   return (
     <section className="front-grid">
       {list.map((a) => (
-        <article key={a.id} className={`card ${a.image ? 'has-photo' : ''}`}>
-          <Photo image={a.image} size="sm" caption={false} />
+        <article key={a.id} className="card">
           <Kicker a={a} />
           <h2 className="hl-md"><a href={link(a)}>{a.headline}</a></h2>
           {a.dek && <p className="dek dek-sm">{a.dek}</p>}
           <Meta a={a} />
+          {pageOf(a) && <a className="more" href={link(a)}>{tr({ en: 'Page', it: 'Pagina' })} {pageOf(a)} →</a>}
         </article>
       ))}
     </section>
   );
 }
 
-/** The main column, cut to the shape of the hour. */
-function MainNews({ edition, link }) {
-  const all = edition.articles;
-  const layout = layoutOf(edition);
-  if (!all.length) return null;
-  if (layout === 'digest') {
-    const top = all.slice(0, 6);
-    return (
-      <>
-        <p className="digest-note">{tr({ en: `No story led this hour: ${all.length} pieces of news, side by side.`, it: `Nessuna storia ha dominato l'ora: ${all.length} notizie, alla pari.` })}</p>
-        <section className="front-digest">{top.map((a) => <Card key={a.id} a={a} link={link} size="lg" />)}</section>
-        <Grid list={all.slice(6)} link={link} />
-      </>
-    );
-  }
-  if (layout === 'twin') {
-    const [a, b, ...rest] = all;
-    return (
-      <>
-        <section className="front-twin">
-          {[a, b].map((x) => <Lead key={x.id} a={x} edition={edition} link={link} cut="twin" />)}
-        </section>
-        {rest.length > 0 && <section className="front-second">{rest.slice(0, 2).map((x) => <Card key={x.id} a={x} link={link} />)}</section>}
-        <Grid list={rest.slice(2)} link={link} />
-      </>
-    );
-  }
-  if (layout === 'stack') {
-    const [lead, side, ...rest] = all;
-    return (
-      <>
-        <section className="front-stack">
-          <Lead a={lead} edition={edition} link={link} cut="side" />
-          <div className="stack-side"><Card a={side} link={link} size="lg" /></div>
-        </section>
-        {rest.length > 0 && <section className="front-second">{rest.slice(0, 2).map((x) => <Card key={x.id} a={x} link={link} />)}</section>}
-        <Grid list={rest.slice(2)} link={link} />
-      </>
-    );
-  }
-  const [lead, ...rest] = all;
+/** "In this issue": every piece, with the page it is on. */
+function Contents({ edition, link, pageOf }) {
+  if (edition.articles.length < 2) return null;
   return (
-    <>
-      <Lead a={lead} edition={edition} link={link} cut={layout === 'banner' ? 'banner' : 'classic'} />
-      {rest.length > 0 && <section className="front-second">{rest.slice(0, 2).map((x) => <Card key={x.id} a={x} link={link} />)}</section>}
-      {/* the rest of the paper stays in the main column, next to the rail: no empty space beside it */}
-      <Grid list={rest.slice(2)} link={link} />
-    </>
+    <section className="box contents">
+      <h3 className="box-title">{tr({ en: 'In this issue', it: 'In questo numero' })}</h3>
+      <ol>
+        {edition.articles.map((a) => (
+          <li key={a.id}><span className={`pg pg-${a.source}`}>{pageOf(a) || 'A1'}</span><a href={link(a)}>{a.headline}</a></li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
 export default function FrontPage({ edition }) {
   const link = (a) => href.article(edition.id, a.id);
+  const pages = pagesOf(edition);
+  const pageOf = (a) => pages[a.source] || pages[a.source === 'reminders' || a.source === 'calendar' ? 'notes' : a.source] || null;
+  // the web and the rest lead; the projects have their own band below
+  const outside = edition.articles.filter((a) => a.source !== 'git');
+  const [lead, ...rest] = outside.length ? outside : edition.articles;
+  const second = rest.slice(0, 2);
+  // one motif per plate: two subjects side by side don't get the same lens
+  const motifs = new Map();
+  const used = new Set();
+  for (const a of [lead, ...second].filter(Boolean)) {
+    const m = [motifOf(a.kind), ...MOTIFS].find((x) => !used.has(x));
+    used.add(m);
+    motifs.set(a.id, m);
+  }
   return (
-    <div className={`front layout-${layoutOf(edition)}`}>
+    <div className="front v2">
       <SpotlightBand scoop={edition.spotlight} />
+      <DayStrip strip={edition.strip} editionId={edition.id} />
       <section className="front-top">
         <div className="front-main">
-          <MainNews edition={edition} link={link} />
+          {lead && <Lead a={lead} link={link} page={pageOf(lead)} motif={motifs.get(lead.id)} />}
+          {second.length > 0 && (
+            <section className="front-second v2">
+              {second.map((a) => <Card key={a.id} a={a} link={link} page={pageOf(a)} motif={motifs.get(a.id)} />)}
+            </section>
+          )}
           {edition.briefs.length > 0 && (
-            <section className="briefs">
+            <section className="briefs v2">
               <h3 className="box-title">{tr({ en: 'Briefly', it: 'In breve' })}</h3>
               <ul>
-                {edition.briefs.map((b, i) => (
+                {edition.briefs.slice(0, 8).map((b, i) => (
                   <li key={i}><span className="sec">{b.section}</span> {b.text}</li>
                 ))}
               </ul>
@@ -221,25 +196,30 @@ export default function FrontPage({ edition }) {
         {/* the rail: what the editors say about this edition */}
         <aside className="rail">
           <Cartoon cartoon={edition.cartoon} />
-          <RadioBox edition={edition} />
           <section className="box punto">
             <h3 className="box-title">{tr({ en: 'The Brief', it: 'Il punto' })}</h3>
             <p>{edition.summary}</p>
             {edition.summaryBy && <p className="punto-by">— {edition.summaryBy.name}</p>}
             <EditorNote edition={edition} />
           </section>
-          <FactCheck edition={edition} />
-          <SpotlightBox edition={edition} />
+          <Contents edition={edition} link={link} pageOf={pageOf} />
           <YearAgoBox ago={edition.yearAgo} />
+          <RadioBox edition={edition} />
         </aside>
       </section>
 
-      {/* below the fold: the numbers, side by side */}
+      <InterniBand edition={edition} link={link} page={pages.git} />
+
+      <Grid list={rest.slice(2).filter((a) => a.source !== 'git')} link={link} pageOf={pageOf} />
+
+      {/* below the fold: the checks and the numbers, side by side */}
       <section className="back-pages" aria-label={tr({ en: 'The numbers', it: 'I numeri' })}>
-        <InvestigationBox />
+        <FactCheck edition={edition} />
+        <SpotlightBox edition={edition} />
+        <Market market={edition.market} />
         <LettersBox letters={edition.letters} />
         <TimeBox time={edition.time} />
-        <Market market={edition.market} />
+        <InvestigationBox />
         <section className="box">
           <h3 className="box-title">{tr({ en: 'By the numbers', it: 'In numeri' })}</h3>
           <MacLine mac={edition.mac} />

@@ -54,12 +54,12 @@ test('git: repositories are found under the watched folders, not inside node_mod
   assert.deepEqual(found, ['git/dailymac', 'git/other']);
 });
 
-test('git: a story per repository in the Workshop, with the lines counted', () => {
+test('git: a story per repository in Interni, with the lines counted', () => {
   const ev = (kind, min, title, meta = {}) => ({ id: `g${min}`, source: 'git', kind, ts: T0 + min * 60e3, title, detail: 'dailymac', meta: { repo: 'dailymac', branch: 'main', ...meta } });
   const events = [ev('commit', 5, 'Fix the rail', { added: 40, removed: 10, files: 2 }), ev('commit', 25, 'Add the git source', { added: 300, removed: 2, files: 5 })];
   const [s] = buildStories(events);
   assert.equal(s.kind, 'commits');
-  assert.equal(s.section, SECTIONS.terminal.name);
+  assert.equal(s.section, SECTIONS.git.name);
   assert.deepEqual(s.lines, { added: 340, removed: 12, files: 7 });
   const f = factSheet(s);
   assert.match(f, /2 commit/);

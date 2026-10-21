@@ -16,6 +16,7 @@ import { SpotlightList, SpotlightPage } from './components/Spotlight.jsx';
 import House from './components/House.jsx';
 import YearPage from './components/YearPage.jsx';
 import StandupPage from './components/StandupPage.jsx';
+import InterniPage from './components/InterniPage.jsx';
 
 function useHashRoute() {
   const [route, setRoute] = useState(() => parseRoute(location.hash));
@@ -46,9 +47,12 @@ export default function App() {
   // The current edition
   useEffect(() => {
     let alive = true;
-    const page = route.house || route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.year || route.standup;
+    const page = route.house || route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.year || route.standup || route.project;
     if (page) { setLoaded(true); return () => { alive = false; }; }
-    const p = route.edition ? api(`/editions/${encodeURIComponent(route.edition)}`) : route.day ? Promise.resolve(null) : api('/editions/latest');
+    // a day: its last edition (a daily paper has one a day)
+    const p = route.edition ? api(`/editions/${encodeURIComponent(route.edition)}`)
+      : route.day ? api(`/editions?day=${route.day}`).then((l) => (l.length ? api(`/editions/${encodeURIComponent(l.at(-1).id)}`) : null))
+        : api('/editions/latest');
     p.then((e) => {
       if (!alive) return;
       if (e || route.edition || !route.day) setEdition(e);
@@ -58,14 +62,17 @@ export default function App() {
       .catch((err) => alive && (setEdition(null), setError(route.edition ? err.message : null)))
       .finally(() => alive && setLoaded(true));
     return () => { alive = false; };
-  }, [route.house, route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop, route.year, route.standup]);
+  }, [route.house, route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop, route.year, route.standup, route.project]);
 
   useEffect(() => { if (route.day) setDay(route.day); }, [route.day]);
   useEffect(() => { if (route.evening) setDay(route.evening); }, [route.evening]);
   useEffect(() => { if (route.desk && dayOf(route.edition)) setDay(dayOf(route.edition)); }, [route.desk, route.edition]);
 
   // The evening edition of the day on screen (if it is out)
-  const refreshEvening = useCallback(() => api(`/evening/${day}`).then(setEvening).catch(() => setEvening(null)), [day]);
+  // only an hourly paper has an evening edition: a daily or weekly one doesn't ask for it
+  // (until the status arrives nobody knows: no request, and the bar walks the days, the default)
+  const hourly = status?.cadence?.kind === 'hourly';
+  const refreshEvening = useCallback(() => (hourly ? api(`/evening/${day}`).then(setEvening).catch(() => setEvening(null)) : Promise.resolve(setEvening(null))), [day, hourly]);
   useEffect(() => { refreshEvening(); }, [refreshEvening, route.evening]);
 
   const refreshList = useCallback(() => api(`/editions?day=${day}`).then(setList).catch(() => setList([])), [day]);
@@ -107,13 +114,13 @@ export default function App() {
 
   const article = route.article && edition?.articles.find((a) => a.id === route.article);
   // pages of their own: no timeline bar above them
-  const standalone = route.house || route.desk || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.year || route.standup;
+  const standalone = route.house || route.desk || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.year || route.standup || route.project;
 
   return (
     <div className="paper">
-      <Masthead edition={route.desk || route.evening || standalone ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk || route.house || route.standup ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.archive || route.investigations || route.investigation || route.year ? 'archive' : route.evening ? 'evening' : route.section} />
+      <Masthead edition={route.desk || route.evening || standalone ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.project ? 'interni' : route.desk || route.house || route.standup ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.archive || route.investigations || route.investigation || route.year ? 'archive' : route.evening ? 'evening' : route.section} />
       {!standalone && (
-        <EditionBar day={day} list={list} current={route.evening ? evening?.id : edition?.id} onPrint={printNow} printing={printing}
+        <EditionBar day={day} list={list} daily={!hourly} current={route.evening ? evening?.id : edition?.id} onPrint={printNow} printing={printing}
           evening={evening && evening.status !== 'draft' ? evening : null}
           exportable={route.evening ? (evening ? { evening } : null) : edition && !route.article && !route.section && !route.day ? { edition } : null} />
       )}
@@ -137,6 +144,8 @@ export default function App() {
           <YearPage />
         ) : route.standup ? (
           <StandupPage />
+        ) : route.project ? (
+          <InterniPage name={route.project} />
         ) : route.investigations ? (
           <InvestigationsPage />
         ) : route.spotlight ? (
@@ -151,7 +160,7 @@ export default function App() {
           <SectionPage day={day} slug={route.section} />
         ) : article ? (
           <ArticlePage key={`${article.id}-${route.xray ? 'x' : ''}`} edition={edition} article={article} xray={!!route.xray} />
-        ) : edition && !route.day ? (
+        ) : edition && (!route.day || edition.id.slice(0, 10) === route.day) ? (
           <FrontPage edition={edition} />
         ) : loaded ? (
           <Empty list={list} cadence={status?.cadence} onPrint={printNow} printing={printing} />

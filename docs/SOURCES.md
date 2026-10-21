@@ -17,7 +17,7 @@ Every source can be turned off with `"sources": { "<name>": false }` in `config.
 | Apps | `apps` | Time | The app in front, noted once a minute (`lsappinfo`, or AppKit when `lsappinfo` can't see it from the background service), and when you're away from the keyboard. **Only app names**: never window titles or what's on screen. |
 | The Mac | `power` | (front page) | When the Mac wakes, sleeps and runs on battery (`pmset -g log`) |
 | Photos | `photos` | The Photographer | How many photos, videos and screenshots, and when. **Never** the pictures, places, people or file names. |
-| Git | `git` | Workshop | The reflog of each repository under the Files folders: commits (with their message and size), merges, pulls, branch switches. Only what was done on this Mac. |
+| Git | `git` | Home Affairs | The repositories in the projects' folder (Settings → Home Affairs), read-only: commits by you and by others, where in the tree they went, files born and removed, dependencies added and removed, tags; and how each project stands (work not committed, commits not pushed). Each repository's reflog adds what was done on this Mac. |
 | Calendar | `calendar` | (context) | The appointments of the period (experimental). They don't make stories: they tell the writer that the hour of YouTube was the hour of the meeting. Delicate titles become "a private appointment"; birthdays and holidays are left out. |
 | Reminders | `reminders` | Notebook | Reminders ticked off and added (experimental). Delicate titles become "a private reminder". |
 

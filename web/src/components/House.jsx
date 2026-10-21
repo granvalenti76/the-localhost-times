@@ -14,7 +14,10 @@ const DAYS = tr({ en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', '
 const T = tr({
   en: {
     house: 'Settings', sub: 'What paper to make. Every change counts from the next edition.', back: '← Back to the newsroom', saved: 'Saved', saving: 'Saving…',
-    tabs: { masthead: ['The paper', 'when it comes out, how long'], wires: ['The sources', 'where the news comes from'], staff: ['The bylines', 'names, character, sections'], engine: ['The engine', 'the local model'] },
+    tabs: { masthead: ['The paper', 'when it comes out, how long'], wires: ['The sources', 'where the news comes from'], interni: ['Home Affairs', 'your projects'], staff: ['The bylines', 'names, character, sections'], engine: ['The engine', 'the local model'] },
+    iTitle: 'Your projects', iSub: 'Home Affairs tells what you built: the paper reads each repository (never writes to it) for its commits, the parts of the project that changed, the files born, the dependencies, the releases, and how it stands: work not committed, commits not pushed.',
+    iFolder: 'The folder of your projects', iChoose: 'Choose the folder…', iOr: 'or type its path', iSet: 'Use it', iNone: 'No repositories in this folder.', iDefault: 'Not chosen yet: the paper looks in the folders of the Files source.',
+    iIn: 'In', iOut: 'Out', iName: 'Called in the paper', iDirty: (n) => `${n} not committed`, iAhead: (n) => `${n} not pushed`, iIdle: (n) => (n === 0 ? 'worked on today' : n === 1 ? 'quiet since yesterday' : `quiet for ${n} days`), iPage: 'Its page',
     mTitle: 'What paper do you want to make?', mSub: 'The news comes in all the time. What changes is how often the newsroom sits down to make a paper of it, and how much room each piece gets.',
     kinds: {
       hourly: ['Every hour', 'A short sheet at the top of every hour, and an evening edition. Experimental: many hours have little to tell.', [['Out', 'up to 24 a day'], ['Pieces', 'up to 9, short'], ['Your time', 'a glance, if you like'], ['Proofs', 'they print by themselves']]],
@@ -44,7 +47,10 @@ const T = tr({
   },
   it: {
     house: 'Impostazioni', sub: 'Che giornale fare. Ogni scelta vale dal prossimo numero.', back: '← Torna in redazione', saved: 'Salvato', saving: 'Salvo…',
-    tabs: { masthead: ['Il giornale', 'quando esce, quanto è lungo'], wires: ['Le fonti', 'da dove arrivano le notizie'], staff: ['Le firme', 'nomi, carattere, settori'], engine: ['Il motore', 'il modello locale'] },
+    tabs: { masthead: ['Il giornale', 'quando esce, quanto è lungo'], wires: ['Le fonti', 'da dove arrivano le notizie'], interni: ['Interni', 'i tuoi progetti'], staff: ['Le firme', 'nomi, carattere, settori'], engine: ['Il motore', 'il modello locale'] },
+    iTitle: 'I tuoi progetti', iSub: 'Gli Interni raccontano ciò che hai costruito: il giornale legge ogni repository (senza mai scriverci) per i commit, le parti del progetto che sono cambiate, i file nati, le dipendenze, i rilasci, e com\'è messo: lavoro non committato, commit non pushati.',
+    iFolder: 'La cartella dei tuoi progetti', iChoose: 'Scegli la cartella…', iOr: 'oppure scrivi il percorso', iSet: 'Usa questa', iNone: 'Nessun repository in questa cartella.', iDefault: 'Non ancora scelta: il giornale guarda nelle cartelle della fonte File.',
+    iIn: 'Dentro', iOut: 'Fuori', iName: 'Nome nel giornale', iDirty: (n) => `${n} non committat${n === 1 ? 'o' : 'i'}`, iAhead: (n) => `${n} da pushare`, iIdle: (n) => (n === 0 ? 'al lavoro oggi' : n === 1 ? 'fermo da ieri' : `fermo da ${n} giorni`), iPage: 'La sua pagina',
     mTitle: 'Che giornale vuoi fare?', mSub: 'Le notizie arrivano sempre. Cambia quante volte la redazione si siede per farne un giornale, e quanto spazio ha ogni pezzo.',
     kinds: {
       hourly: ['Ogni ora', 'Un foglio breve allo scoccare di ogni ora, e l\'edizione della sera. Sperimentale: molte ore hanno poco da dire.', [['Uscite', 'fino a 24 al giorno'], ['Pezzi', 'fino a 9, brevi'], ['Il tuo tempo', 'un\'occhiata, se vuoi'], ['Bozze', 'vanno in stampa da sole']]],
@@ -269,6 +275,68 @@ function Wires({ line, meta, save }) {
   );
 }
 
+// ───────────────────────── Interni: the projects ─────────────────────────
+
+function Interni() {
+  const [d, setD] = useState(null);
+  const [path, setPath] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  useEffect(() => { api('/interni').then((x) => { setD(x); setPath(x.folder || ''); }).catch((e) => setError(e.message)); }, []);
+  const post = async (url, json) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const x = await api(url, { method: 'POST', json });
+      if (!x.cancelled) { setD(x); setPath(x.folder || ''); }
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <>
+      <div className="rd-htitle"><h2>{T.iTitle}</h2><p>{T.iSub}</p></div>
+      <div className="rd-field in-folder">
+        <span className="rd-flbl">{T.iFolder}</span>
+        <div className="in-folder-row">
+          <button type="button" className={`btn ${busy ? 'busy' : ''}`} onClick={() => post('/interni/choose', {})} disabled={busy}>{T.iChoose}</button>
+          <form className="in-path" onSubmit={(e) => { e.preventDefault(); post('/interni', { folder: path }); }}>
+            <label className="sr-only" htmlFor="in-path">{T.iOr}</label>
+            <input id="in-path" value={path} onChange={(e) => setPath(e.target.value)} placeholder="~/Work/git" />
+            <button type="submit" className="rd-ghost" disabled={busy || path === (d?.folder || '')}>{T.iSet}</button>
+          </form>
+        </div>
+        <small>{d?.folder ? d.folder : T.iDefault}</small>
+      </div>
+      {error && <p className="notice">{error}</p>}
+      {d && !d.repos.length && <p className="rd-mut">{T.iNone}</p>}
+      <div className="rd-wires">
+        {(d?.repos || []).map((r) => (
+          <div key={r.path} className={`rd-wire ${r.on ? '' : 'off'}`}>
+            <span className="rd-ic">{r.name.slice(0, 3).toUpperCase()}</span>
+            <div className="rd-wmain">
+              <b>{r.title}</b>{r.title !== r.name && <span className="rd-mut"> · {r.name}</span>}
+              {r.description && <p className="in-desc">{r.description}</p>}
+              <div className="rd-meta">
+                {r.branch && <span>{r.branch}</span>}
+                {r.idleDays != null && <span>{T.iIdle(r.idleDays)}</span>}
+                {r.dirty > 0 && <span className="rd-warn">{T.iDirty(r.dirty)}</span>}
+                {r.ahead > 0 && <span className="rd-warn">{T.iAhead(r.ahead)}</span>}
+                {r.on && <a href={`#/interni/${encodeURIComponent(r.name)}`}>{T.iPage} →</a>}
+              </div>
+              <label className="rd-wsel">{T.iName}
+                <input defaultValue={r.title} onBlur={(e) => { if (e.target.value.trim() && e.target.value.trim() !== r.title) post('/interni', { repo: r.path, title: e.target.value }); }} />
+              </label>
+            </div>
+            <div className="rd-mode" role="group" aria-label={r.name}>
+              <button type="button" aria-pressed={r.on} onClick={() => post('/interni', { repo: r.path, on: true })}>{T.iIn}</button>
+              <button type="button" aria-pressed={!r.on} onClick={() => post('/interni', { repo: r.path, on: false })}>{T.iOut}</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 // ───────────────────────── The staff ─────────────────────────
 
 function Trial({ r }) {
@@ -450,7 +518,7 @@ function Engine() {
   );
 }
 
-const TABS = ['masthead', 'wires', 'staff', 'engine'];
+const TABS = ['masthead', 'wires', 'interni', 'staff', 'engine'];
 
 export default function House({ tab = 'masthead' }) {
   const { meta, line, save, saving, error } = useLine();
@@ -458,7 +526,7 @@ export default function House({ tab = 'masthead' }) {
   const body = useMemo(() => {
     if (!line) return null;
     const p = { line, meta, save };
-    return { masthead: <Masthead {...p} />, wires: <Wires {...p} />, staff: <Staff {...p} />, engine: <Engine /> }[t];
+    return { masthead: <Masthead {...p} />, wires: <Wires {...p} />, interni: <Interni />, staff: <Staff {...p} />, engine: <Engine /> }[t];
   }, [t, line, meta, save]);
   const first = useRef(true);
   useEffect(() => { if (first.current) { first.current = false; return; } window.scrollTo({ top: 0 }); }, [t]);
