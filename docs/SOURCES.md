@@ -35,7 +35,7 @@ app databases (read-only) ─► collected every 5 min ─► data/*.sqlite (eve
 ```
 
 1. **Collecting.** Every five minutes each source reads what changed in its app and stores it as events.
-2. **Stories.** At press time the events of the period are grouped into stories (a site, a mail thread, a note, a book, a folder…). Twin stories are merged, and only the newsworthy ones become articles; the rest go to the briefs or are left out.
+2. **Stories.** At press time the events of the period are grouped into stories. First the **subjects** (`server/newsroom/subjects.js`): a term that turns up in two places or more (sites, searches, Books, Podcasts, Notes, Mail) gathers its events from every app, whatever site they came from. What remains makes the stories of a site, a mail thread, a note, a book, a folder or a project. Twin stories are merged, and only the newsworthy ones become articles; the rest go to the briefs or are left out.
 3. **Writing.** Each story gets a fact sheet, and the local model writes it in the house voice ([STYLE.md](STYLE.md)). The rules then check every draft: figures not in the facts, machine-made phrasing, the same simile twice. The managing editor (the model again) reads the first pieces and any the rules flag, and may send one back once.
 4. **Printing.** The edition is laid out by the weight of its stories, with the cartoon, *The Brief*, the market, the records and the radio bulletin.
 
@@ -49,7 +49,10 @@ app databases (read-only) ─► collected every 5 min ─► data/*.sqlite (eve
 | `server/newsroom/lint.js`, `chain.js`, `factcheck.js` | The rules, the managing editor and the copy desk, the fact check |
 | `server/newsroom/fallback.*.js` | The automatic typesetting (templates, one file per language) |
 | `server/newsroom/spotlight/` | Spotlight: the detectors, the leads, the writing |
-| `server/newsroom/archive.js`, `investigations.js` | Search (SQLite FTS5), "Ask the archive", investigations |
+| `server/newsroom/subjects.js` | Subjects: what the owner was busy with, across apps and days |
+| `server/newsroom/archive.js`, `recall.js`, `investigations.js` | Search (SQLite FTS5), "Ask the archive", *Remember*, investigations |
+| `server/history.js`, `server/newsroom/review.js` | The past on the first start; the Year in Review and *a year ago today* |
+| `server/newsroom/standup.js` | The standup, written by itself |
 | `server/service.js` | The macOS background service |
 | `web/` | The paper: front page, articles, sections, archive, newsroom, settings |
 | `test/` | Tests (`npm test`) |

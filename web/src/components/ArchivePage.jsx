@@ -5,25 +5,29 @@ import { tr } from '../i18n.js';
 const T = tr({
   en: {
     title: 'The Archive', sub: 'Everything the paper printed, and every signal it read.',
-    askPh: 'Ask the archive: “How many times was I on YouTube this week?”', ask: 'Ask', asking: 'Looking through the archive…',
+    askPh: 'What was that article about fountain pens I read on Tuesday?', ask: 'Remember', asking: 'Looking through the archive…',
+    remember: 'Remember', rememberSub: 'Ask for a page, a video, a search, a book or a command the way you remember it: roughly, with a day if you have one. “How many times…” questions work too.',
+    examples: ['that video on Saturday evening', 'the book I was reading', 'what did I search on Thursday afternoon'], visits: (n) => `${n} times`, firstLast: 'from', to: 'to', noRecall: 'Nothing like that in the archive. Try other words, or another day.',
     searchPh: 'Search articles and signals', all: 'All', articles: 'Articles', signals: 'Signals', evenings: 'Editorials',
     allSections: 'All sections', relevance: 'Most relevant', recent: 'Most recent',
     results: (n) => (n === 1 ? '1 result' : `${n.toLocaleString('en-US')} results`), none: 'Nothing found. Try fewer or different words, or “a phrase in quotes”.',
     last30: 'Matching signals, last 30 days', archivist: 'The archivist', records: 'Records', more: 'Show more',
     hint: 'Words match their beginning (“ship” finds “shipped”); “quotes” match a whole phrase.',
     edition: 'edition', evening: 'Evening edition', open: 'open the page',
-    tabSearch: 'Search', tabInv: 'Investigations',
+    tabSearch: 'Search', tabInv: 'Investigations', tabYear: 'The Year in Review',
   },
   it: {
     title: 'L\'emeroteca', sub: 'Tutto quello che il giornale ha stampato, e ogni segnale che ha letto.',
-    askPh: 'Chiedi all\'archivio: «Quante volte sono finito su YouTube questa settimana?»', ask: 'Chiedi', asking: 'Cerco nell\'archivio…',
+    askPh: 'Cos\'era quell\'articolo sulle stilografiche che ho letto martedì?', ask: 'Ricorda', asking: 'Cerco nell\'archivio…',
+    remember: 'Ricorda', rememberSub: 'Chiedi una pagina, un video, una ricerca, un libro o un comando come te lo ricordi: a grandi linee, con il giorno se ce l\'hai. Funzionano anche le domande «quante volte…».',
+    examples: ['quel video di sabato sera', 'il libro che leggevo', 'cosa ho cercato giovedì pomeriggio'], visits: (n) => `${n} volte`, firstLast: 'dal', to: 'al', noRecall: 'Niente del genere in archivio. Prova altre parole, o un altro giorno.',
     searchPh: 'Cerca negli articoli e nei segnali', all: 'Tutto', articles: 'Articoli', signals: 'Segnali', evenings: 'Editoriali',
     allSections: 'Tutte le sezioni', relevance: 'Più pertinenti', recent: 'Più recenti',
     results: (n) => (n === 1 ? '1 risultato' : `${n.toLocaleString('it-IT')} risultati`), none: 'Nessun risultato. Prova con meno parole, parole diverse o «una frase tra virgolette».',
     last30: 'Segnali trovati, ultimi 30 giorni', archivist: 'L\'archivista', records: 'Documenti', more: 'Mostra altri',
     hint: 'Le parole valgono anche come inizio («pubblic» trova «pubblicato»); tra "virgolette" cerchi una frase intera.',
     edition: 'edizione', evening: 'Edizione della sera', open: 'apri la pagina',
-    tabSearch: 'Cerca', tabInv: 'Inchieste',
+    tabSearch: 'Cerca', tabInv: 'Inchieste', tabYear: 'L\'Annuario',
   },
 });
 
@@ -78,20 +82,43 @@ function Days({ data, from }) {
   );
 }
 
-function Ask() {
+/** One thing remembered: a page with its link, a search, a book, a message. */
+function Memory({ r, n }) {
+  const link = r.editionId ? href.edition(r.editionId) : null;
+  return (
+    <li className="arc-item arc-event arc-memory">
+      <time>{shortDate(r.first)}<br />{hhmm(r.first)}</time>
+      <div>
+        <div className="arc-meta">
+          {n != null && <span className="arc-n">[{n}]</span>}
+          <span className="sec">{r.section}</span>
+          {(r.site || r.detail) && <span className="h"> · {r.site || r.detail}</span>}
+          {r.times > 1 && <span className="h"> · {T.visits(r.times)}{dayKey(r.first) !== dayKey(r.last) ? ` (${T.firstLast} ${shortDate(r.first)} ${T.to} ${shortDate(r.last)})` : ''}</span>}
+        </div>
+        <div className="arc-title-ev">
+          {r.url ? <a href={r.url} target="_blank" rel="noreferrer noopener">{r.title || '—'} <span className="arc-ext">↗</span></a> : link ? <a href={link}>{r.title || '—'}</a> : (r.title || '—')}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function Remember({ focus = false }) {
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState(null);
   const [error, setError] = useState(null);
+  const input = useRef(null);
+  useEffect(() => { if (focus) input.current?.focus(); }, [focus]);
 
-  async function go(e) {
+  async function go(e, text = q) {
     e?.preventDefault();
-    if (!q.trim()) return;
+    if (!text.trim()) return;
     setBusy(true);
     setError(null);
     setRes(null);
     try {
-      setRes(await api('/ask', { method: 'POST', json: { question: q } }));
+      setRes(await api('/recall', { method: 'POST', json: { question: text } }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -99,17 +126,28 @@ function Ask() {
     }
   }
 
-  const cited = res?.cited?.length ? res.cited.map((n) => ({ n, r: res.items[n - 1] })) : (res?.items || []).slice(0, 8).map((r, i) => ({ n: i + 1, r }));
+  // a counting question went to the archivist: the old answer, with its records
+  const asked = res?.mode === 'ask';
+  const cited = asked
+    ? (res.cited?.length ? res.cited.map((n) => ({ n, r: res.items[n - 1] })) : (res.items || []).slice(0, 8).map((r, i) => ({ n: i + 1, r })))
+    : [];
+  const first = !asked && res?.cited?.length ? new Set(res.cited) : null;
+  const memories = !asked && res ? (first ? [...res.results.map((r, i) => ({ r, n: i + 1 })).filter((x) => first.has(x.n)), ...res.results.map((r, i) => ({ r, n: i + 1 })).filter((x) => !first.has(x.n))] : res.results.map((r, i) => ({ r, n: i + 1 }))) : [];
   return (
-    <section className="arc-ask">
+    <section className="arc-ask arc-remember">
+      <h3 className="box-title">{T.remember}</h3>
+      <p className="hint-small">{T.rememberSub}</p>
       <form onSubmit={go} className="arc-ask-row">
         <label className="sr-only" htmlFor="arc-ask">{T.ask}</label>
-        <input id="arc-ask" value={q} onChange={(e) => setQ(e.target.value)} placeholder={T.askPh} />
-        <button className={`btn ${busy ? "busy" : ""}`} disabled={busy || !q.trim()}>{busy ? "…" : T.ask}</button>
+        <input id="arc-ask" ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder={T.askPh} />
+        <button className={`btn ${busy ? 'busy' : ''}`} disabled={busy || !q.trim()}>{busy ? '…' : T.ask}</button>
       </form>
+      {!res && !busy && (
+        <p className="arc-examples">{T.examples.map((x) => <button key={x} type="button" className="chip" onClick={() => { setQ(x); go(null, x); }}>{x}</button>)}</p>
+      )}
       {busy && <p className="working">{T.asking}</p>}
       {error && <p className="notice">{error}</p>}
-      {res && (
+      {res && asked && (
         <div className="arc-answer">
           <span className="lbl">{T.archivist}{res.writer ? ` · ${modelName(res.writer)}` : ''}</span>
           {res.answer ? <p className="arc-answer-text">{res.answer}</p> : <p className="hint-small">{res.note || res.error}</p>}
@@ -121,11 +159,17 @@ function Ask() {
           )}
         </div>
       )}
+      {res && !asked && (
+        <div className="arc-answer">
+          {res.answer && <><span className="lbl">{T.archivist}{res.writer ? ` · ${modelName(res.writer)}` : ''}</span><p className="arc-answer-text">{res.answer}</p></>}
+          {memories.length ? <ol className="arc-list">{memories.slice(0, 15).map(({ r, n }) => <Memory key={n} r={r} n={n} />)}</ol> : <p className="hint-small">{T.noRecall}</p>}
+        </div>
+      )}
     </section>
   );
 }
 
-export default function ArchivePage({ query = '' }) {
+export default function ArchivePage({ query = '', remember = false }) {
   const [q, setQ] = useState(query);
   const [kind, setKind] = useState('');
   const [source, setSource] = useState('');
@@ -160,14 +204,15 @@ export default function ArchivePage({ query = '' }) {
       </header>
       <nav className="arc-tabs">
         <a href="#/archive" className="on">{T.tabSearch}</a>
+        <a href="#/year">{T.tabYear}</a>
         <a href="#/investigations">{T.tabInv}</a>
       </nav>
 
-      <Ask />
+      <Remember focus={remember} />
 
       <div className="arc-search">
         <label className="sr-only" htmlFor="arc-q">{T.searchPh}</label>
-        <input id="arc-q" type="search" value={q} autoFocus onChange={(e) => { setQ(e.target.value); setLimit(40); }} placeholder={T.searchPh} />
+        <input id="arc-q" type="search" value={q} autoFocus={!remember} onChange={(e) => { setQ(e.target.value); setLimit(40); }} placeholder={T.searchPh} />
         <div className="arc-filters">
           <div className="seg seg-small">
             {kinds.map(([k, l]) => (

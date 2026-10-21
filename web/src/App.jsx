@@ -14,6 +14,8 @@ import ArchivePage from './components/ArchivePage.jsx';
 import { InvestigationsPage, InvestigationPage } from './components/Investigations.jsx';
 import { SpotlightList, SpotlightPage } from './components/Spotlight.jsx';
 import House from './components/House.jsx';
+import YearPage from './components/YearPage.jsx';
+import StandupPage from './components/StandupPage.jsx';
 
 function useHashRoute() {
   const [route, setRoute] = useState(() => parseRoute(location.hash));
@@ -44,7 +46,7 @@ export default function App() {
   // The current edition
   useEffect(() => {
     let alive = true;
-    const page = route.house || route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop;
+    const page = route.house || route.desk || route.evening || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.year || route.standup;
     if (page) { setLoaded(true); return () => { alive = false; }; }
     const p = route.edition ? api(`/editions/${encodeURIComponent(route.edition)}`) : route.day ? Promise.resolve(null) : api('/editions/latest');
     p.then((e) => {
@@ -56,7 +58,7 @@ export default function App() {
       .catch((err) => alive && (setEdition(null), setError(route.edition ? err.message : null)))
       .finally(() => alive && setLoaded(true));
     return () => { alive = false; };
-  }, [route.house, route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop]);
+  }, [route.house, route.edition, route.day, route.desk, route.evening, route.letters, route.archive, route.investigations, route.investigation, route.spotlight, route.scoop, route.year, route.standup]);
 
   useEffect(() => { if (route.day) setDay(route.day); }, [route.day]);
   useEffect(() => { if (route.evening) setDay(route.evening); }, [route.evening]);
@@ -105,11 +107,11 @@ export default function App() {
 
   const article = route.article && edition?.articles.find((a) => a.id === route.article);
   // pages of their own: no timeline bar above them
-  const standalone = route.house || route.desk || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop;
+  const standalone = route.house || route.desk || route.letters || route.archive || route.investigations || route.investigation || route.spotlight || route.scoop || route.year || route.standup;
 
   return (
     <div className="paper">
-      <Masthead edition={route.desk || route.evening || standalone ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk || route.house ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.archive || route.investigations || route.investigation ? 'archive' : route.evening ? 'evening' : route.section} />
+      <Masthead edition={route.desk || route.evening || standalone ? null : edition} evening={route.evening ? evening : null} day={day} status={status} activeSlug={route.desk || route.house || route.standup ? 'newsroom' : route.spotlight || route.scoop ? 'spotlight' : route.letters ? 'letters' : route.archive || route.investigations || route.investigation || route.year ? 'archive' : route.evening ? 'evening' : route.section} />
       {!standalone && (
         <EditionBar day={day} list={list} current={route.evening ? evening?.id : edition?.id} onPrint={printNow} printing={printing}
           evening={evening && evening.status !== 'draft' ? evening : null}
@@ -130,7 +132,11 @@ export default function App() {
         ) : route.letters ? (
           <LettersPage />
         ) : route.archive ? (
-          <ArchivePage query={route.query} />
+          <ArchivePage query={route.query} remember={!!route.remember} />
+        ) : route.year ? (
+          <YearPage />
+        ) : route.standup ? (
+          <StandupPage />
         ) : route.investigations ? (
           <InvestigationsPage />
         ) : route.spotlight ? (

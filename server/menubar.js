@@ -22,7 +22,7 @@ const clean = (s, n) => {
 };
 
 /** The menu, in the SwiftBar/xbar text format: first line in the bar, then the dropdown. */
-export function menubarText({ edition, next, base, evening = null, spotlight = null, port = 4321, max = 42 }) {
+export function menubarText({ edition, next, base, evening = null, spotlight = null, port = 4321, max = 42, self = null }) {
   const lines = [];
   const lead = edition?.articles?.[0];
   const waiting = spotlight?.waiting || [];
@@ -55,6 +55,10 @@ export function menubarText({ edition, next, base, evening = null, spotlight = n
   lines.push(`${tr({ en: 'Open the paper', it: 'Apri il giornale' })} | href=${base}/`);
   lines.push(`${tr({ en: 'Newsroom', it: 'Redazione' })} | href=${base}/#/newsroom`);
   lines.push(`${tr({ en: 'Archive', it: 'Archivio' })} | href=${base}/#/archive`);
+  lines.push(`${tr({ en: 'Remember…', it: 'Ricorda…' })} | href=${base}/#/remember`);
+  // the plugin copies the standup itself (it knows where it lives; the paper only writes the menu)
+  if (self) lines.push(`${tr({ en: 'Copy the standup', it: 'Copia lo standup' })} | bash="${self.replace(/"/g, '')}" param1=standup terminal=false`);
+  lines.push(`${tr({ en: 'Standup', it: 'Standup' })} | href=${base}/#/standup`);
   lines.push('---');
   lines.push(`${tr({ en: 'Refresh', it: 'Aggiorna' })} | refresh=true`);
   return `${lines.join('\n')}\n`;
@@ -68,7 +72,11 @@ export function pluginScript(port) {
 # <xbar.author>The Localhost Times</xbar.author>
 # <swiftbar.hideRunInTerminal>true</swiftbar.hideRunInTerminal>
 # <swiftbar.hideDisablePlugin>false</swiftbar.hideDisablePlugin>
-curl -s --max-time 4 "http://127.0.0.1:${port}/api/menubar" && exit 0
+if [ "$1" = "standup" ]; then
+  curl -s --max-time 8 "http://127.0.0.1:${port}/api/standup.txt" | pbcopy
+  exit 0
+fi
+curl -s --max-time 4 -G "http://127.0.0.1:${port}/api/menubar" --data-urlencode "self=$0" && exit 0
 echo "🗞"
 echo "---"
 echo "The Localhost Times is not running | color=gray"

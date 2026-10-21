@@ -2061,3 +2061,72 @@ html { overflow-x: clip; }
 .iq-nb-carnet ul { margin-top: 6px; }
 .iq-nb-carnet li { font: italic 400 13.5px/1.4 var(--f-serif); margin-bottom: 4px; }
 .edk-figs .lbl { margin-right: 6px; font-size: 10px; color: var(--muted); }
+
+/* ───────── The archive remembers ───────── */
+.arc-remember .box-title { margin-bottom: 6px; }
+.arc-remember .hint-small { margin: 0 0 12px; max-width: 70ch; }
+.arc-examples { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+.arc-memory .arc-title-ev a { text-decoration: none; }
+.arc-memory .arc-title-ev a:hover { text-decoration: underline; }
+
+/* ───────── A year ago today ───────── */
+.year-ago-date { font: 600 12px/1.2 var(--f-sans); color: var(--muted); margin: 0 0 8px; text-transform: capitalize; }
+.year-ago ul { margin: 0 0 10px; padding: 0; list-style: none; font-size: 15px; line-height: 1.45; }
+.year-ago li + li { margin-top: 4px; }
+.year-ago li::first-letter { text-transform: uppercase; }
+.year-ago-link { font: 700 12px/1 var(--f-sans); color: var(--accent); }
+
+/* ───────── The Year in Review ───────── */
+.year { max-width: 1040px; margin: 0 auto; }
+.yr-wait { text-align: center; margin: 60px auto; }
+.yr-head { text-align: center; border-bottom: 3px double var(--rule); padding: 28px 0 22px; margin-bottom: 26px; }
+.yr-title { font: 800 clamp(38px, 7vw, 76px)/1 var(--f-display); letter-spacing: -.025em; margin: 6px 0 14px; }
+.yr-dek { font: italic 400 20px/1.4 var(--f-serif); color: var(--ink-2); margin: 0 auto 10px; max-width: 46ch; }
+.yr-span { font: 500 12px/1 var(--f-sans); color: var(--muted); margin: 0; }
+.yr-editorial { columns: 2 320px; column-gap: 36px; column-rule: 1px solid var(--hair); font-size: 17px; line-height: 1.6; margin-bottom: 30px; }
+.yr-editorial p { margin: 0 0 12px; }
+.yr-editorial p.first::first-letter { float: left; font: 800 64px/.8 var(--f-display); margin: 6px 8px 0 0; }
+.yr-by { font: 500 12px/1.3 var(--f-sans); color: var(--muted); }
+.yr-actions { margin-top: 8px; break-inside: avoid; }
+.yr-past { border: 1px solid var(--rule); background: var(--card); padding: 16px; margin: 0 0 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.yr-past p { margin: 0; flex: 1 1 320px; font-size: 15px; }
+.yr-months { margin-bottom: 30px; }
+.yr-months ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); border-top: 1px solid var(--rule); }
+.yr-months li { padding: 12px 14px 14px 0; border-bottom: 1px solid var(--hair); display: flex; flex-direction: column; gap: 4px; }
+.yr-month { font: 800 11px/1 var(--f-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.yr-month-hl { font: 700 19px/1.2 var(--f-display); }
+.yr-month-subj, .yr-month-site { font: 500 12px/1.3 var(--f-sans); color: var(--muted); }
+.yr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 28px; margin-bottom: 30px; }
+.yr-list { list-style: none; padding: 0; margin: 0; }
+.yr-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dotted var(--hair); font-size: 15px; }
+.yr-list li span:last-child { font: 500 12px/1.6 var(--f-sans); color: var(--muted); text-align: right; white-space: nowrap; }
+.yr-sub { font: 700 12px/1 var(--f-sans); margin: 16px 0 6px; }
+.yr-bars { list-style: none; padding: 0; margin: 0; }
+.yr-bars li { display: grid; grid-template-columns: minmax(0, 9em) 1fr auto; gap: 8px; align-items: center; padding: 4px 0; font: 500 13px/1.2 var(--f-sans); }
+.yr-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yr-bar { height: 8px; background: var(--chip); }
+.yr-bar span { display: block; height: 100%; background: var(--ink); }
+.yr-bar-n { color: var(--muted); font-size: 12px; }
+.yr-hours-bars { display: flex; align-items: flex-end; gap: 2px; height: 90px; border-bottom: 1px solid var(--rule); }
+.yr-hours-bars span { flex: 1; background: var(--ink); min-width: 2px; }
+.yr-hours-axis { display: flex; justify-content: space-between; font: 500 10.5px/1 var(--f-sans); color: var(--muted); margin-top: 4px; }
+.yr-hours { margin: 0 0 12px; }
+.yr-note { font-size: 14.5px; line-height: 1.45; margin: 8px 0 0; }
+.yr-note .lbl { display: block; margin-bottom: 3px; }
+.yr-numbers { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); border-top: 3px double var(--rule); border-bottom: 1px solid var(--rule); }
+.yr-numbers div { padding: 14px 10px 14px 0; display: flex; flex-direction: column; gap: 4px; }
+.yr-numbers strong { font: 800 28px/1 var(--f-display); }
+.yr-numbers span { font: 600 11px/1.2 var(--f-sans); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+/* ───────── The standup ───────── */
+.standup { max-width: 820px; margin: 0 auto; }
+.su-controls { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0 14px; }
+.su-controls .seg { flex: 0 1 auto; }
+.su-controls .seg button { padding: 7px 12px; }
+.su-sheet { border: 1px solid var(--rule); background: var(--card); padding: 16px; }
+.su-text { width: 100%; font: 400 14px/1.55 ui-monospace, 'SF Mono', Menlo, monospace; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); padding: 12px; resize: vertical; }
+.su-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0 8px; }
+@media (max-width: 640px) {
+  .yr-editorial { columns: 1; }
+  .su-controls .seg { flex: 1 1 100%; }
+}

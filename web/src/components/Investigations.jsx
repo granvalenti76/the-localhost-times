@@ -5,7 +5,7 @@ import { tr, quote } from '../i18n.js';
 const T = tr({
   en: {
     title: 'Investigations', sub: 'Long pieces on one subject, across days or weeks, built from the archive.',
-    tabSearch: 'Search', tabInv: 'Investigations',
+    tabSearch: 'Search', tabInv: 'Investigations', tabYear: 'The Year in Review',
     newTitle: 'Open an investigation', topic: 'Subject', topicPh: 'e.g. GitHub, TurboCode, YouTube, Julia…',
     keywords: 'Words to look for (optional)', keywordsPh: 'by default, the subject itself', period: 'Period',
     days: (n) => `last ${n} days`, start: 'Start the investigation', working: 'The investigations desk is at work… (a few minutes with a slow model)',
@@ -19,7 +19,7 @@ const T = tr({
   },
   it: {
     title: 'Inchieste', sub: 'Pezzi lunghi su un argomento, attraverso giorni o settimane, costruiti dall\'archivio.',
-    tabSearch: 'Cerca', tabInv: 'Inchieste',
+    tabSearch: 'Cerca', tabInv: 'Inchieste', tabYear: 'L\'Annuario',
     newTitle: 'Apri un\'inchiesta', topic: 'Argomento', topicPh: 'es. GitHub, TurboCode, YouTube, Giulia…',
     keywords: 'Parole da cercare (facoltativo)', keywordsPh: 'di default, l\'argomento stesso', period: 'Periodo',
     days: (n) => `ultimi ${n} giorni`, start: 'Avvia l\'inchiesta', working: 'La redazione inchieste è al lavoro… (qualche minuto con un modello lento)',
@@ -54,6 +54,7 @@ function Tabs({ on }) {
   return (
     <nav className="arc-tabs">
       <a href={href.archive()} className={on === 'search' ? 'on' : ''}>{T.tabSearch}</a>
+      <a href={href.year()}>{T.tabYear}</a>
       <a href={href.investigations()} className={on === 'inv' ? 'on' : ''}>{T.tabInv}</a>
     </nav>
   );

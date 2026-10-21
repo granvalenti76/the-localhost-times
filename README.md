@@ -27,18 +27,18 @@ npm run setup       # language, cadence, model, permissions: about a minute
 npm start           # → http://localhost:4321
 ```
 
-Press **Print now** in the timeline bar to see an edition right away. To keep it running in the background, see [docs/SETUP.md](docs/SETUP.md#run-it-in-the-background).
+On the first start the paper reads the past your Mac already keeps (a year of Safari, Mail, Books, Podcasts, the shell and git), so there is something to read at once: the editions of the last week, *a year ago today*, the Year in Review. To keep it running in the background, see [docs/SETUP.md](docs/SETUP.md#run-it-in-the-background).
 
 **You need** macOS, Node.js 22.13 or later, and ideally a local model server ([Ollama](https://ollama.com), [LM Studio](https://lmstudio.ai), [llama.cpp](https://github.com/ggml-org/llama.cpp)…): the paper finds it on its own. Without a model, it is still printed from templates, in plainer prose.
 
 ## What's in it
 
-- **The front page:** a lead story, a few real stories (seven at most), *The Brief*, a New Yorker-style cartoon, and the records the day broke.
-- **The website market:** every site you visit is a listed stock.
-- **Spotlight:** patterns across weeks you may not have noticed (a decision in the making, a habit changing, a subject crossing apps), printed only when the evidence holds up, and never on delicate subjects.
-- **The archive:** search everything, ask it a question in plain words, or open an investigation on a subject.
+- **What you were busy with, not where.** The stories are subjects: Umberto Eco searched on Google, watched on YouTube, asked of ChatGPT and read in Books is one piece, followed from day to day, not four entries in a log.
+- **The Year in Review:** the subjects of every month, the habits and the discoveries, the hours the Mac kept, the books, the shows, the repositories. And on the front page, *a year ago today*.
+- **A memory, without screenshots.** *“What was that article about fountain pens I read on Tuesday?”*: the archive answers with the page itself, and its link. From the paper, the menu bar or `npm run recall`.
+- **The standup, written by itself:** yesterday's commits, pull requests, pushes, tests and meetings, ready to paste. One click in the menu bar, or `npm run standup -- --copy`.
+- **The front page:** a lead, a few real stories (seven at most), *The Brief*, a New Yorker-style cartoon, the website market, the records the day broke, and **Spotlight**, the patterns across weeks you may not have noticed.
 - **Every morning:** a notification with the lead headline, a one-minute radio bulletin read by your Mac's own voice, the RSS feed, the headline in the menu bar.
-- **The newsroom**, if you want it: reorder, edit, rewrite or spike any piece, and leave tips for tomorrow.
 
 The paper can also come out every hour or every week, in English or Italian. The house voice is in the [style guide](docs/STYLE.md).
 

@@ -36,6 +36,9 @@ import { submitLetter, answerNow } from './newsroom/letters.js';
 import { say } from './newsroom/chatter.js';
 import { tips, addTip, archiveTip } from './newsroom/tips.js';
 import { paragraphAction, headlineOptions } from './newsroom/bench.js';
+import { computeReview, typesetReview, latestReview, printReview } from './newsroom/review.js';
+import { recall } from './newsroom/recall.js';
+import { standup, polishStandup } from './newsroom/standup.js';
 
 const [maj, min] = process.versions.node.split('.').map(Number);
 if (maj < 22 || (maj === 22 && min < 13)) {
@@ -217,6 +220,7 @@ app.get('/api/menubar', (req, res) => {
     },
     base: `http://localhost:${config.port}`,
     port: config.port,
+    self: typeof req.query.self === 'string' ? req.query.self.slice(0, 500) : null,
     max: Math.min(80, Number(req.query.max) || 42),
   }));
 });
@@ -267,6 +271,31 @@ app.get('/api/search', (req, res) => res.json(search(store, {
   offset: num(req.query.offset) || 0,
 })));
 app.post('/api/ask', wrap(async (req, res) => res.json(await ask(store, config, req.body?.question, log))));
+// "what was that thing I read on Tuesday?": the archive as a memory
+app.post('/api/recall', wrap(async (req, res) => res.json(await recall(store, config, req.body?.question, { log }))));
+
+// ── The past: the history the Mac keeps, the Year in Review ──
+app.get('/api/history', (req, res) => res.json(config.demo ? { demo: true } : store.getSetting('history', null)));
+// reads the past and prints the last days in the background: the page polls /api/history
+app.post('/api/history', wrap(async (req, res) => {
+  if (config.demo) return res.status(400).json({ error: tr({ en: 'The demo has no past to read.', it: 'La demo non ha un passato da leggere.' }) });
+  newsroom.readPast().then(() => newsroom.catchUp()).catch((e) => log(`[history] ${e.message}`));
+  res.json({ started: true });
+}));
+app.get('/api/review', (req, res) => {
+  const saved = latestReview(store);
+  if (saved) return res.json(saved);
+  // none written yet: the typesetting's, from the archive as it is
+  const r = computeReview(store);
+  res.json(r ? { ...r, ...typesetReview(r), draft: true } : null);
+});
+app.post('/api/review', wrap(async (req, res) => res.json(await newsroom.queue(() => printReview(store, config, { log })))));
+
+// ── The standup, written by itself ──
+const standupOpts = (q) => ({ span: q.span === 'week' ? 'week' : 'day', format: ['markdown', 'slack', 'plain'].includes(q.format) ? q.format : 'markdown' });
+app.get('/api/standup', (req, res) => res.json(standup(store, config, standupOpts(req.query))));
+app.get('/api/standup.txt', (req, res) => res.type('text/plain; charset=utf-8').send(standup(store, config, standupOpts(req.query)).text));
+app.post('/api/standup/polish', wrap(async (req, res) => res.json(await polishStandup(store, config, standupOpts(req.body || {}), log))));
 
 // ── Investigations ──
 app.get('/api/investigations', (req, res) => res.json(store.investigations(Math.min(100, num(req.query.limit) || 50))));

@@ -1,5 +1,6 @@
 import { buildStories, factSheet, crossFacts } from './cluster.js';
 import { subjectPast } from './subjects.js';
+import { yearAgo } from './review.js';
 import { deskChain, chainFor, phrasingDesk, triageFlags, rulesDesk } from './chain.js';
 import { SECTIONS, SECTION_ORDER } from './sections.js';
 import { fallbackArticle, fallbackBrief, fallbackSummary } from './fallback.js';
@@ -503,6 +504,7 @@ export async function printEdition({ store, config, start, final = true, force =
     letters: newLetters,
     spotlight: existing?.spotlight || pendingScoop(store, id),
     records: records.length ? records : undefined,
+    yearAgo: safely(() => yearAgo(store, end - 1), null, log) || undefined,
     stats,
     time,
     mac,

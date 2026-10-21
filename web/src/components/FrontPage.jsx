@@ -11,6 +11,7 @@ import { LettersBox } from './Letters.jsx';
 import { InvestigationBox } from './Investigations.jsx';
 import FactCheck from './FactCheck.jsx';
 import RadioBox from './Radio.jsx';
+import { YearAgoBox } from './YearPage.jsx';
 import { EditorNote } from './Craft.jsx';
 
 /** Small flags on an article: the Editor's choice, a record, a quote, a tip. */
@@ -229,6 +230,7 @@ export default function FrontPage({ edition }) {
           </section>
           <FactCheck edition={edition} />
           <SpotlightBox edition={edition} />
+          <YearAgoBox ago={edition.yearAgo} />
         </aside>
       </section>
 

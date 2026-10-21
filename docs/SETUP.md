@@ -4,6 +4,7 @@
 - [The writer: a local model](#the-writer-a-local-model)
 - [Permissions](#permissions)
 - [When the paper comes out](#when-the-paper-comes-out)
+- [The first start](#the-first-start)
 - [Run it in the background](#run-it-in-the-background)
 - [Updating](#updating)
 - [Commands](#commands)
@@ -68,6 +69,12 @@ By default the paper is a **daily**: it goes to press at 7:00 and covers the 24 
 - **Every hour**, with an evening edition at 21:00 (`edition.eveningHour`). Livelier, and much more work for the model.
 - **Every week**, on the day you choose.
 
+## The first start
+
+The first time it runs, the paper reads the past your Mac already keeps: about a year of Safari history, Mail, Books, Podcasts, Notes, Photos, the shell history and the git reflogs (`history.days`). It takes a minute or two. Then it prints the editions of the last seven days (`history.catchUp`), oldest first, and writes the Year in Review (**Archive → The Year in Review**). With a model, each past edition takes as long as a normal one: they come out in the background while you read.
+
+Already running the paper from before? `npm run history` does the same at any time.
+
 ## Run it in the background
 
 Instead of keeping a Terminal window open, install the paper as a background service. It starts at every login, restarts if it crashes, and prints on its own:
@@ -98,7 +105,7 @@ npm run menubar:install        # adds the plugin (xbar works too)
 npm run menubar:uninstall      # removes it
 ```
 
-It refreshes every 5 minutes and only asks the paper on this Mac (`/api/menubar`).
+It refreshes every 5 minutes and only asks the paper on this Mac (`/api/menubar`). The menu also has **Remember…** (the archive's memory) and **Copy the standup**, which puts yesterday's standup on the clipboard.
 
 **Export** (in the timeline bar) prints the front page to PDF in A4 or A3 broadsheet, saves it as a 1200×630 image, or gives you the RSS feed (`/feed.xml`, or `/feed/<section>.xml` for one section).
 
@@ -128,6 +135,9 @@ Your editions, settings and `config.json` are kept. New settings get their defau
 | `npm run service:status` / `logs` / `uninstall` | Check it, follow its log, remove it |
 | `npm run notify:test` | Send a test notification |
 | `npm run tip -- "…"` | A tip for the newsroom (goes into the next edition) |
+| `npm run history [-- --days 365]` | Read the past the Mac keeps, print the last days, write the Year in Review (done by itself on the first start) |
+| `npm run recall -- "…"` | *What was that thing?* The archive answers with the pages and their links |
+| `npm run standup [-- --week] [--copy]` | The standup since the last working day (or this week), copied to the clipboard with `--copy` |
 | `npm run menubar:install` / `uninstall` | Add or remove the menu-bar headline (SwiftBar or xbar) |
 | `npm run dev` | Development, with hot reload → http://localhost:5173 |
 | `npm test` | Run the tests |

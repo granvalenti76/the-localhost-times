@@ -23,7 +23,12 @@ const DEFAULTS = {
   },
   collectEveryMinutes: 5,
   backfillHours: 1,
-  keepEventsDays: 60,    // raw signals are kept this long (editions are kept forever); 0 = forever
+  keepEventsDays: 60,    // raw signals are kept whole this long, then thinned (editions are kept forever); 0 = forever
+  history: {
+    days: 365,           // on the first start, read this much of the past the Mac already keeps (0 = none)
+    catchUp: 7,          // and print the editions of these past days (daily paper; weekly: these many weeks / 7)
+    keep: true,          // thinned signals keep one of each page, search, book… a day (false: forget them)
+  },
   sources: {
     safari: true, mail: true, terminal: true, notes: true,
     journal: true, podcasts: true, books: true, files: true,
@@ -76,6 +81,9 @@ const DEFAULTS = {
   },
   tips: {
     notesFolder: '',     // a Notes folder used as the tip box ("Redazione" and "Newsroom" always work)
+  },
+  standup: {
+    exclude: [],         // repositories (names or parts of paths) the standup leaves out
   },
   spotlight: {
     enabled: true,       // the Spotlight desk: leads followed across days, scoops when they hold up

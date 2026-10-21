@@ -20,6 +20,14 @@
   "collectEveryMinutes": 5,
   "backfillHours": 1,
   "keepEventsDays": 60,
+  "history": {
+    "days": 365,
+    "catchUp": 7,
+    "keep": true
+  },
+  "standup": {
+    "exclude": []
+  },
   "sources": {
     "safari": true,
     "mail": true,

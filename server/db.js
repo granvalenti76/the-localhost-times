@@ -154,16 +154,28 @@ export class Store {
     return this.db.prepare(`SELECT ts FROM events WHERE ts >= ?`).all(start).map((r) => r.ts);
   }
 
-  /** Raw events older than `before` are deleted: the editions written from them stay. */
   /** One event removed (a dispatch the Editor withdrew), with its entry in the archive's index. */
   deleteEvent(id) {
     this.db.prepare(`DELETE FROM search WHERE kind = 'event' AND ref = ?`).run(id);
     return Number(this.db.prepare(`DELETE FROM events WHERE id = ?`).run(id).changes);
   }
 
-  pruneEvents(before) {
-    this.db.prepare(`DELETE FROM search WHERE kind = 'event' AND ts < ?`).run(before);
-    return Number(this.db.prepare(`DELETE FROM events WHERE ts < ?`).run(before).changes);
+  /**
+   * Raw events older than `before` are thinned, not forgotten: the moments (the app in front, the
+   * Mac's power, files saved, inbox counts) go; the things (a page, a search, a book, a message, a
+   * command, a commit) stay, one a day, so the archive keeps remembering. `all` forgets everything.
+   */
+  pruneEvents(before, { all = false } = {}) {
+    let n;
+    if (all) {
+      n = Number(this.db.prepare(`DELETE FROM events WHERE ts < ?`).run(before).changes);
+    } else {
+      n = Number(this.db.prepare(`DELETE FROM events WHERE ts < ? AND (source IN ('apps', 'power', 'files') OR (source = 'mail' AND kind = 'inbox'))`).run(before).changes);
+      n += Number(this.db.prepare(`DELETE FROM events WHERE ts < ? AND rowid NOT IN (
+        SELECT MIN(rowid) FROM events WHERE ts < ? GROUP BY source, kind, COALESCE(url, title), ts / 86400000)`).run(before, before).changes);
+    }
+    this.db.prepare(`DELETE FROM search WHERE kind = 'event' AND ts < ? AND ref NOT IN (SELECT id FROM events WHERE ts < ?)`).run(before, before);
+    return n;
   }
 
   countEvents() {

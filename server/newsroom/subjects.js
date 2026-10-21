@@ -38,7 +38,7 @@ film films movie movies series serie streaming trailer release released says sai
 save compared launch personal testing community power developers developer people thing things world first last best great good
 review watch season stagione capitolo chapter year years day days time times part show shows story stories life
 read reading use using used get set run running find learn work works working example examples alternative alternatives
-forecast weather meteo tempo complete completa completo
+forecast weather meteo tempo complete completa completo social media digital network
 `.split(/\s+/).filter(Boolean));
 
 const fold = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

@@ -6,6 +6,9 @@
  * npm run photos [-- --hours 4] → trace the photo search for recent pages
  * npm run notify:test → send a test notification
  * npm run tip -- "…" → a tip for the newsroom (the tip box)
+ * npm run history [-- --days 365] → read the past the Mac keeps, print the last days, write the Year in Review
+ * npm run recall -- "…" → what was that thing? (pages come back with their links)
+ * npm run standup [-- --week] [--copy] → the standup, written by itself
  */
 import { loadConfig } from './config.js';
 import { Store } from './db.js';
@@ -19,6 +22,9 @@ import { buildStories } from './newsroom/cluster.js';
 import { candidatePages, photoForPage } from './newsroom/photos.js';
 import { createNotifier } from './notify.js';
 import { tr } from './i18n.js';
+import { importHistory } from './history.js';
+import { recall } from './newsroom/recall.js';
+import { standup } from './newsroom/standup.js';
 
 const config = loadConfig();
 const cmd = process.argv[2];
@@ -124,6 +130,35 @@ async function tip() {
 
 async function main() {
   if (cmd === 'probe') return probe();
+  if (cmd === 'history') {
+    const store = new Store(config.dbFile);
+    await importHistory(store, config, { days: Number(arg('days', config.history?.days || 365)) });
+    const newsroom = createNewsroom({ store, config });
+    const printed = await newsroom.catchUp();
+    console.log(tr({ en: `${printed.length} past editions printed. The Year in Review: http://localhost:${config.port}/#/year`, it: `${printed.length} edizioni arretrate stampate. L'Annuario: http://localhost:${config.port}/#/year` }));
+    return;
+  }
+  if (cmd === 'recall') {
+    const store = new Store(config.dbFile);
+    const q = process.argv.slice(3).filter((a) => !a.startsWith('--')).join(' ');
+    const r = await recall(store, config, q, { log: () => {} });
+    if (r.mode === 'ask') { console.log(r.answer || r.note || ''); return; }
+    if (r.answer) console.log(`${r.answer}\n`);
+    if (!r.results.length) console.log(tr({ en: 'Nothing in the archive. Try other words, or another day.', it: 'Niente in archivio. Prova altre parole, o un altro giorno.' }));
+    r.results.slice(0, 12).forEach((x, i) => console.log(`${String(i + 1).padStart(2)}. ${new Date(x.first).toLocaleString()}  ${x.title}${x.times > 1 ? `  ×${x.times}` : ''}\n    ${x.url || x.site || x.section}`));
+    return;
+  }
+  if (cmd === 'standup') {
+    const store = new Store(config.dbFile);
+    const s = standup(store, config, { span: process.argv.includes('--week') ? 'week' : 'day', format: arg('format', 'markdown') });
+    console.log(s.text);
+    if (process.argv.includes('--copy')) {
+      const { spawnSync } = await import('node:child_process');
+      spawnSync('pbcopy', { input: s.text });
+      console.log(tr({ en: '\n(copied)', it: '\n(copiato)' }));
+    }
+    return;
+  }
   if (cmd === 'tip' || cmd === 'soffiata') return tip();
   if (cmd === 'notify') {
     const n = createNotifier({ ...config, demo: false, notifications: { ...config.notifications, enabled: true } }, console.log);
@@ -182,7 +217,7 @@ async function main() {
       : tr({ en: 'No events in the current hour.', it: 'Nessun evento nell\'ora corrente.' }));
     return;
   }
-  console.log('Usage: node server/cli.js probe [--schema] | collect | print [--hours N] | rebuild [--hours N] | photos [--hours N] [--force] | notify | tip "…"');
+  console.log('Usage: node server/cli.js probe [--schema] | collect | print [--hours N] | rebuild [--hours N] | photos [--hours N] [--force] | notify | tip "…" | history [--days N] | recall "…" | standup [--week] [--copy]');
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

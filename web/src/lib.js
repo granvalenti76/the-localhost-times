@@ -48,6 +48,9 @@ export function parseRoute(hash) {
   if ((p[0] === 'evening' || p[0] === 'sera') && p[1]) return { evening: p[1] };
   if (p[0] === 'letters' || p[0] === 'lettere') return { letters: true };
   if (p[0] === 'archive' || p[0] === 'archivio') return { archive: true, query: p.slice(1).join('/') };
+  if (p[0] === 'remember' || p[0] === 'ricorda') return { archive: true, remember: true, query: '' };
+  if (p[0] === 'year' || p[0] === 'annuario') return { year: true };
+  if (p[0] === 'standup') return { standup: true };
   if (p[0] === 'investigations' || p[0] === 'inchieste') return { investigations: true };
   if ((p[0] === 'investigation' || p[0] === 'inchiesta') && p[1]) return { investigation: p[1] };
   if (p[0] === 'spotlight') return p[1] ? { scoop: p[1] } : { spotlight: true };
@@ -65,6 +68,9 @@ export const href = {
   evening: (day) => `#/evening/${day}`,
   letters: () => '#/letters',
   archive: (q) => (q ? `#/archive/${encodeURIComponent(q)}` : '#/archive'),
+  remember: () => '#/remember',
+  year: () => '#/year',
+  standup: () => '#/standup',
   investigations: () => '#/investigations',
   investigation: (id) => `#/investigation/${id}`,
   spotlight: (id) => (id ? `#/spotlight/${id}` : '#/spotlight'),

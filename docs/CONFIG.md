@@ -43,6 +43,10 @@ How often the paper comes out, the sources' weight and the bylines are set in th
 | `radio.rate` | `180` | Words per minute |
 | `collectEveryMinutes` | `5` | How often the sources are read |
 | `backfillHours` | `1` | Editions to catch up on after the Mac was off |
-| `keepEventsDays` | `60` | How long raw signals are kept (editions are kept forever); `0` = forever |
+| `keepEventsDays` | `60` | How long raw signals are kept whole; after that the moments (apps, power, files saved) go and one of each page, search, book or message a day stays, so the archive keeps remembering. `0` = keep everything |
+| `history.days` | `365` | On the first start, how much of the past the Mac keeps is read into the archive (`0` = none) |
+| `history.catchUp` | `7` | And how many past days get their edition (a weekly paper: that many days' worth of weeks) |
+| `history.keep` | `true` | `false` forgets old signals altogether instead of thinning them |
+| `standup.exclude` | `[]` | Repositories (names or parts of paths) the standup leaves out |
 
 Environment variables override the file: `LOCALHOST_TIMES_LANG`, `LOCALHOST_TIMES_LLM_URL`, `LOCALHOST_TIMES_LLM_MODEL`, `PORT`.

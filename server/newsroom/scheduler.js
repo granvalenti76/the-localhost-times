@@ -9,6 +9,8 @@ import { draftRound } from './workbench.js';
 import { getLine } from './line.js';
 import { cadenceOf, nextPress, lastPress, workHour, hasEvening } from './cadence.js';
 import { editionId as idOf } from '../util.js';
+import { importHistory, historyRead } from '../history.js';
+import { printReview } from './review.js';
 
 const HOUR = 3600e3;
 
@@ -105,6 +107,34 @@ export function createNewsroom({ store, config, log = console.log, notify = null
     return printed;
   }
 
+  /**
+   * The first start: the past the Mac already keeps is read into the archive, then the editions of
+   * the last days are printed, oldest first so that their continuing stories link up, and the year
+   * in review is written. An hourly paper only gets the archive and the review.
+   */
+  const firstStart = () => !config.demo && config.history?.days > 0 && !historyRead(store);
+  const readPast = () => queue(busy(() => importHistory(store, config, { log })));
+
+  async function catchUp() {
+    const cad = cadence();
+    const printed = [];
+    if (cad.kind !== 'hourly') {
+      const step = cad.kind === 'daily' ? 24 * HOUR : 7 * 24 * HOUR;
+      const n = cad.kind === 'daily' ? config.history.catchUp : Math.ceil(config.history.catchUp / 7);
+      const last = lastPress(cad, Date.now());
+      for (let i = n; i >= 1; i--) {
+        // the same hour of the day, whatever the clocks did in between
+        const press = lastPress(cad, last - i * step + 2 * HOUR);
+        const meta = store.editionMeta(idOf(press - HOUR));
+        if (meta?.final || meta?.edited) continue;
+        const ed = await printHour(press - HOUR, true);
+        if (ed) printed.push(ed);
+      }
+    }
+    await queue(busy(() => printReview(store, config, { log }))).catch((e) => log(`[review] ${e.message}`));
+    return printed;
+  }
+
   function scheduleHourly() {
     // the press wakes every hour; a daily or weekly paper prints only at its own hour
     const next = hourStart(Date.now()) + HOUR + 30e3;
@@ -118,9 +148,9 @@ export function createNewsroom({ store, config, log = console.log, notify = null
         // drop raw signals older than keepEventsDays
         const today = dayKey(Date.now());
         if (config.keepEventsDays > 0 && store.getSetting('lastPrune', null) !== today) {
-          const n = store.pruneEvents(Date.now() - config.keepEventsDays * 24 * HOUR);
+          const n = store.pruneEvents(Date.now() - config.keepEventsDays * 24 * HOUR, { all: config.history?.keep === false });
           store.setSetting('lastPrune', today);
-          if (n) log(tr({ en: `[archive] ${n} old signals removed`, it: `[archivio] ${n} segnali vecchi rimossi` }));
+          if (n) log(tr({ en: `[archive] ${n} old signals thinned out`, it: `[archivio] ${n} segnali vecchi sfoltiti` }));
         }
         if (printed.length) notify?.edition(printed.at(-1));
         // the Spotlight desk takes a look at the leads once the hour is printed
@@ -136,6 +166,8 @@ export function createNewsroom({ store, config, log = console.log, notify = null
 
   async function start() {
     await collect();
+    const first = firstStart();
+    if (first) await readPast().catch((e) => log(`[history] ${e.message}`));
     scheduleHourly();
     setInterval(() => {
       collect().then(() => (config.demo ? null : drafts())).catch((e) => log(`[${tr({ en: 'collect', it: 'raccolta' })}] ${e.message}`));
@@ -147,9 +179,10 @@ export function createNewsroom({ store, config, log = console.log, notify = null
     (hourly ? backfill(config.demo ? 12 : config.backfillHours) : pressIfDue())
       .then(() => (config.demo && hourly ? printNow() : null))
       .then(() => (!hasEvening(cadence()) ? null : config.demo ? printEveningFor(dayKey(Date.now())) : eveningIfDue()))
+      .then(() => (first ? catchUp() : null))
       .then(() => spotlight())
       .catch((e) => log(`[${tr({ en: 'backfill', it: 'arretrati' })}] ${e.message}`));
   }
 
-  return { collect, printNow, printHour, printEveningFor, backfill, start, state, spotlight, queue, draftNow };
+  return { collect, printNow, printHour, printEveningFor, backfill, start, state, spotlight, queue, draftNow, readPast, catchUp };
 }

@@ -311,9 +311,73 @@ export function demoHistory(now = Date.now()) {
   return events;
 }
 
+// A year of past, for the Year in Review and "a year ago today": a subject a month, followed on
+// three days across the searches, two sites and an app, and the habits of every week.
+const YEAR = {
+  en: [
+    ['sourdough starter', 'Sourdough starter, day by day – King Arthur Baking', 'kingarthurbaking.com', 'The Perfect Loaf: sourdough schedule', 'theperfectloaf.com', ['podcasts', 'The Bread Show', 'Sourdough, slowly']],
+    ['swift concurrency actors', 'Swift Concurrency: actors explained – Swift by Sundell', 'swiftbysundell.com', 'Actors | Apple Developer Documentation', 'developer.apple.com', null],
+    ['kyoto ryokan', 'Where to stay in Kyoto: the best ryokan – Condé Nast Traveler', 'cntraveler.com', 'Kyoto in spring: a three-day itinerary – Time Out', 'timeout.com', ['books', 'Snow Country', 'Yasunari Kawabata']],
+    ['marathon training plan', 'Marathon training plan for beginners – Runner’s World', 'runnersworld.com', 'Hal Higdon marathon novice 1', 'halhigdon.com', ['podcasts', 'Running Talk', 'Your first marathon']],
+    ['rust ownership', 'Understanding Ownership – The Rust Programming Language', 'doc.rust-lang.org', 'Rust ownership explained – Reddit', 'reddit.com', ['books', 'Programming Rust', 'Jim Blandy']],
+    ['film photography portra', 'Kodak Portra 400 review – Kosmo Foto', 'kosmofoto.com', 'Shooting film in 2026 – PetaPixel', 'petapixel.com', null],
+    ['sqlite fts5', 'SQLite FTS5 Extension', 'sqlite.org', 'Full-text search with SQLite FTS5 – Simon Willison', 'simonwillison.net', null],
+    ['fountain pen ink', 'Best fountain pen inks of the year – Goulet Pens', 'gouletpens.com', 'Fountain pens for beginners – r/fountainpens', 'reddit.com', ['podcasts', 'The Pen Addict', 'Inks of the summer']],
+    ['kobo libra colour', 'Kobo Libra Colour review – The Verge', 'theverge.com', 'Kobo vs Kindle: which e-reader – Wired', 'wired.com', null],
+  ],
+  it: [
+    ['lievito madre', 'Lievito madre, giorno per giorno – Giallo Zafferano', 'giallozafferano.it', 'Il pane con il lievito madre – Dissapore', 'dissapore.com', ['podcasts', 'Il pane', 'Lievito madre, piano']],
+    ['swift concurrency actors', 'Swift Concurrency: actors explained – Swift by Sundell', 'swiftbysundell.com', 'Actors | Apple Developer Documentation', 'developer.apple.com', null],
+    ['kyoto ryokan', 'Dove dormire a Kyoto: i migliori ryokan – Condé Nast Traveller', 'cntraveller.it', 'Kyoto in primavera: tre giorni – Lonely Planet', 'lonelyplanet.it', ['books', 'Il paese delle nevi', 'Yasunari Kawabata']],
+    ['maratona tabella allenamento', 'Maratona: la tabella per principianti – Runner’s World', 'runnersworld.it', 'Correre la prima maratona – Corriere', 'corriere.it', ['podcasts', 'Di corsa', 'La prima maratona']],
+    ['rust ownership', 'Understanding Ownership – The Rust Programming Language', 'doc.rust-lang.org', 'Rust ownership explained – Reddit', 'reddit.com', ['books', 'Programming Rust', 'Jim Blandy']],
+    ['pellicola portra', 'Kodak Portra 400: la prova – Fotografia.it', 'fotografia.it', 'Fotografare a pellicola nel 2026 – PetaPixel', 'petapixel.com', null],
+    ['sqlite fts5', 'SQLite FTS5 Extension', 'sqlite.org', 'Full-text search with SQLite FTS5 – Simon Willison', 'simonwillison.net', null],
+    ['inchiostro stilografica', 'I migliori inchiostri per stilografica – Stilografica Milano', 'lastilograficamilano.it', 'Stilografiche per principianti – r/fountainpens', 'reddit.com', ['podcasts', 'The Pen Addict', 'Inks of the summer']],
+    ['kobo libra colour', 'Kobo Libra Colour: la prova – Il Post', 'ilpost.it', 'Kobo o Kindle: quale e-reader – Wired', 'wired.it', null],
+  ],
+};
+
+export function demoYear(now = Date.now()) {
+  seed = 99;
+  const events = [];
+  const add = (source, kind, ts, title, detail, meta = {}, url = null) =>
+    events.push({ id: `${source}:year:${hash(`${ts}:${title}:${events.length}`)}`, source, kind, ts, title, detail, url, meta });
+  const day0 = new Date(now); day0.setHours(0, 0, 0, 0);
+  const at = (daysAgo, h, m = 0) => day0.getTime() - daysAgo * 24 * HOUR + h * HOUR + m * 60e3;
+  const subjects = L(YEAR);
+  // a subject a month, from eleven months ago to two months ago, each followed on three days
+  subjects.forEach(([search, t1, h1, t2, h2, app], i) => {
+    const base = 330 - i * 32;
+    for (const [k, d] of [[0, base], [1, base + 2], [2, base + 6]]) {
+      add('safari', 'search', at(d, 20, 10 + k), k ? `${search} ${['', 'tips', 'review'][k]}`.trim() : search, 'Google', { host: 'google.com', engine: 'Google' });
+      add('safari', 'visit', at(d, 20, 14 + k), t1, null, { host: h1 }, `https://${h1}/${i}/${k}`);
+      add('safari', 'visit', at(d, 20, 30 + k), t2, null, { host: h2 }, `https://${h2}/${i}/${k}`);
+      if (app?.[0] === 'books') add('books', 'opened', at(d, 22, 5), app[1], app[2], { assetId: `y${i}`, author: app[2], progress: 0.2 + k * 0.3 });
+      if (app?.[0] === 'podcasts') add('podcasts', 'listened', at(d, 8, 15), app[2], app[1], { episodeId: `y${i}`, show: app[1], duration: 2400, playhead: 2000 });
+    }
+  });
+  // the habits: the paper of record most mornings, GitHub on working days, a commit or two a week
+  for (let d = 360; d >= 15; d--) {
+    const wd = new Date(at(d, 12)).getDay();
+    if (rnd() < 0.8) add('safari', 'visit', at(d, 8, Math.floor(rnd() * 40)), L({ en: 'Today’s paper – The New York Times', it: 'Il giornale di oggi – Corriere della Sera' }), null, { host: L({ en: 'nytimes.com', it: 'corriere.it' }) }, `https://${L({ en: 'nytimes.com', it: 'corriere.it' })}/${d}`);
+    if (wd > 0 && wd < 6) add('safari', 'visit', at(d, 11, Math.floor(rnd() * 50)), 'localhost-times/localhost-times: Pull requests', null, { host: 'github.com' }, `https://github.com/localhost-times/localhost-times/pulls?d=${d}`);
+    if (wd > 0 && wd < 6 && rnd() < 0.35) add('git', 'commit', at(d, 17, Math.floor(rnd() * 50)), pick(['tidy the front page', 'fix: timezones in the archive', 'faster search', 'new source: Reminders', 'docs: setup']), 'localhost-times', { repo: 'localhost-times', branch: 'main', added: 10 + Math.floor(rnd() * 200), removed: Math.floor(rnd() * 80), files: 1 + Math.floor(rnd() * 5) });
+  }
+  // a year ago today (and the day after, whatever the leap years say): the trip to Kyoto
+  for (const d of [365, 366]) {
+    add('safari', 'search', at(d, 9, 30), 'kyoto fushimi inari early morning', 'Google', { host: 'google.com', engine: 'Google' });
+    add('safari', 'visit', at(d, 9, 35), 'Fushimi Inari at dawn – Japan Guide', null, { host: 'japan-guide.com' }, 'https://www.japan-guide.com/e/e3915.html');
+    add('safari', 'visit', at(d, 21, 5), 'Kyoto’s best kaiseki – Eater', null, { host: 'eater.com' }, 'https://www.eater.com/kyoto');
+    add('books', 'opened', at(d, 23, 0), L({ en: 'Snow Country', it: 'Il paese delle nevi' }), 'Yasunari Kawabata', { assetId: 'y2', author: 'Yasunari Kawabata', progress: 0.62 });
+    for (let i = 0; i < 14; i++) add('photos', 'photo', at(d, 7, 20 + i * 2), L({ en: 'Photo', it: 'Foto' }), null, { subtype: null });
+  }
+  return events;
+}
+
 export function seedDemo(store) {
-  // two days: enough for the morning paper's full day, from one press to the next
-  return store.insertEvents([...demoHistory(), ...demoEvents(48)]);
+  // two days: enough for the morning paper's full day, from one press to the next; and a year behind them
+  return store.insertEvents([...demoYear(), ...demoHistory(), ...demoEvents(48)]);
 }
 
 /** The demo's tip box: one tip, waiting for the newsroom. */
