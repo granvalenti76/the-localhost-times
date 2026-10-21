@@ -56,6 +56,7 @@ test('length: a short piece from the model is expanded once during printing, a n
   const { sandbox, quiet } = await import('./helpers.js');
   setLang('en');
   let expands = 0;
+  let writes = 0;
   const server = http.createServer((req, res) => {
     let b = '';
     req.on('data', (d) => (b += d));
@@ -64,8 +65,9 @@ test('length: a short piece from the model is expanded once during printing, a n
       if (req.url.endsWith('/models')) return res.end(JSON.stringify({ data: [{ id: 'mock' }] }));
       const last = JSON.parse(b).messages.at(-1).content;
       let content;
-      if (/Write the piece/.test(last)) content = JSON.stringify({ kicker: 'K', headline: 'Short one', dek: 'D', body: ['Too few words here.'] });
-      else if (/This draft is \d+ words/.test(last)) { expands++; content = JSON.stringify({ kicker: 'K', headline: 'Longer one', dek: 'D', body: [Array(80).fill('word').join(' ')] }); }
+      // every piece its own headline: two alike in one edition would be renamed by the press
+      if (/Write the piece/.test(last)) content = JSON.stringify({ kicker: 'K', headline: `Short one ${++writes}`, dek: 'D', body: ['Too few words here.'] });
+      else if (/This draft is \d+ words/.test(last)) { expands++; content = JSON.stringify({ kicker: 'K', headline: `Longer one ${expands}`, dek: 'D', body: [Array(80).fill('word').join(' ')] }); }
       else content = '{}';
       res.end(JSON.stringify({ choices: [{ message: { content } }] }));
     });
@@ -83,8 +85,8 @@ test('length: a short piece from the model is expanded once during printing, a n
     const notes = written.filter((a) => a.size === 'brief');
     assert.ok(pieces.length > 0 && notes.length > 0, `${pieces.length} pieces, ${notes.length} notes`);
     assert.ok(expands >= pieces.length, `expanded ${expands} of ${pieces.length}`);
-    for (const a of pieces) { assert.equal(a.headline, 'Longer one'); assert.equal(a.expanded, true); }
-    for (const a of notes) { assert.equal(a.headline, 'Short one'); assert.ok(!a.expanded); }
+    for (const a of pieces) { assert.match(a.headline, /^Longer one/); assert.equal(a.expanded, true); }
+    for (const a of notes) { assert.match(a.headline, /^Short one/); assert.ok(!a.expanded); }
   } finally {
     cleanup();
     server.close();

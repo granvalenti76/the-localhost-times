@@ -482,6 +482,13 @@ export async function printEdition({ store, config, start, final = true, force =
   }));
 
   const articles = await mapLimit(main, llm ? config.llm.concurrency : 8, (s, i) => writeArticle(s, i, ctx));
+  // two pieces under the same headline: the later one takes the typesetting's, which names its subject
+  const seenHeadlines = new Set();
+  articles.forEach((a, i) => {
+    const k = String(a.headline).trim().toLowerCase();
+    if (seenHeadlines.has(k)) a.headline = fallbackArticle(main[i]).headline;
+    seenHeadlines.add(String(a.headline).trim().toLowerCase());
+  });
   const written = articles.slice(); // the photos follow the stories, whatever comes in front of them
   const briefs = rest.map((s) => ({ section: s.section, slug: SECTIONS[s.source].slug, ts: s.last, text: fallbackBrief(s) }));
 

@@ -5,6 +5,7 @@
 - [Permissions](#permissions)
 - [When the paper comes out](#when-the-paper-comes-out)
 - [The first start](#the-first-start)
+- [Your projects: Home Affairs](#your-projects-home-affairs)
 - [Run it in the background](#run-it-in-the-background)
 - [Updating](#updating)
 - [Commands](#commands)
@@ -74,6 +75,16 @@ By default the paper is a **daily**: it goes to press at 7:00 and covers the 24 
 The first time it runs, the paper reads the past your Mac already keeps: about a year of Safari history, Mail, Books, Podcasts, Notes, Photos, the shell history and the git reflogs (`history.days`). It takes a minute or two. Then it prints the editions of the last seven days (`history.catchUp`), oldest first, and writes the Year in Review (**Archive → The Year in Review**). With a model, each past edition takes as long as a normal one: they come out in the background while you read.
 
 Already running the paper from before? `npm run history` does the same at any time.
+
+## Your projects: Home Affairs
+
+**Settings → Home Affairs** (Interni) is where the paper learns where your code lives. Press **Choose the folder…** (the Mac's own folder picker opens) or type its path, for example `~/Work/git`. The paper lists the git repositories inside it, up to three levels down, each with the first line of its README and how it stands.
+
+- Switch off the ones that aren't yours (a clone of someone else's project) with **Out**.
+- Give a repository the name the paper should call it by.
+- Every project has its own page: its chronicle, thirty days of commits, where the work went, its dependencies.
+
+The repositories are only read, with `git log`, `git status` and `git show`: the paper never writes to them, fetches or pushes. Without a folder chosen, it looks in the folders of the Files source.
 
 ## Run it in the background
 

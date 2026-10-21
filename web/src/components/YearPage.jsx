@@ -195,12 +195,12 @@ function headlineOf(m) {
 export function YearAgoBox({ ago }) {
   if (!ago) return null;
   const bits = [];
-  if (ago.subject) bits.push(tr({ en: <>the subject was <strong>{ago.subject}</strong></>, it: <>l'argomento era <strong>{ago.subject}</strong></> }));
-  if (ago.searches?.length) bits.push(tr({ en: <>you searched “{ago.searches[0]}”</>, it: <>cercavi «{ago.searches[0]}»</> }));
-  if (ago.book) bits.push(tr({ en: <>you were reading <em>{ago.book}</em></>, it: <>leggevi <em>{ago.book}</em></> }));
-  if (ago.episode) bits.push(tr({ en: <>in the headphones, {ago.episode.show || ago.episode.title}</>, it: <>in cuffia, {ago.episode.show || ago.episode.title}</> }));
-  if (ago.site && bits.length < 3) bits.push(tr({ en: <>{ago.site.site} came first</>, it: <>in testa c'era {ago.site.site}</> }));
-  if (ago.photos) bits.push(tr({ en: `${ago.photos} photo${ago.photos === 1 ? '' : 's'}`, it: `${ago.photos} foto` }));
+  if (ago.subject) bits.push(tr({ en: <>The subject was <strong>{ago.subject}</strong></>, it: <>L'argomento era <strong>{ago.subject}</strong></> }));
+  if (ago.searches?.length) bits.push(tr({ en: <>You searched “{ago.searches[0]}”</>, it: <>Cercavi «{ago.searches[0]}»</> }));
+  if (ago.book) bits.push(tr({ en: <>You were reading <em>{ago.book}</em></>, it: <>Leggevi <em>{ago.book}</em></> }));
+  if (ago.episode) bits.push(tr({ en: <>In the headphones, {ago.episode.show || ago.episode.title}</>, it: <>In cuffia, {ago.episode.show || ago.episode.title}</> }));
+  if (ago.site && bits.length < 3) bits.push(tr({ en: <>The site of the day: {ago.site.site}</>, it: <>In testa c'era {ago.site.site}</> }));
+  if (ago.photos) bits.push(tr({ en: `${ago.photos} photo${ago.photos === 1 ? '' : 's'} taken`, it: `${ago.photos} foto scattat${ago.photos === 1 ? 'a' : 'e'}` }));
   if (ago.commits) bits.push(tr({ en: `${ago.commits} commit${ago.commits === 1 ? '' : 's'}`, it: `${ago.commits} commit` }));
   if (!bits.length) return null;
   return (

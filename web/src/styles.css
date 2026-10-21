@@ -2085,7 +2085,6 @@ html { overflow-x: clip; }
 .year-ago-date { font: 600 12px/1.2 var(--f-sans); color: var(--muted); margin: 0 0 8px; text-transform: capitalize; }
 .year-ago ul { margin: 0 0 10px; padding: 0; list-style: none; font-size: 15px; line-height: 1.45; }
 .year-ago li + li { margin-top: 4px; }
-.year-ago li::first-letter { text-transform: uppercase; }
 .year-ago-link { font: 700 12px/1 var(--f-sans); color: var(--accent); }
 
 /* ───────── The Year in Review ───────── */

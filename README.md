@@ -43,6 +43,25 @@ On the first start the paper reads the past your Mac already keeps (a year of Sa
 
 The paper can also come out every hour or every week, in English or Italian. The house voice is in the [style guide](docs/STYLE.md).
 
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/interni.png" alt="Home Affairs: the site of the day, how every project stands, the standup already written"></td>
+<td width="50%"><img src="docs/screenshots/article.png" alt="An article: a subject followed across Mail, Safari and Notes"></td>
+</tr>
+<tr>
+<td align="center"><sub>Home Affairs: your projects, how they stand, the standup</sub></td>
+<td align="center"><sub>A subject, followed across apps</sub></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/screenshots/year.png" alt="The Year in Review: the subjects of every month, the habits, the hours of the Mac"></td>
+</tr>
+<tr>
+<td colspan="2" align="center"><sub>The Year in Review, from the past the Mac already keeps</sub></td>
+</tr>
+</table>
+
+<sub>All screenshots are of the demo (`npm run demo`): invented data, written by a local Gemma.</sub>
+
 ## Privacy, in five lines
 
 - The paper is served on `127.0.0.1` only, and keeps everything in `data/` in this folder.
@@ -65,6 +84,7 @@ It is a paper about a Mac, written from the Mac's own apps: Safari, Mail, Notes,
 | [PRIVACY.md](docs/PRIVACY.md) | What is read, what is never read, what leaves the machine |
 | [STYLE.md](docs/STYLE.md) | The style guide: one voice for the whole paper |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to help |
+| [CHANGELOG.md](CHANGELOG.md) | What changed, release by release |
 
 ## License
 

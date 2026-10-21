@@ -9,6 +9,7 @@
   "homepage": "https://github.com/granvalenti76/the-localhost-times#readme",
   "bugs": "https://github.com/granvalenti76/the-localhost-times/issues",
   "license": "MIT",
+  "author": "Luca T (https://github.com/granvalenti76)",
   "private": true,
   "type": "module",
   "engines": {
