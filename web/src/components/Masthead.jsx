@@ -1,5 +1,5 @@
 import React from 'react';
-import { longDate, dayFromKey, href, SECTIONS, writerLabel, edSince, editionName, pagesOf } from '../lib.js';
+import { dayFromKey, href, SECTIONS, writerLabel, edSince, editionName, pagesOf, modelName, isTypeset } from '../lib.js';
 import { tr, lang } from '../i18n.js';
 
 export default function Masthead({ edition, evening, day, status, activeSlug }) {
@@ -11,36 +11,40 @@ export default function Masthead({ edition, evening, day, status, activeSlug }) 
   const subjects = (edition?.articles || []).filter((a) => a.kind === 'subject').length;
   const port = typeof location !== 'undefined' ? location.port || '80' : '4321';
   const writer = writerLabel((edition || evening)?.writer || (status?.llm?.state === 'online' ? status.llm.model : null));
+  // the command that printed this page, as it would be typed in the terminal
+  const pad = (n) => String(n).padStart(2, '0');
+  const ymd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const hm = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const command = edition
+    ? `print --edition ${ymd(when)} --vol I --no ${edition.number ?? 1} --press ${hm(edition.end)}${edition.final ? '' : ' --draft'}`
+    : evening ? `print --evening ${evening.day}` : `open the-localhost-times${day ? ` --day ${day}` : ''}`;
+  const dateShort = new Intl.DateTimeFormat(lang === 'it' ? 'it-IT' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(when);
+  // how long the Mac had been awake when the paper went to press
+  const awake = edition?.mac?.awake && edition.mac.since ? Math.max(0, Math.round(((edition.final ? edition.end : Date.now()) - edition.mac.since) / 60e3)) : null;
+  const paper = evening ? tr({ en: 'evening', it: 'sera' }) : edition ? editionName(edition).toLowerCase() : status?.demo ? 'demo' : status?.cadence?.kind || 'daily';
+  const model = (edition || evening)?.writer || (status?.llm?.state === 'online' ? status.llm.model : null);
+  const stats = edition?.stats || evening?.stats;
   return (
-    <header className="mast">
+    <header className="mast mast-c">
+      <p className="mast-cmd"><span className="prompt">~ %</span> {command}{edition && edSince(edition) && edition.cadence === 'hourly' ? <span className="dim">{` # ${edSince(edition).replace(/^ · /, '')}`}</span> : null}</p>
       <div className="mast-head">
-        <div className="mast-ear mast-ear-left">
-          <strong>{longDate(when)}</strong>
-          {evening ? (
-            <span>{tr({ en: 'Evening edition', it: 'Edizione della sera' })}</span>
-          ) : edition ? (
-            <span>
-              {editionName(edition)}{edition.cadence && edition.cadence !== 'hourly' ? '' : edSince(edition)}
-              {!edition.final && <em className="live"> · {tr({ en: 'in progress', it: 'in corso' })}</em>}
-            </span>
-          ) : (
-            <span>{status?.demo ? tr({ en: 'Demo edition', it: 'Edizione dimostrativa' }) : status?.cadence?.kind === 'daily' ? tr({ en: 'Daily edition', it: 'Edizione quotidiana' }) : status?.cadence?.kind === 'weekly' ? tr({ en: 'Weekly edition', it: 'Edizione settimanale' }) : tr({ en: 'Hourly edition', it: 'Edizione oraria' })}</span>
-          )}
-          {edition && <span className="muted">{tr({ en: `${edition.stats.total} signals · ${edition.articles.length} articles${subjects ? ` · ${subjects} subject${subjects === 1 ? '' : 's'}` : ''}`, it: `${edition.stats.total} segnali · ${edition.articles.length} articoli${subjects ? ` · ${subjects} argoment${subjects === 1 ? 'o' : 'i'}` : ''}` })}</span>}
-          {evening && <span className="muted">{tr({ en: `${evening.stats.total} signals · ${evening.editions} editions`, it: `${evening.stats.total} segnali · ${evening.editions} edizioni` })}</span>}
-        </div>
+        <dl className="mast-ear mast-ear-left">
+          <dt>date</dt><dd>{dateShort}</dd>
+          <dt>paper</dt><dd>{paper}{edition && !edition.final ? <em className="live"> · {tr({ en: 'in progress', it: 'in corso' })}</em> : null}</dd>
+          {awake != null && <><dt>uptime</dt><dd>{awake >= 60 ? `${Math.floor(awake / 60)}h ${awake % 60}m` : `${awake}m`}</dd></>}
+          {stats && <><dt>signals</dt><dd>{stats.total.toLocaleString()}</dd></>}
+          {edition && <><dt>pieces</dt><dd>{edition.articles.length}{subjects ? ` · ${subjects} ${tr({ en: subjects === 1 ? 'subject' : 'subjects', it: subjects === 1 ? 'argomento' : 'argomenti' })}` : ''}</dd></>}
+        </dl>
         <h1 className="nameplate">
-          <a href={href.latest()}>The Localhost Times</a>
+          <a href={href.latest()}>The Localhost Times<span className="cursor" aria-hidden="true" /></a>
         </h1>
-        <div className="mast-ear mast-ear-right">
-          <span className="motto">{lang === 'it' ? '«' : '“'}All the news that{' '}<br />never left the machine{lang === 'it' ? '»' : '”'}</span>
-        </div>
+        <dl className="mast-ear mast-ear-right">
+          <dt>host</dt><dd>127.0.0.1:{port}</dd>
+          <dt>model</dt><dd title={writer}>{model && !isTypeset(model) ? modelName(String(model).split(' + ')[0]).toLowerCase().split(/\s+/).slice(0, 3).join('-') : tr({ en: 'typesetting', it: 'tipografia' })}</dd>
+          <dt>cloud</dt><dd>none</dd>
+        </dl>
       </div>
-      <div className="mast-bar">
-        <span>Vol. I · No. {edition?.number ?? '—'}</span>
-        <span className="mast-host">{tr({ en: `Printed on 127.0.0.1, port ${port}`, it: `Stampato su 127.0.0.1, porta ${port}` })}</span>
-        <span>{tr({ en: 'Writer', it: 'Redattore' })}: {writer}</span>
-      </div>
+      <p className="mast-motto"><span className="dim">#</span> all the news that never left the machine</p>
       <nav className="sections" aria-label={tr({ en: 'Sections', it: 'Sezioni' })}>
         <div className="sections-pages">
           <a href={edition ? href.edition(edition.id) : href.latest()} className={!activeSlug ? 'on' : ''}><span className="pg">A1</span>{tr({ en: 'Front page', it: 'Prima pagina' })}</a>

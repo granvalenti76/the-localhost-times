@@ -2299,3 +2299,28 @@ html { overflow-x: clip; }
 .front-main .briefs.v2 { border-top: 1px solid var(--hair); margin-top: 22px; padding-top: 4px; }
 .front-main .briefs.v2 ul { columns: 2 240px; column-gap: 24px; column-rule: 1px solid var(--hair); }
 .front-main .briefs.v2 li { break-inside: avoid; }
+
+/* ═════════ The masthead, printed from the terminal ═════════ */
+:root { --f-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace; }
+.mast-c { padding-top: 16px; }
+.mast-cmd { margin: 0; padding-bottom: 9px; border-bottom: 1px dashed color-mix(in oklab, var(--muted) 70%, var(--paper)); font: 400 12.5px/1.4 var(--f-mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.mast-cmd .prompt { color: var(--accent); font-weight: 700; }
+.mast-c .dim { color: var(--muted); }
+.mast-c .mast-head { grid-template-columns: minmax(170px, 1fr) auto minmax(170px, 1fr); align-items: end; padding: 16px 0 0; }
+.mast-c .mast-ear { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font: 400 11.5px/1.45 var(--f-mono); }
+.mast-c .mast-ear dt { color: var(--muted); }
+.mast-c .mast-ear dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mast-c .mast-ear-right { text-align: right; grid-template-columns: 1fr auto; }
+.mast-c .mast-ear-right dt { order: 0; }
+.mast-c .nameplate { font-size: clamp(36px, 6.4vw, 88px); }
+.mast-c .nameplate .cursor { display: inline-block; width: .42em; height: .74em; margin-left: .08em; background: var(--accent); vertical-align: -.03em; animation: lt-blink 1.1s steps(1) infinite; }
+@keyframes lt-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mast-c .nameplate .cursor { animation: none; } }
+.mast-motto { margin: 10px 0 0; padding-bottom: 12px; text-align: center; font: 400 13.5px/1.3 var(--f-mono); color: var(--ink-2); border-bottom: 3px double var(--rule); }
+.mast-c + .edbar, .mast-c .sections { border-top: 0; }
+@media (max-width: 980px) {
+  .mast-c .mast-head { grid-template-columns: 1fr 1fr; text-align: left; }
+  .mast-c .nameplate { grid-column: 1 / -1; grid-row: 1; margin-bottom: 10px; }
+  .mast-c .mast-ear-left { grid-row: 2; }
+  .mast-c .mast-ear-right { grid-row: 2; }
+}
