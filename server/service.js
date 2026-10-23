@@ -59,7 +59,8 @@ export function plist({ node, root, log, pathEnv }) {
 
 function launchctl(args, { quiet = false } = {}) {
   try {
-    return execFileSync('/bin/launchctl', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', quiet ? 'ignore' : 'pipe'] });
+    // kickstart waits forever on a job launchd cannot spawn (e.g. its node is gone): never hang on it
+    return execFileSync('/bin/launchctl', args, { encoding: 'utf8', timeout: 15000, stdio: ['ignore', 'pipe', quiet ? 'ignore' : 'pipe'] });
   } catch (e) {
     if (quiet) return null;
     throw e;
@@ -99,6 +100,34 @@ function stableNode() {
   return process.execPath;
 }
 
+/** Write the agent for the node running now; true if it changed (e.g. nvm or brew moved node since the install). */
+function writePlist() {
+  const pathEnv = [...new Set([path.dirname(process.execPath), '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin'])].join(':');
+  const next = plist({ node: stableNode(), root: ROOT, log: logFile, pathEnv });
+  let prev = null;
+  try { prev = fs.readFileSync(plistPath, 'utf8'); } catch { /* not installed yet */ }
+  fs.mkdirSync(path.dirname(plistPath), { recursive: true });
+  fs.mkdirSync(logDir, { recursive: true });
+  if (prev === next) return false;
+  fs.writeFileSync(plistPath, next);
+  return true;
+}
+
+/** (Re)load the agent from the plist on disk. */
+async function load(st) {
+  if (st.loaded) {
+    launchctl(['bootout', target()], { quiet: true });
+    await new Promise((r) => setTimeout(r, 1000)); // launchd needs a moment before the label can be loaded again
+  }
+  launchctl(['enable', target()], { quiet: true }); // a previously disabled agent would refuse to load
+  try {
+    launchctl(['bootstrap', `gui/${uid()}`, plistPath]);
+  } catch {
+    await new Promise((r) => setTimeout(r, 2000));
+    launchctl(['bootstrap', `gui/${uid()}`, plistPath]); // "Bootstrap failed: 5" usually goes away on retry
+  }
+}
+
 function permissionsHelp() {
   const node = realNode();
   return tr({
@@ -111,7 +140,7 @@ Permissions — once, by hand:
   Then: npm run service:status
   If your model is on another computer, macOS will also ask whether "node" may
   use the Local Network: say yes.
-  After a Node.js upgrade (brew upgrade) the path changes: add the new one.`,
+  After a Node.js upgrade (brew upgrade, nvm) the path changes: add the new one.`,
     it: `
 Permessi — una volta, a mano:
   Il servizio gira come "node", non dentro il Terminale, quindi macOS chiede di nuovo.
@@ -121,7 +150,7 @@ Permessi — una volta, a mano:
   Poi: npm run service:status
   Se il modello è su un altro computer, macOS chiederà anche se "node" può usare
   la rete locale: rispondi di sì.
-  Dopo un aggiornamento di Node.js (brew upgrade) il percorso cambia: aggiungi quello nuovo.`,
+  Dopo un aggiornamento di Node.js (brew upgrade, nvm) il percorso cambia: aggiungi quello nuovo.`,
   });
 }
 
@@ -140,24 +169,10 @@ async function install() {
   }
   buildSite();
 
-  fs.mkdirSync(path.dirname(plistPath), { recursive: true });
-  fs.mkdirSync(logDir, { recursive: true });
-  const pathEnv = [...new Set([path.dirname(process.execPath), '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin'])].join(':');
-  fs.writeFileSync(plistPath, plist({ node: stableNode(), root: ROOT, log: logFile, pathEnv }));
-
+  writePlist();
   // start a fresh log (launchd keeps the file open while the service runs)
   try { if (fs.statSync(logFile).size > 1e6) fs.renameSync(logFile, `${logFile}.1`); } catch { /* no log yet */ }
-  if (st.loaded) {
-    launchctl(['bootout', target()], { quiet: true });
-    await new Promise((r) => setTimeout(r, 1000)); // launchd needs a moment before the label can be loaded again
-  }
-  launchctl(['enable', target()], { quiet: true }); // a previously disabled agent would refuse to load
-  try {
-    launchctl(['bootstrap', `gui/${uid()}`, plistPath]);
-  } catch {
-    await new Promise((r) => setTimeout(r, 2000));
-    launchctl(['bootstrap', `gui/${uid()}`, plistPath]); // "Bootstrap failed: 5" usually goes away on retry
-  }
+  await load(st);
   console.log(tr({ en: `› Agent installed: ${plistPath}`, it: `› Servizio installato: ${plistPath}` }));
 
   let up = null;
@@ -229,14 +244,13 @@ async function start() {
   if (!fs.existsSync(plistPath)) notInstalled();
   const st = serviceState();
   if (st.running) return console.log(tr({ en: `Already running (pid ${st.pid}).`, it: `È già in funzione (pid ${st.pid}).` }));
-  if (st.loaded) launchctl(['kickstart', target()]);
-  else {
-    launchctl(['enable', target()], { quiet: true });
-    launchctl(['bootstrap', `gui/${uid()}`, plistPath]);
-  }
+  const moved = writePlist();
+  if (st.loaded && !moved) launchctl(['kickstart', target()]);
+  else await load(st);
   console.log(await waitUp()
     ? tr({ en: `✓ Started: http://localhost:${config.port}`, it: `✓ Avviato: http://localhost:${config.port}` })
     : tr({ en: '! Not answering yet. Look at the log: npm run service:logs', it: '! Non risponde ancora. Guarda il log: npm run service:logs' }));
+  if (moved) console.log(permissionsHelp()); // a new node binary needs Full Disk Access again
 }
 
 function stop() {
@@ -255,14 +269,13 @@ async function restart() {
   if (!fs.existsSync(plistPath)) notInstalled();
   buildSite(); // after an update the page must be rebuilt too
   const st = serviceState();
-  if (st.loaded) launchctl(['kickstart', '-k', target()]); // -k: kill the running one and start again
-  else {
-    launchctl(['enable', target()], { quiet: true });
-    launchctl(['bootstrap', `gui/${uid()}`, plistPath]);
-  }
+  const moved = writePlist();
+  if (st.loaded && !moved) launchctl(['kickstart', '-k', target()]); // -k: kill the running one and start again
+  else await load(st);
   console.log(await waitUp()
     ? tr({ en: `✓ Restarted: http://localhost:${config.port}`, it: `✓ Riavviato: http://localhost:${config.port}` })
     : tr({ en: '! Not answering yet. Look at the log: npm run service:logs', it: '! Non risponde ancora. Guarda il log: npm run service:logs' }));
+  if (moved) console.log(permissionsHelp()); // a new node binary needs Full Disk Access again
 }
 
 function logs() {
